@@ -1,24 +1,24 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import scala.concurrent.{ ExecutionContext, Future }
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import com.blackfynn.discover._
-import com.blackfynn.discover.server.file.{
+import com.pennsieve.discover._
+import com.pennsieve.discover.server.file.{
   FileHandler => GuardrailHandler,
   FileResource => GuardrailResource
 }
 
-import com.blackfynn.discover.db.PublicFilesMapper
-import com.blackfynn.discover.logging.{
+import com.pennsieve.discover.db.PublicFilesMapper
+import com.pennsieve.discover.logging.{
   logRequestAndResponse,
   DiscoverLogContext
 }
-import com.blackfynn.discover.models.{ FileTreeNode, FileTreeNodeDTO }
-import com.blackfynn.discover.server.definitions.FileTreePage
+import com.pennsieve.discover.models.{ FileTreeNode, FileTreeNodeDTO }
+import com.pennsieve.discover.server.definitions.FileTreePage
 
 /**
   * Handler for public endpoints for getting files from their sourcePackageId

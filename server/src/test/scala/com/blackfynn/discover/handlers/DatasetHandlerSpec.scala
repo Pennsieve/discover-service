@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import java.nio.file.Path
 import java.time.LocalDate
@@ -25,15 +25,15 @@ import akka.http.scaladsl.testkit.{ RouteTestTimeout, ScalatestRouteTest }
 import akka.stream.scaladsl._
 import akka.testkit.TestDuration
 import akka.util.ByteString
-import com.blackfynn.discover.TestUtilities._
-import com.blackfynn.discover._
-import com.blackfynn.discover.client.dataset._
-import com.blackfynn.discover.client.definitions.{
+import com.pennsieve.discover.TestUtilities._
+import com.pennsieve.discover._
+import com.pennsieve.discover.client.dataset._
+import com.pennsieve.discover.client.definitions.{
   DatasetsPage,
   DownloadRequest,
   PreviewAccessRequest
 }
-import com.blackfynn.discover.clients.{
+import com.pennsieve.discover.clients.{
   DatasetPreview,
   HttpError,
   MockAuthorizationClient,
@@ -41,29 +41,29 @@ import com.blackfynn.discover.clients.{
   TestFile,
   User
 }
-import com.blackfynn.discover.db.{
+import com.pennsieve.discover.db.{
   DatasetDownloadsMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   SponsorshipsMapper
 }
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.server.definitions.SponsorshipDTO
-import com.blackfynn.models.PublishStatus.{
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.server.definitions.SponsorshipDTO
+import com.pennsieve.models.PublishStatus.{
   EmbargoSucceeded,
   NotPublished,
   PublishInProgress,
   PublishSucceeded,
   Unpublished
 }
-import com.blackfynn.models.{
+import com.pennsieve.models.{
   FileType,
   Icon,
   PackageType,
   PublishStatus,
   RelationshipType
 }
-import com.blackfynn.test.EitherValue._
+import com.pennsieve.test.EitherValue._
 import io.circe._
 import io.circe.syntax._
 import io.scalaland.chimney.dsl._
@@ -71,8 +71,8 @@ import org.scalatest.{ Matchers, WordSpec }
 import squants.information.Megabytes
 import java.time.LocalDate
 
-import com.blackfynn.auth.middleware.Jwt
-import com.blackfynn.discover.Authenticator.{
+import com.pennsieve.auth.middleware.Jwt
+import com.pennsieve.discover.Authenticator.{
   generateServiceClaim,
   generateServiceToken,
   generateUserToken

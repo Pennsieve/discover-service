@@ -1,11 +1,11 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.models
+package com.pennsieve.discover.models
 
 import java.time.OffsetDateTime
 
-import com.blackfynn.discover.utils
-import com.blackfynn.models.FileType
+import com.pennsieve.discover.utils
+import com.pennsieve.models.FileType
 import scala.collection.immutable
 
 /**

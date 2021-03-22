@@ -1,15 +1,15 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.blackfynn.discover.{ ServiceSpecHarness, TestUtilities }
-import com.blackfynn.discover.TestUtilities.TempDirectoryFixture
-import com.blackfynn.discover.client.definitions.DatasetTag
-import com.blackfynn.discover.client.tag.{ GetTagsResponse, TagClient }
-import com.blackfynn.models.PublishStatus
-import com.blackfynn.test.EitherValue._
+import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.TestUtilities.TempDirectoryFixture
+import com.pennsieve.discover.client.definitions.DatasetTag
+import com.pennsieve.discover.client.tag.{ GetTagsResponse, TagClient }
+import com.pennsieve.models.PublishStatus
+import com.pennsieve.test.EitherValue._
 import org.scalatest.{ Matchers, WordSpec }
 
 class TagHandlerSpec

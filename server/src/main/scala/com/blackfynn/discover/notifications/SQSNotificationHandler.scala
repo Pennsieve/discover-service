@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.notifications
+package com.pennsieve.discover.notifications
 
 import java.util.Calendar
 
@@ -13,7 +13,7 @@ import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Source }
 import akka.stream.{ ActorMaterializer, _ }
 import cats.data._
 import cats.implicits._
-import com.blackfynn.discover.db.{
+import com.pennsieve.discover.db.{
   PublicCollectionsMapper,
   PublicContributorsMapper,
   PublicDatasetVersionsMapper,
@@ -22,19 +22,19 @@ import com.blackfynn.discover.db.{
   PublicFilesMapper
 }
 
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.logging.DiscoverLogContext
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.search.Search
-import com.blackfynn.discover.server.definitions.{
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.logging.DiscoverLogContext
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.search.Search
+import com.pennsieve.discover.server.definitions.{
   DatasetPublishStatus,
   InternalContributor
 }
-import com.blackfynn.discover.{ Authenticator, Ports, UnauthorizedException }
-import com.blackfynn.doi.client.definitions.PublishDoiRequest
-import com.blackfynn.doi.models.{ DoiDTO, DoiState }
-import com.blackfynn.models.{ DatasetMetadata, PublishStatus }
-import com.blackfynn.service.utilities.LogContext
+import com.pennsieve.discover.{ Authenticator, Ports, UnauthorizedException }
+import com.pennsieve.doi.client.definitions.PublishDoiRequest
+import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.models.{ DatasetMetadata, PublishStatus }
+import com.pennsieve.service.utilities.LogContext
 import io.circe.parser.decode
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient

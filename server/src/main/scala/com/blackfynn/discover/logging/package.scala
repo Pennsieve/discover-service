@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
 import akka.http.scaladsl.server.{ Directive, RouteResult }
 import akka.http.scaladsl.server.directives.{

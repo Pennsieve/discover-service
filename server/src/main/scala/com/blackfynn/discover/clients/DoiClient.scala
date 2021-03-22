@@ -1,24 +1,24 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
 import cats.data._
 import cats.implicits._
-import com.blackfynn.discover.server.definitions.InternalContributor
-import com.blackfynn.doi.client.doi.{ DoiClient => DoiServiceClient }
-import com.blackfynn.doi.client.definitions._
-import com.blackfynn.doi.client.doi.{
+import com.pennsieve.discover.server.definitions.InternalContributor
+import com.pennsieve.doi.client.doi.{ DoiClient => DoiServiceClient }
+import com.pennsieve.doi.client.definitions._
+import com.pennsieve.doi.client.doi.{
   CreateDraftDoiResponse,
   GetLatestDoiResponse,
   HideDoiResponse,
   PublishDoiResponse,
   ReviseDoiResponse
 }
-import com.blackfynn.doi.models.{ DoiDTO, DoiState }
-import com.blackfynn.discover.{
+import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.discover.{
   Authenticator,
   DoiCreationException,
   DoiServiceException,
@@ -27,8 +27,8 @@ import com.blackfynn.discover.{
   Ports,
   UnauthorizedException
 }
-import com.blackfynn.discover.models._
-import com.blackfynn.models.License
+import com.pennsieve.discover.models._
+import com.pennsieve.models.License
 import io.circe.{ DecodingFailure, Json }
 
 import scala.concurrent.duration._

@@ -1,8 +1,8 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.logging
+package com.pennsieve.discover.logging
 
-import com.blackfynn.service.utilities.LogContext
+import com.pennsieve.service.utilities.LogContext
 
 final case class DiscoverLogContext(
   organizationId: Option[Int] = None,

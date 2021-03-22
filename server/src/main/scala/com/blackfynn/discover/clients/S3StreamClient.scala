@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.{ Done, NotUsed }
 import akka.actor.ActorSystem
@@ -13,11 +13,11 @@ import akka.stream.alpakka.s3.ListBucketResultContents
 import akka.stream.alpakka.s3.scaladsl.S3
 import akka.stream.alpakka.csv.scaladsl.{ CsvParsing, CsvToMap }
 import akka.util.ByteString
-import com.blackfynn.discover.{ utils, S3Exception }
-import com.blackfynn.discover.downloads.ZipStream._
-import com.blackfynn.discover.models._
-import com.blackfynn.models._
-import com.blackfynn.discover.utils.joinPath
+import com.pennsieve.discover.{ utils, S3Exception }
+import com.pennsieve.discover.downloads.ZipStream._
+import com.pennsieve.discover.models._
+import com.pennsieve.models._
+import com.pennsieve.discover.utils.joinPath
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.io.FilenameUtils
 import squants.information.Information
@@ -33,7 +33,7 @@ import io.scalaland.chimney.dsl._
 import java.nio.charset.StandardCharsets
 import java.time.Duration
 
-import com.blackfynn.discover.models.Revision
+import com.pennsieve.discover.models.Revision
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner

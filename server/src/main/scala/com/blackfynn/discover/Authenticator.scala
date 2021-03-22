@@ -1,9 +1,9 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
-import com.blackfynn.auth.middleware.Jwt.Role.RoleIdentifier
-import com.blackfynn.auth.middleware.{
+import com.pennsieve.auth.middleware.Jwt.Role.RoleIdentifier
+import com.pennsieve.auth.middleware.{
   DatasetId,
   DatasetPermission,
   Jwt,
@@ -13,12 +13,12 @@ import com.blackfynn.auth.middleware.{
   UserId,
   Wildcard
 }
-import com.blackfynn.auth.middleware.Validator.{
+import com.pennsieve.auth.middleware.Validator.{
   hasDatasetAccess,
   hasOrganizationAccess,
   isServiceClaim
 }
-import com.blackfynn.models.Role
+import com.pennsieve.models.Role
 import shapeless.syntax.inject._
 
 import scala.concurrent.duration._

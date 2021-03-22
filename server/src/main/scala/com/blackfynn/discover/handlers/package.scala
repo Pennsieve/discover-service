@@ -1,9 +1,9 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import cats.implicits._
-import com.blackfynn.discover.BadQueryParameter
+import com.pennsieve.discover.BadQueryParameter
 
 import scala.concurrent.Future
 

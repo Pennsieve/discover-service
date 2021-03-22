@@ -1,23 +1,23 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
-import com.blackfynn.discover.client.file.{
+import com.pennsieve.discover.client.file.{
   FileClient,
   GetFileFromSourcePackageIdResponse
 }
-import com.blackfynn.models.{ FileType, Icon, PackageType }
+import com.pennsieve.models.{ FileType, Icon, PackageType }
 import org.scalatest.{ Matchers, WordSpec }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.{ RouteTestTimeout, ScalatestRouteTest }
-import com.blackfynn.discover._
-import com.blackfynn.discover.TestUtilities._
-import com.blackfynn.models.PublishStatus.{
+import com.pennsieve.discover._
+import com.pennsieve.discover.TestUtilities._
+import com.pennsieve.models.PublishStatus.{
   PublishInProgress,
   PublishSucceeded
 }
-import com.blackfynn.models.PublishStatus
+import com.pennsieve.models.PublishStatus
 
 class FileHandlerSpec
     extends WordSpec

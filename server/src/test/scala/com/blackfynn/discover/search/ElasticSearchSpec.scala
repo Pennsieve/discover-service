@@ -1,15 +1,15 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.search
+package com.pennsieve.discover.search
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.blackfynn.models._
-import com.blackfynn.discover._
-import com.blackfynn.discover.TestUtilities._
-import com.blackfynn.discover.clients.AwsElasticSearchClient
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.server.definitions
+import com.pennsieve.models._
+import com.pennsieve.discover._
+import com.pennsieve.discover.TestUtilities._
+import com.pennsieve.discover.clients.AwsElasticSearchClient
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.server.definitions
 import org.scalatest.{ Matchers, WordSpec }
 import com.sksamuel.elastic4s.http.search.SearchResponse
 import com.sksamuel.elastic4s.http.ElasticDsl._

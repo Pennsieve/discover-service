@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.scripts
+package com.pennsieve.discover.scripts
 
 import akka.{ Done, NotUsed }
 import akka.stream._
@@ -11,11 +11,11 @@ import akka.stream.ActorMaterializer
 import akka.stream.alpakka.s3.scaladsl.S3
 import cats.data._
 import cats.implicits._
-import com.blackfynn.discover._
-import com.blackfynn.discover.db._
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.models._
-import com.blackfynn.models.PublishStatus
+import com.pennsieve.discover._
+import com.pennsieve.discover.db._
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.models._
+import com.pennsieve.models.PublishStatus
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration._

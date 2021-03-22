@@ -1,14 +1,14 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import java.time._
 
 import cats.data.EitherT
 import cats.implicits._
-import com.blackfynn.discover.models.DatasetDownload
-import com.blackfynn.discover.models.DownloadOrigin
-import com.blackfynn.discover.server.definitions.DatasetPublishStatus
+import com.pennsieve.discover.models.DatasetDownload
+import com.pennsieve.discover.models.DownloadOrigin
+import com.pennsieve.discover.server.definitions.DatasetPublishStatus
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ ExecutionContext, Future }

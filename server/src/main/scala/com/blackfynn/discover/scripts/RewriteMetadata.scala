@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.scripts
+package com.pennsieve.discover.scripts
 
 import akka.{ Done, NotUsed }
 import akka.stream._
@@ -9,12 +9,12 @@ import akka.util.ByteString
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.s3.scaladsl.S3
-import com.blackfynn.models.{ License, PublishStatus }
-import com.blackfynn.discover._
-import com.blackfynn.discover.db._
-import com.blackfynn.discover.models.PublicDatasetVersion
-import com.blackfynn.models.{ FileExtensions, FileType }
-import com.blackfynn.discover.db.profile.api._
+import com.pennsieve.models.{ License, PublishStatus }
+import com.pennsieve.discover._
+import com.pennsieve.discover.db._
+import com.pennsieve.discover.models.PublicDatasetVersion
+import com.pennsieve.models.{ FileExtensions, FileType }
+import com.pennsieve.discover.db.profile.api._
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 import io.circe.{ Decoder, Encoder }

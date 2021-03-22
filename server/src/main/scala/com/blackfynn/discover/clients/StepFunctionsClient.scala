@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import cats.implicits._
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
@@ -12,7 +12,7 @@ import software.amazon.awssdk.services.sfn.model.{
 }
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 
-import com.blackfynn.discover.models.{ EmbargoReleaseJob, PublishJob }
+import com.pennsieve.discover.models.{ EmbargoReleaseJob, PublishJob }
 import io.circe.syntax._
 
 import scala.compat.java8.FutureConverters._

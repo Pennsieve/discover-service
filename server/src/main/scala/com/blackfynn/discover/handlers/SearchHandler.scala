@@ -1,13 +1,13 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import com.blackfynn.discover.{ BadQueryParameter, Config, Ports }
-import com.blackfynn.discover.db.PublicDatasetVersionsMapper
-import com.blackfynn.discover.models.{
+import com.pennsieve.discover.{ BadQueryParameter, Config, Ports }
+import com.pennsieve.discover.db.PublicDatasetVersionsMapper
+import com.pennsieve.discover.models.{
   DatasetDocument,
   DatasetsPage,
   FileDocument,
@@ -16,13 +16,13 @@ import com.blackfynn.discover.models.{
   OrderDirection,
   RecordPage
 }
-import com.blackfynn.discover.logging.logRequestAndResponse
-import com.blackfynn.discover.server.definitions
-import com.blackfynn.discover.server.search.{
+import com.pennsieve.discover.logging.logRequestAndResponse
+import com.pennsieve.discover.server.definitions
+import com.pennsieve.discover.server.search.{
   SearchHandler => GuardrailHandler,
   SearchResource => GuardrailResource
 }
-import com.blackfynn.models.PublishStatus
+import com.pennsieve.models.PublishStatus
 import com.sksamuel.elastic4s.circe._
 
 import scala.concurrent.{ ExecutionContext, Future }

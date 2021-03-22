@@ -1,20 +1,20 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.db
+package com.pennsieve.discover.db
 
 import java.time.OffsetDateTime
 
 import cats.Monoid
 import cats.implicits._
-import com.blackfynn.discover.{ db, _ }
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.server.definitions.{
+import com.pennsieve.discover.{ db, _ }
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.server.definitions.{
   DatasetPublishStatus,
   SponsorshipRequest
 }
-import com.blackfynn.models.PublishStatus
-import com.blackfynn.models.PublishStatus.{
+import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.PublishStatus.{
   NotPublished,
   PublishFailed,
   PublishSucceeded

@@ -1,8 +1,8 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
-import com.blackfynn.discover.models.{
+import com.pennsieve.discover.models.{
   PublicDataset,
   PublicDatasetVersion,
   S3Bucket,

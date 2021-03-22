@@ -1,22 +1,22 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.integration
+package com.pennsieve.discover.integration
 
 import java.time._
 
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.blackfynn.discover.{ ServiceSpecHarness, TestUtilities }
-import com.blackfynn.discover.client.sync.{
+import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.client.sync.{
   SyncAthenaDownloadsResponse,
   SyncClient
 }
-import com.blackfynn.discover.client.metrics.MetricsClient
-import com.blackfynn.discover.clients.{ AthenaClient, AthenaClientImpl }
+import com.pennsieve.discover.client.metrics.MetricsClient
+import com.pennsieve.discover.clients.{ AthenaClient, AthenaClientImpl }
 import org.scalatest.{ Matchers, WordSpec }
-import com.blackfynn.discover.handlers.SyncHandler
-import com.blackfynn.discover.models.DatasetDownload
-import com.blackfynn.discover.models.DownloadOrigin.AWSRequesterPayer
+import com.pennsieve.discover.handlers.SyncHandler
+import com.pennsieve.discover.models.DatasetDownload
+import com.pennsieve.discover.models.DownloadOrigin.AWSRequesterPayer
 
 class AthenaClientIntegrationSpec
     extends WordSpec

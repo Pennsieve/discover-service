@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.downloads
+package com.pennsieve.discover.downloads
 
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -8,9 +8,9 @@ import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 
-import com.blackfynn.test.AwaitableImplicits
-import com.blackfynn.discover.TestUtilities._
-import com.blackfynn.discover.clients.{ MockS3StreamClient, TestFile }
+import com.pennsieve.test.AwaitableImplicits
+import com.pennsieve.discover.TestUtilities._
+import com.pennsieve.discover.clients.{ MockS3StreamClient, TestFile }
 import org.scalatest.{ Matchers, WordSpec }
 import org.scalatest.concurrent.ScalaFutures
 

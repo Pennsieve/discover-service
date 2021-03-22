@@ -1,12 +1,12 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
-import com.blackfynn.discover.db._
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.models._
-import com.blackfynn.models.{ Degree, License, PublishStatus }
-import com.blackfynn.test.AwaitableImplicits
+import com.pennsieve.discover.db._
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.models._
+import com.pennsieve.models.{ Degree, License, PublishStatus }
+import com.pennsieve.test.AwaitableImplicits
 import java.nio.file.{ Files, Path }
 import java.util.UUID
 import java.util.Comparator

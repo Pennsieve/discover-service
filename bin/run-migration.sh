@@ -37,4 +37,4 @@ export DISCOVER_POSTGRES_HOST=localhost
 export DISCOVER_POSTGRES_PORT=$local_postgres_port
 export DISCOVER_POSTGRES_USER=$user
 export DISCOVER_POSTGRES_PASSWORD=$password
-sbt "server/runMain com.blackfynn.discover.scripts.$migration $3"
+sbt "server/runMain com.pennsieve.discover.scripts.$migration $3"

@@ -1,43 +1,43 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.scaladsl.{ Sink, Source }
-import com.blackfynn.auth.middleware.Jwt
-import com.blackfynn.discover.Authenticator.{
+import com.pennsieve.auth.middleware.Jwt
+import com.pennsieve.discover.Authenticator.{
   generateServiceToken,
   generateUserToken
 }
-import com.blackfynn.discover._
-import com.blackfynn.discover.client.definitions
-import com.blackfynn.discover.client.definitions.{
+import com.pennsieve.discover._
+import com.pennsieve.discover.client.definitions
+import com.pennsieve.discover.client.definitions.{
   DatasetPublishStatus,
   InternalCollection,
   InternalContributor,
   SponsorshipRequest,
   SponsorshipResponse
 }
-import com.blackfynn.discover.client.publish._
-import com.blackfynn.discover.clients._
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.db._
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.notifications.{
+import com.pennsieve.discover.client.publish._
+import com.pennsieve.discover.clients._
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.db._
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.notifications.{
   PublishNotification,
   SQSNotificationHandler
 }
-import com.blackfynn.models.PublishStatus.{
+import com.pennsieve.models.PublishStatus.{
   PublishFailed,
   PublishInProgress,
   PublishSucceeded,
   Unpublished
 }
-import com.blackfynn.models.{ Degree, License, PublishStatus, RelationshipType }
-import com.blackfynn.test.EitherValue._
+import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
+import com.pennsieve.test.EitherValue._
 import io.circe.syntax._
 import org.scalatest.{ Inside, Matchers, WordSpec }
 import software.amazon.awssdk.services.sqs.model.Message

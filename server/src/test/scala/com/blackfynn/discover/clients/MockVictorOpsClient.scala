@@ -1,11 +1,11 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.Done
-import com.blackfynn.discover.models.PublicDatasetVersion
-import com.blackfynn.discover.notifications.SQSNotification
-import com.blackfynn.service.utilities.LogContext
+import com.pennsieve.discover.models.PublicDatasetVersion
+import com.pennsieve.discover.notifications.SQSNotification
+import com.pennsieve.service.utilities.LogContext
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ ExecutionContext, Future }

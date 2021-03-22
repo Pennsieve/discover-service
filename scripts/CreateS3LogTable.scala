@@ -8,11 +8,11 @@ import akka.stream.Materializer
 import cats.data.EitherT
 import cats.implicits._
 
-import com.blackfynn.models.License._
-import com.blackfynn.models.License
-import com.blackfynn.service.utilities.ContextLogger
-import com.blackfynn.service.utilities.SingleHttpResponder
-import com.blackfynn.discover._
+import com.pennsieve.models.License._
+import com.pennsieve.models.License
+import com.pennsieve.service.utilities.ContextLogger
+import com.pennsieve.service.utilities.SingleHttpResponder
+import com.pennsieve.discover._
 import scalikejdbc._
 import scalikejdbc.athena._
 
@@ -30,7 +30,7 @@ object CreateS3LogTable extends App {
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val config: com.blackfynn.discover.Config = com.blackfynn.discover.Config.load
+  val config: com.pennsieve.discover.Config = com.pennsieve.discover.Config.load
 
   if (args.length != 1) {
     println("usage:")

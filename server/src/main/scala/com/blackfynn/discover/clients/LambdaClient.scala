@@ -1,11 +1,11 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.awslambda.scaladsl.AwsLambdaFlow
 import akka.stream.scaladsl.{ Sink, Source }
-import com.blackfynn.discover.LambdaException
+import com.pennsieve.discover.LambdaException
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.syntax._
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider

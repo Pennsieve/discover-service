@@ -1,8 +1,8 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
-import com.blackfynn.test.AwaitableImplicits
+import com.pennsieve.test.AwaitableImplicits
 import com.whisk.docker._
 
 import scala.concurrent.duration._

@@ -1,26 +1,26 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.db
+package com.pennsieve.discover.db
 
 import java.time.OffsetDateTime
 
-import com.blackfynn.discover.{
+import com.pennsieve.discover.{
   NoDatasetException,
   NoDatasetForSourcesException
 }
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.models.{
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.models.{
   DatasetMetrics,
   PublicDataset,
   PublicDatasetVersion,
   Sponsorship
 }
-import com.blackfynn.discover.server.definitions.{
+import com.pennsieve.discover.server.definitions.{
   DatasetPublishStatus,
   DatasetTag
 }
-import com.blackfynn.models.License
-import com.blackfynn.models.PublishStatus.PublishSucceeded
+import com.pennsieve.models.License
+import com.pennsieve.models.PublishStatus.PublishSucceeded
 import slick.dbio.{ DBIOAction, Effect }
 
 import scala.concurrent.ExecutionContext

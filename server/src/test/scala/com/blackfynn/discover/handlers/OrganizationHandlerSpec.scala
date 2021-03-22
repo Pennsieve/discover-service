@@ -1,23 +1,23 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.blackfynn.auth.middleware.Jwt
-import com.blackfynn.discover.Authenticator.generateUserToken
-import com.blackfynn.discover.client.definitions.{
+import com.pennsieve.auth.middleware.Jwt
+import com.pennsieve.discover.Authenticator.generateUserToken
+import com.pennsieve.discover.client.definitions.{
   DatasetMetrics,
   DatasetMetricsDTO
 }
-import com.blackfynn.discover.client.organization.{
+import com.pennsieve.discover.client.organization.{
   GetOrganizationDatasetMetricsResponse,
   OrganizationClient
 }
-import com.blackfynn.discover.{ ServiceSpecHarness, TestUtilities }
-import com.blackfynn.models.PublishStatus
-import com.blackfynn.test.EitherValue._
+import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.models.PublishStatus
+import com.pennsieve.test.EitherValue._
 import org.scalatest.{ Matchers, WordSpec }
 
 class OrganizationHandlerSpec

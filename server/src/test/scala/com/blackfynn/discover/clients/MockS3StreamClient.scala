@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.{ Done, NotUsed }
 import akka.actor.ActorSystem
@@ -12,9 +12,9 @@ import akka.stream.alpakka.s3.scaladsl.S3
 import akka.actor.ActorSystem
 import akka.util.ByteString
 
-import com.blackfynn.models.{ FileManifest, FileType }
-import com.blackfynn.discover.models._
-import com.blackfynn.test.AwaitableImplicits
+import com.pennsieve.models.{ FileManifest, FileType }
+import com.pennsieve.discover.models._
+import com.pennsieve.test.AwaitableImplicits
 import org.scalatest.{ Matchers, WordSpec }
 import org.scalatest.concurrent.ScalaFutures
 
@@ -28,8 +28,8 @@ import scala.sys.process._
 import java.nio.file.{ Files, Path, Paths }
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.collection.mutable
-import com.blackfynn.test.AwaitableImplicits
-import com.blackfynn.discover.downloads.ZipStream._
+import com.pennsieve.test.AwaitableImplicits
+import com.pennsieve.discover.downloads.ZipStream._
 
 class MockS3StreamClient extends S3StreamClient {
 

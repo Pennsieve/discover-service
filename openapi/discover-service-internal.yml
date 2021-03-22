@@ -536,7 +536,7 @@ components:
           format: int64
         license:
           type: string
-          x-scala-type: com.blackfynn.models.License
+          x-scala-type: com.pennsieve.models.License
         contributors:
           type: array
           items:
@@ -592,7 +592,7 @@ components:
           format: int32
         license:
           type: string
-          x-scala-type: com.blackfynn.models.License
+          x-scala-type: com.pennsieve.models.License
         contributors:
           type: array
           items:
@@ -645,7 +645,7 @@ components:
           format: int32
         status:
           type: string
-          x-scala-type: com.blackfynn.models.PublishStatus
+          x-scala-type: com.pennsieve.models.PublishStatus
         lastPublishedDate:
           type: string
           format: date-time
@@ -673,7 +673,7 @@ components:
           type: string
         relationshipType:
           type: string
-          x-scala-type: com.blackfynn.models.RelationshipType
+          x-scala-type: com.pennsieve.models.RelationshipType
 
     InternalContributor:
       type: object
@@ -695,7 +695,7 @@ components:
           type: string
         degree:
           type: string
-          x-scala-type: com.blackfynn.models.Degree
+          x-scala-type: com.pennsieve.models.Degree
         userId:
           type: integer
           format: int32

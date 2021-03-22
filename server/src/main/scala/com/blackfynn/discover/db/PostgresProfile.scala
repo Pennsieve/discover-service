@@ -1,9 +1,9 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.db
+package com.pennsieve.discover.db
 
-import com.blackfynn.models.{ Degree, License, PublishStatus, RelationshipType }
-import com.blackfynn.discover.models.{
+import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
+import com.pennsieve.discover.models.{
   DownloadOrigin,
   PennsieveSchemaVersion,
   S3Bucket,

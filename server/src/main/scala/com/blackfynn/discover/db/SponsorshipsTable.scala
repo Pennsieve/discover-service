@@ -1,13 +1,13 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.db
+package com.pennsieve.discover.db
 
-import com.blackfynn.discover.{
+import com.pennsieve.discover.{
   NoSponsorshipException,
   NoSponsorshipForDatasetException
 }
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.models.{ PublicDataset, Sponsorship }
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.models.{ PublicDataset, Sponsorship }
 import slick.dbio.{ DBIOAction, Effect }
 import slick.sql.FixedSqlAction
 

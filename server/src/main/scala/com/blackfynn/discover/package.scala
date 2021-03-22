@@ -1,15 +1,15 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
 import java.time.temporal.ChronoUnit
 
-import com.blackfynn.discover.models.{
+import com.pennsieve.discover.models.{
   DatasetDownload,
   PublicDatasetVersion,
   S3Key
 }
-import com.blackfynn.models._
+import com.pennsieve.models._
 import org.apache.commons.lang3.StringUtils
 
 package object utils {

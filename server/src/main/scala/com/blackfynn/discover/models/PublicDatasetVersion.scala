@@ -1,10 +1,10 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.models
+package com.pennsieve.discover.models
 
 import java.time.{ LocalDate, OffsetDateTime, ZoneOffset }
 
-import com.blackfynn.models.PublishStatus
+import com.pennsieve.models.PublishStatus
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 import io.circe.{ Decoder, Encoder }
 import io.circe.java8.time._

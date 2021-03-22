@@ -1,17 +1,17 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import com.blackfynn.discover.server.tag.{
+import com.pennsieve.discover.server.tag.{
   TagHandler => GuardrailHandler,
   TagResource => GuardrailResource
 }
-import com.blackfynn.discover._
-import com.blackfynn.discover.db.PublicDatasetsMapper
-import com.blackfynn.discover.logging.logRequestAndResponse
+import com.pennsieve.discover._
+import com.pennsieve.discover.db.PublicDatasetsMapper
+import com.pennsieve.discover.logging.logRequestAndResponse
 
 import scala.concurrent.{ ExecutionContext, Future }
 

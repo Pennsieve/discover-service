@@ -1057,7 +1057,7 @@ components:
           format: int32
         license:
           type: string
-          x-scala-type: com.blackfynn.models.License
+          x-scala-type: com.pennsieve.models.License
         tags:
           type: array
           items:
@@ -1087,7 +1087,7 @@ components:
           type: string
         status:
           type: string
-          x-scala-type: com.blackfynn.models.PublishStatus
+          x-scala-type: com.pennsieve.models.PublishStatus
         doi:
           type: string
         banner:
@@ -1176,7 +1176,7 @@ components:
             type: string
         status:
           type: string
-          x-scala-type: com.blackfynn.models.PublishStatus
+          x-scala-type: com.pennsieve.models.PublishStatus
         doi:
           type: string
 
@@ -1266,10 +1266,10 @@ components:
           type: string
         packageType:
           type: string
-          x-scala-type: com.blackfynn.models.PackageType
+          x-scala-type: com.pennsieve.models.PackageType
         icon:
           type: string
-          x-scala-type: com.blackfynn.models.Icon
+          x-scala-type: com.pennsieve.models.Icon
         uri:
           type: string
         createdAt:
@@ -1327,15 +1327,15 @@ components:
           properties:
             fileType:
               type: string
-              x-scala-type: com.blackfynn.models.FileType
+              x-scala-type: com.pennsieve.models.FileType
             uri:
               type: string
             packageType:
               type: string
-              x-scala-type: com.blackfynn.models.PackageType
+              x-scala-type: com.pennsieve.models.PackageType
             icon:
               type: string
-              x-scala-type: com.blackfynn.models.Icon
+              x-scala-type: com.pennsieve.models.Icon
             sourcePackageId:
               type: string
             createdAt:
@@ -1381,7 +1381,7 @@ components:
           type: string
         degree:
           type: string
-          x-scala-type: com.blackfynn.models.Degree
+          x-scala-type: com.pennsieve.models.Degree
         orcid:
           type: string
 
@@ -1407,7 +1407,7 @@ components:
           type: string
         relationshipType:
           type: string
-          x-scala-type: com.blackfynn.models.RelationshipType
+          x-scala-type: com.pennsieve.models.RelationshipType
 
     Record:
       type: object
