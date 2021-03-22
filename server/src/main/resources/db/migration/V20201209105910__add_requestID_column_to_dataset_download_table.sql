@@ -1,0 +1,1 @@
+ALTER TABLE dataset_downloads ADD COLUMN request_ID VARCHAR(20) ;

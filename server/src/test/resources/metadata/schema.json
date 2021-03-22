@@ -1,0 +1,40 @@
+{
+  "models" : [
+    {
+      "name" : "samples",
+      "displayName" : "Samples",
+      "description" : "",
+      "properties" : [
+        {
+          "name" : "sample_id",
+          "displayName" : "Sample ID",
+          "description" : "",
+          "dataType" : "String"
+        },
+        {
+          "name" : "neuron_size",
+          "displayName" : "Neuron Size",
+          "description" : "",
+          "dataType" : {
+            "type" : "enum",
+            "items" : {
+              "type" : "String",
+              "enum" : [
+                "Large",
+                "Small",
+                "Unknown"
+              ]
+            }
+          }
+        },
+        {
+          "name" : "number_of_neurons",
+          "displayName" : "Number of Neurons",
+          "description" : "",
+          "dataType" : "Long"
+        }
+      ],
+      "file" : "samples.csv"
+    }
+  ]
+}

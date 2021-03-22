@@ -1,0 +1,1563 @@
+openapi: 3.0.0
+info:
+  version: 0.0.0
+  title: Discover Service
+tags:
+  - name: Discover
+
+servers:
+  # This URL (without `/discover`) is required to generate the correct routes.
+  # However, it does not play nicely with `swagger-ui` which wants the full base
+  # url here.
+  - url: https://api.pennsieve.io
+  - url: https://api.pennsieve.io/discover
+  - url: https://api.pennsieve.net/discover
+
+paths:
+  "/datasets":
+    get:
+      security: []
+      summary: get the latest published version of each dataset
+      operationId: getDatasets
+      x-scala-package: dataset
+      parameters:
+        - name: limit
+          in: query
+          description: max number of datasets returned
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+        - name: offset
+          in: query
+          description: offset used for pagination of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: ids
+          in: query
+          description: dataset ids list
+          required: false
+          schema:
+            type: array
+            items:
+              type: integer
+        - name: tags
+          in: query
+          description: dataset tags to filter by
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: embargo
+          in: query
+          description: include embargoed datasets
+          required: false
+          schema:
+            type: boolean
+            nullable: true
+        - $ref: "#/components/parameters/orderBy"
+        - $ref: "#/components/parameters/orderDirection"
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetsPage"
+        "400":
+          description: bad request
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/datasets/{datasetId}":
+    get:
+      security: []
+      summary: get the latest version of a dataset
+      operationId: getDataset
+      x-scala-package: dataset
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicDatasetDTO"
+        "401":
+          description: missing authentication
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
+  "/datasets/doi/{doiPrefix}/{doiSuffix}":
+    get:
+      security: []
+      summary: get a dataset by DOI
+      description: |
+        Find a Pennsieve dataset by DOI
+
+        Pennsieve's DOI prefix is `10.26275`. To find the dataset for DOI
+        `10.26275/abcd-1234`, make a request for
+        `/discover/datasets/doi/10.26275/abcd-1234`
+      operationId: getDatasetByDoi
+      x-scala-package: dataset
+      parameters:
+        - name: doiPrefix
+          in: path
+          description: Pennsieve DOI prefix - 10.26275
+          required: true
+          schema:
+            type: string
+        - name: doiSuffix
+          in: path
+          description: dataset DOI suffix
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicDatasetDTO"
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
+  "/datasets/{datasetId}/preview":
+    post:
+      security: []
+      summary: request preview access to a dataset
+      operationId: requestPreview
+      x-scala-package: dataset
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset ID
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreviewAccessRequest"
+        description: Preview access request
+        required: true
+      responses:
+        "200":
+          description: successful operation
+        "401":
+          description: missing authentication
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+
+
+  "/datasets/{datasetId}/versions":
+    get:
+      security: []
+      summary: get all published versions of a dataset
+      operationId: getDatasetVersions
+      x-scala-package: dataset
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicDatasetDTO"
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/datasets/{datasetId}/versions/{versionId}":
+    get:
+      security: []
+      summary: get a dataset by version
+      operationId: getDatasetVersion
+      x-scala-package: dataset
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: versionId
+          in: path
+          description: version number
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicDatasetDTO"
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
+  "/datasets/{datasetId}/versions/{versionId}/files":
+    get:
+      security: []
+      summary: get a file from a dataset
+      operationId: getFile
+      x-scala-package: dataset
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: versionId
+          in: path
+          description: version number
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: path
+          in: query
+          description: path of the file
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileTreeNodeDTO"
+        "401":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
+  "/datasets/{datasetId}/versions/{versionId}/download":
+    get:
+      security: []
+      summary: download the dataset as a ZIP archive
+      operationId: downloadDatasetVersion
+      x-scala-package: dataset
+      x-server-raw-response: true
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: versionId
+          in: path
+          description: version number
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - $ref: "#/components/parameters/downloadOrigin"
+      responses:
+        "200":
+          description: success
+        "401":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: dataset is under embargo or dataset is too large to download
+          content:
+            application/zip:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/zip:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+
+  "/datasets/{datasetId}/versions/{versionId}/metadata":
+    get:
+      security: []
+      summary: download the metadata of the dataset
+      operationId: getDatasetMetadata
+      x-scala-package: dataset
+      x-server-raw-response: true
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: versionId
+          in: path
+          description: version number
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: success
+        "401":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+
+  "/datasets/{datasetId}/versions/{versionId}/files/browse":
+    get:
+      security: []
+      summary: view files for a dataset
+      operationId: browseFiles
+      x-scala-package: dataset
+      description: >
+        Show all files and directories in a folder of the dataset. If
+        `directory` is not defined this will show files at the root of the
+        dataset.
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: versionId
+          in: path
+          description: version number
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: path
+          in: query
+          description: full path to a directory in the file tree
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: max number of files returned
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 100
+        - name: offset
+          in: query
+          description: offset used for pagination of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileTreePage"
+        "401":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
+  "/datasets/{datasetId}/versions/{versionId}/files/download-manifest":
+    post:
+      security: []
+      summary: get a manifest of files to be downloaded for a dataset
+      operationId: downloadManifest
+      x-scala-package: dataset
+      description: >
+        Get a manifest file containing information to be used to download
+        files of a dataset, including URLs to their location, their size,
+        and paths representing where they should be in the resulting archive.
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: versionId
+          in: path
+          description: version number
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadRequest"
+        description: list of paths to match on
+        required: true
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadResponse"
+        "400":
+          description: invalid root path
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: dataset is under embargo or requested files are too large to download
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
+
+  "/datasets/{datasetId}/data-use-agreement":
+    get:
+      security: []
+      summary: get the data use agreement for this dataset, if under embargo
+      operationId: getDataUseAgreement
+      x-scala-package: dataset
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataUseAgreementDTO"
+        "204":
+          description: no agreement
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
+
+  "/datasets/{datasetId}/data-use-agreement/download":
+    get:
+      security: []
+      summary: download the data use agreement for this dataset, if under embargo
+      operationId: downloadDataUseAgreement
+      x-scala-package: dataset
+      x-server-raw-response: true
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            text/plain:
+              schema:
+                type: string
+        "204":
+          description: no agreement
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+
+  "/tags":
+    get:
+      security: []
+      summary: get all dataset tags
+      operationId: getTags
+      x-scala-package: tag
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DatasetTag"
+
+  "/search/datasets":
+    get:
+      security: []
+      summary: get datasets matching criteria
+      operationId: searchDatasets
+      x-scala-package: search
+      parameters:
+        - name: limit
+          in: query
+          description: max number of datasets returned
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+        - name: offset
+          in: query
+          description: offset used for pagination of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: query
+          in: query
+          description: fuzzy text search terms
+          required: false
+          schema:
+            type: string
+        - name: organization
+          in: query
+          description: publishing organization
+          required: false
+          schema:
+            type: string
+        - name: organizationId
+          in: query
+          description: publishing organization id
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: tags
+          in: query
+          description: match dataset tags
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: embargo
+          in: query
+          description: include embargoed datasets
+          required: false
+          schema:
+            type: boolean
+            nullable: true
+        - $ref: "#/components/parameters/orderBy"
+        - $ref: "#/components/parameters/orderDirection"
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetsPage"
+        "400":
+          description: bad request
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/search/files":
+    get:
+      security: []
+      summary: get files matching criteria
+      operationId: searchFiles
+      x-scala-package: search
+      parameters:
+        - name: limit
+          in: query
+          description: max number of files returned
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+        - name: offset
+          in: query
+          description: offset used for pagination of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: fileType
+          in: query
+          description: type of file
+          required: false
+          schema:
+            type: string
+        - name: query
+          in: query
+          description: query terms
+          required: false
+          schema:
+            type: string
+        - name: organization
+          in: query
+          description: publishing organization
+          required: false
+          schema:
+            type: string
+        - name: organizationId
+          in: query
+          description: publishing organization id
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: datasetId
+          in: query
+          description: files within this dataset
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilesPage"
+
+  "/organizations/{organizationId}/datasets/metrics":
+    get:
+      security: []
+      summary:
+      operationId: getOrganizationDatasetMetrics
+      x-scala-package: organization
+      parameters:
+        - name: organizationId
+          in: path
+          description: Organziation ID
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetMetricsDTO"
+        "401":
+          description: missing authentication
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/search/records":
+    get:
+      security: []
+      summary: get records matching criteria
+      operationId: searchRecords
+      x-scala-package: search
+      parameters:
+        - name: limit
+          in: query
+          description: max number of datasets returned
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+        - name: offset
+          in: query
+          description: offset used for pagination of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: model
+          in: query
+          description: only return records of this model
+          required: false
+          schema:
+            type: string
+        - name: organization
+          in: query
+          description: publishing organization
+          required: false
+          schema:
+            type: string
+        - name: datasetId
+          in: query
+          description: files within this dataset
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordPage"
+
+  "/packages/{sourcePackageId}/files":
+    get:
+      security: []
+      summary: get the files from the sourcePackageId of a package
+      operationId: getFileFromSourcePackageId
+      x-scala-package: file
+      parameters:
+      - name: sourcePackageId
+        in: path
+        description: source package id
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: max number of files returned
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 100
+      - name: offset
+        in: query
+        description: offset used for pagination of results
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                  $ref: "#/components/schemas/FileTreePage"
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+
+
+  "/metrics/dataset/downloads/summary":
+    get:
+      security: []
+      summary: metrics
+      operationId: getDatasetDownloadsSummary
+      x-scala-package: metrics
+      description: get the dataset downloads summary for the requested date range
+      parameters:
+      - name: startDate
+        in: query
+        description: Date for the beginning of download metrics
+        required: true
+        schema:
+          type: string
+          format: date
+          nullable: true
+      - name: endDate
+        in: query
+        description: Date for the end of download metrics
+        required: true
+        schema:
+          type: string
+          format: date
+          nullable: true
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DatasetDownloadSummaryRow"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  parameters:
+    downloadOrigin:
+      name: downloadOrigin
+      in: query
+      description: origin of download request
+      schema:
+        type: string
+        enum:
+          - SPARC
+          - Discover
+
+    orderBy:
+      name: orderBy
+      in: query
+      description: |
+        Field to order by
+          * name - dataset name
+          * date - date published
+          * size - size of dataset
+          * relevance -
+      schema:
+        type: string
+        enum:
+          - name
+          - date
+          - size
+          - relevance
+        default: relevance
+
+    orderDirection:
+      name: orderDirection
+      in: query
+      description: |
+        Sort order:
+          * asc - Ascending, from A to Z.
+          * desc - Descending, from Z to A
+      schema:
+        type: string
+        enum:
+          - asc
+          - desc
+        default: desc
+
+  schemas:
+    PublicDatasetDTO:
+      type: object
+      required: # New fields must be optional due to the Elasticsearch dependency
+        - id
+        - name
+        - description
+        - ownerFirstName
+        - ownerLastName
+        - ownerOrcid
+        - organizationName
+        - modelCount
+        - recordCount
+        - fileCount
+        - size
+        - license
+        - tags
+        - version
+        - uri
+        - arn
+        - status
+        - doi
+        - contributors
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          format: int32
+        sourceDatasetId:
+          type: integer
+          format: int32
+        name:
+          type: string
+        description:
+          type: string
+        ownerId:
+          type: integer
+          format: int32
+        ownerFirstName:
+          type: string
+        ownerLastName:
+          type: string
+        ownerOrcid:
+          type: string
+        organizationName:
+          type: string
+        organizationId:
+          type: integer
+          format: int32
+        license:
+          type: string
+          x-scala-type: com.blackfynn.models.License
+        tags:
+          type: array
+          items:
+            type: string
+        version:
+          type: integer
+          format: int32
+        revision:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int64
+        modelCount:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelCount"
+        fileCount:
+          type: integer
+          format: int64
+        recordCount:
+          type: integer
+          format: int64
+        uri:
+          type: string
+        arn:
+          type: string
+        status:
+          type: string
+          x-scala-type: com.blackfynn.models.PublishStatus
+        doi:
+          type: string
+        banner:
+          type: string
+          description: url of the banner image
+        readme:
+          type: string
+          description: url of the readme Markdown file
+        contributors:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicContributorDTO"
+        collections:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicCollectionDTO"
+        externalPublications:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicExternalPublicationDTO"
+        sponsorship:
+          $ref: "#/components/schemas/SponsorshipDTO"
+        pennsieveSchemaVersion:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          description: "deprecated: use `firstPublishedAt` or `versionPublishedAt` instead"
+        updatedAt:
+          type: string
+          format: date-time
+          description: "deprecated: use `versionPublishedAt` or `revisedAt` instead"
+        firstPublishedAt:
+          type: string
+          format: date-time
+          description: "date and time when the first version of the dataset was published"
+        versionPublishedAt:
+          type: string
+          format: date-time
+          description: "date and time when this version of the dataset was published"
+        revisedAt:
+          type: string
+          format: date-time
+          description: "date and time when this version of the dataset was last revised"
+        embargo:
+          type: boolean
+        embargoReleaseDate:
+          type: string
+          format: date
+          description: "date when the dataset will be released if embargoed"
+        embargoAccess:
+          type: string
+          description: "embargo access type"
+
+    SponsorshipDTO:
+      type: object
+      properties:
+        title:
+          type: string
+        imageUrl:
+          type: string
+        markup:
+          type: string
+
+    TombstoneDTO:
+      type: object
+      required:
+        - id
+        - version
+        - name
+        - tags
+        - status
+        - doi
+      properties:
+        id:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int32
+        name:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          x-scala-type: com.blackfynn.models.PublishStatus
+        doi:
+          type: string
+
+    PreviewAccessRequest:
+      type: object
+      properties:
+        dataUseAgreementId:
+          type: integer
+          format: int32
+          nullable: true
+
+    DatasetsPage:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/GenericResponsePage"
+        - type: object
+          required:
+            - datasets
+          properties:
+            datasets:
+              type: array
+              items:
+                $ref: "#/components/schemas/PublicDatasetDTO"
+
+    ModelCount:
+      type: object
+      required:
+        - modelName
+        - count
+      properties:
+        modelName:
+          type: string
+        count:
+          type: integer
+          format: int64
+
+    DatasetTag:
+      type: object
+      required:
+        - tag
+        - count
+      properties:
+        tag:
+          type: string
+        count:
+          type: integer
+          format: int64
+
+    FilesPage:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/GenericResponsePage"
+        - type: object
+          required:
+            - files
+          properties:
+            files:
+              type: array
+              items:
+                $ref: "#/components/schemas/FileSearchResponse"
+
+    FileSearchResponse:
+      type: object
+      required:
+        - name
+        - datasetId
+        - datasetVersion
+        - size
+        - fileType
+        - packageType
+        - icon
+        - uri
+      properties:
+        name:
+          type: string
+        datasetId:
+          type: integer
+          format: int32
+          description: id of public dataset
+        datasetVersion:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int64
+        fileType:
+          type: string
+        packageType:
+          type: string
+          x-scala-type: com.blackfynn.models.PackageType
+        icon:
+          type: string
+          x-scala-type: com.blackfynn.models.Icon
+        uri:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        sourcePackageId:
+          type: string
+
+    FileTreePage:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/GenericResponsePage"
+        - type: object
+          required:
+            - files
+          properties:
+            files:
+              type: array
+              items:
+                $ref: "#/components/schemas/FileTreeNodeDTO"
+
+    FileTreeNodeDTO:
+      description: >
+        Abstract object representing a node in the file tree. Concrete instances
+        will either be a `File` or a `Directory`.
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+        - name
+        - path
+        - size
+        - type
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+          format: int64
+        type:
+          type: string
+
+    File:
+      description: A file in the dataset
+      allOf:
+        - $ref: "#/components/schemas/FileTreeNodeDTO"
+        - type: object
+          required:
+            - fileType
+            - uri
+            - packageType
+            - icon
+          properties:
+            fileType:
+              type: string
+              x-scala-type: com.blackfynn.models.FileType
+            uri:
+              type: string
+            packageType:
+              type: string
+              x-scala-type: com.blackfynn.models.PackageType
+            icon:
+              type: string
+              x-scala-type: com.blackfynn.models.Icon
+            sourcePackageId:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+
+    Directory:
+      description: A directory containing files in the dataset
+      allOf:
+        - $ref: "#/components/schemas/FileTreeNodeDTO"
+
+    GenericResponsePage:
+      description: >
+        Generic wrapper around a list of objects that is mixed in to other
+        responses
+      type: object
+      required:
+        - limit
+        - offset
+        - totalCount
+      properties:
+        limit:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int32
+        totalCount:
+          type: integer
+          format: int64
+
+    PublicContributorDTO:
+      type: object
+      required:
+        - firstName
+        - lastName
+      properties:
+        firstName:
+          type: string
+        middleInitial:
+          type: string
+        lastName:
+          type: string
+        degree:
+          type: string
+          x-scala-type: com.blackfynn.models.Degree
+        orcid:
+          type: string
+
+    PublicCollectionDTO:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+
+    PublicExternalPublicationDTO:
+      type: object
+      required:
+      - doi
+      - relationshipType
+      properties:
+        doi:
+          type: string
+        relationshipType:
+          type: string
+          x-scala-type: com.blackfynn.models.RelationshipType
+
+    Record:
+      type: object
+      required:
+        - datasetId
+        - version
+        - model
+        - properties
+      properties:
+        datasetId:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int32
+        model:
+          type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+
+    RecordPage:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/GenericResponsePage"
+        - type: object
+          required:
+            - records
+          properties:
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/Record"
+
+    DownloadRequest:
+      type: object
+      required:
+        - paths
+      properties:
+        paths:
+          type: array
+          items:
+            type: string
+        rootPath:
+          type: string
+
+    DownloadResponse:
+      type: object
+      required:
+        - header
+        - data
+      properties:
+        header:
+          $ref: '#/components/schemas/DownloadResponseHeader'
+        data:
+          type: array
+          required: true
+          items:
+            $ref: '#/components/schemas/DownloadResponseItem'
+
+    DownloadResponseHeader:
+      type: object
+      required:
+        - count
+        - size
+      properties:
+        count:
+          type: integer
+        size:
+          type: number
+
+    DownloadResponseItem:
+      type: object
+      required:
+        - fileName
+        - path
+        - url
+        - size
+      properties:
+        fileName:
+          type: string
+        path:
+          type: array
+          items:
+            type: string
+        url:
+          type: string
+        size:
+          type: number
+
+    DataUseAgreementDTO:
+      type: object
+      required:
+        - id
+        - organizationId
+        - name
+        - body
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        body:
+          type: string
+        organizationId:
+          type: integer
+
+    DatasetMetrics:
+      type: object
+      required:
+        - id
+        - name
+        - size
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+        size:
+          type: integer
+          format: int64
+
+    DatasetMetricsDTO:
+      type: object
+      required:
+        - datasets
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatasetMetrics"
+
+    DatasetDownloadSummaryRow:
+      type: object
+      required:
+        - datasetId
+        - version
+        - origin
+        - downloads
+      properties:
+        datasetId:
+          type: integer
+          format: int32
+        version:
+          type: integer
+          format: int32
+        origin:
+          type: string
+        downloads:
+          type: integer
+          format: int32

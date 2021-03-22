@@ -1,0 +1,24 @@
+version: '3.4'
+services:
+
+  postgres:
+    hostname: postgres
+    image: postgres:9.6
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: postgres
+      POSTGRES_DB: discover-postgres
+    user: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sqs:
+    hostname: sqs
+    image: softwaremill/elasticmq:0.14.6
+    ports:
+      - "9324:9324"

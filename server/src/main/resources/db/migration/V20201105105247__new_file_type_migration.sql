@@ -1,0 +1,10 @@
+update public_files set file_type='CRAM' where s3_key ilike '%\.cram';
+update public_files set file_type='JPEG200' where s3_key ilike '%\.jpx' or s3_key ilike '%\.jp2';
+update public_files set file_type='LSM' where s3_key ilike '%\.lsm';
+update public_files set file_type='NDPI' where s3_key ilike '%\.ndpi';
+update public_files set file_type='OIB' where s3_key ilike '%\.oib';
+update public_files set file_type='OIF' where s3_key ilike '%\.oif';
+update public_files set file_type='NIFTI' where s3_key ilike '%\.nifti';
+update public_files set file_type='ROI' where s3_key ilike '%\.roi';
+update public_files set file_type='SWC' where s3_key ilike '%\.swc';
+update public_files set file_type='Text' where s3_key ilike '%\.rtf';

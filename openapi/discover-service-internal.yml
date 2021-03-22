@@ -1,0 +1,724 @@
+openapi: 3.0.0
+info:
+  version: 0.16.0
+  title: Discover Service - Internal
+tags:
+  - name: Discover
+
+servers:
+  - url: https://prod-discover-service-use1.pennsieve.io
+  - url: https://dev-discover-service-use1.pennsieve.net
+
+paths:
+  "/health":
+    get:
+      security: []
+      summary: healthcheck
+      operationId: healthcheck
+      x-scala-package: healthcheck
+      description: Ensure the service is responding to requests.
+      responses:
+        "200":
+          description: Success
+        "500":
+          description: Internal error
+          content:
+            "*/*":
+              schema:
+                type: string
+
+  "/organizations/{organizationId}/datasets":
+    get:
+      summary: get the publishing status of all organization datasets
+      security:
+        - Bearer: []
+      operationId: getStatuses
+      x-scala-package: publish
+      parameters:
+        - name: organizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DatasetPublishStatus"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/organizations/{organizationId}/datasets/{datasetId}":
+    get:
+      summary: get the publishing status of a dataset
+      security:
+        - Bearer: []
+      operationId: getStatus
+      x-scala-package: publish
+      parameters:
+        - name: organizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetPublishStatus"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/organizations/{organizationId}/datasets/{datasetId}/publish":
+    post:
+      summary: publish a dataset to Discover
+      security:
+        - Bearer: []
+      operationId: publish
+      x-scala-package: publish
+      parameters:
+        - name: organizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: embargo
+          in: query
+          description: Publish the dataset to a staging area
+          required: false
+          schema:
+            type: boolean
+            nullable: true
+        - name: embargoReleaseDate
+          in: query
+          description: Date on which to release an embargoed dataset. Required if `embargo=true`
+          required: false
+          schema:
+            type: string
+            format: date
+            nullable: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishRequest"
+        description: dataset metadata
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetPublishStatus"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/organizations/{organizationId}/datasets/{datasetId}/revise":
+    post:
+      summary: revise the metadata (name, description, etc) for a published dataset
+      security:
+        - Bearer: []
+      operationId: revise
+      x-scala-package: publish
+      parameters:
+        - name: organizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviseRequest"
+        description: dataset metadata
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetPublishStatus"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/organizations/{organizationId}/datasets/{datasetId}/release":
+    post:
+      summary: release an embargoed dataset to Discover
+      security:
+        - Bearer: []
+      operationId: release
+      x-scala-package: publish
+      parameters:
+        - name: organizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "202":
+          description: Release started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetPublishStatus"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: Not Found
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/organizations/{organizationId}/datasets/{datasetId}/unpublish":
+    post:
+      summary: unpublish a dataset
+      security:
+        - Bearer: []
+      operationId: unpublish
+      x-scala-package: publish
+      parameters:
+        - name: organizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetPublishStatus"
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/organizations/{sourceOrganizationId}/datasets/{sourceDatasetId}/sponsor":
+    post:
+      summary: creates a sponsored dataset, or updates the sponsorship info if it
+        already exists
+      security:
+        - Bearer: []
+      operationId: sponsorDataset
+      x-scala-package: publish
+      parameters:
+        - name: sourceOrganizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: sourceDatasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SponsorshipRequest"
+        description: sponsorship data
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SponsorshipResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+    delete:
+      summary: removes a sponsorship from a dataset
+      security:
+        - Bearer: []
+      operationId: removeDatasetSponsor
+      x-scala-package: publish
+      parameters:
+        - name: sourceOrganizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: sourceDatasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "204":
+          description: DELETED
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+
+  "/metrics/dataset/athena/download/sync":
+    get:
+      security: []
+      summary: sync
+      operationId: syncAthenaDownloads
+      x-scala-package: sync
+      description: sync the Datasets Downloads table with the Downloads recorded in Athena
+      parameters:
+      - name: startDate
+        in: query
+        description: Date for the beginning of download sync
+        required: true
+        schema:
+          type: string
+          format: date
+          nullable: true
+      - name: endDate
+        in: query
+        description: Date for the end of download sync
+        required: true
+        schema:
+          type: string
+          format: date
+          nullable: true
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    Bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PublishRequest:
+      type: object
+      required:
+        - name
+        - description
+        - ownerId
+        - modelCount
+        - recordCount
+        - fileCount
+        - size
+        - license
+        - contributors
+        - tags
+        - ownerNodeId
+        - ownerFirstName
+        - ownerLastName
+        - ownerOrcid
+        - organizationNodeId
+        - organizationName
+        - datasetNodeId
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        ownerId:
+          type: integer
+          format: int32
+        modelCount:
+          type: array
+          items:
+            $ref: ./discover-service.yml#/definitions/ModelCount
+        recordCount:
+          type: integer
+          format: int64
+        fileCount:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int64
+        license:
+          type: string
+          x-scala-type: com.blackfynn.models.License
+        contributors:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternalContributor"
+        collections:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternalCollection"
+        externalPublications:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternalExternalPublication"
+        tags:
+          type: array
+          items:
+            type: string
+        ownerNodeId:
+          type: string
+        ownerFirstName:
+          type: string
+        ownerLastName:
+          type: string
+        ownerOrcid:
+          type: string
+        organizationNodeId:
+          type: string
+        organizationName:
+          type: string
+        datasetNodeId:
+          type: string
+
+    ReviseRequest:
+      type: object
+      required:
+        - name
+        - description
+        - license
+        - contributors
+        - tags
+        - ownerId
+        - ownerFirstName
+        - ownerLastName
+        - ownerOrcid
+        - bannerPresignedUrl
+        - readmePresignedUrl
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        ownerId:
+          type: integer
+          format: int32
+        license:
+          type: string
+          x-scala-type: com.blackfynn.models.License
+        contributors:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternalContributor"
+        collections:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternalCollection"
+        externalPublications:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternalExternalPublication"
+        tags:
+          type: array
+          items:
+            type: string
+        ownerFirstName:
+          type: string
+        ownerLastName:
+          type: string
+        ownerOrcid:
+          type: string
+        bannerPresignedUrl:
+          type: string
+        readmePresignedUrl:
+          type: string
+
+    DatasetPublishStatus:
+      type: object
+      required:
+        - name
+        - sourceOrganizationId
+        - sourceDatasetId
+        - publishedVersionCount
+        - status
+      properties:
+        name:
+          type: string
+        sourceOrganizationId:
+          type: integer
+          format: int32
+        sourceDatasetId:
+          type: integer
+          format: int32
+        publishedDatasetId:
+          type: integer
+          format: int32
+        publishedVersionCount:
+          type: integer
+          format: int32
+        status:
+          type: string
+          x-scala-type: com.blackfynn.models.PublishStatus
+        lastPublishedDate:
+          type: string
+          format: date-time
+        sponsorship:
+          $ref: "#/components/schemas/SponsorshipRequest"
+
+    InternalCollection:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: integer
+          format: int32
+        name:
+          type: string
+
+    InternalExternalPublication:
+      type: object
+      required:
+      - doi
+      properties:
+        doi:
+          type: string
+        relationshipType:
+          type: string
+          x-scala-type: com.blackfynn.models.RelationshipType
+
+    InternalContributor:
+      type: object
+      required:
+        - id
+        - firstName
+        - lastName
+      properties:
+        id:
+          type: integer
+          format: int32
+        firstName:
+          type: string
+        lastName:
+          type: string
+        orcid:
+          type: string
+        middleInitial:
+          type: string
+        degree:
+          type: string
+          x-scala-type: com.blackfynn.models.Degree
+        userId:
+          type: integer
+          format: int32
+
+    SponsorshipRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        imageUrl:
+          type: string
+        markup:
+          type: string
+
+    SponsorshipResponse:
+      type: object
+      required:
+        - datasetId
+        - sponsorshipId
+      properties:
+        datasetId:
+          type: integer
+          format: int32
+        sponsorshipId:
+          type: integer
+          format: int32

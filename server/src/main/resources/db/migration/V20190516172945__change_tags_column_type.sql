@@ -1,0 +1,3 @@
+ALTER TABLE public_datasets
+    ALTER COLUMN tags TYPE TEXT ARRAY,
+    ALTER COLUMN tags SET NOT NULL;
