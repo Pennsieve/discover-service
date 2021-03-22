@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 import java.time.LocalDate
 
 import akka.actor.ActorSystem
@@ -17,29 +17,29 @@ import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import cats.data.EitherT
 import cats.implicits._
-import com.blackfynn.auth.middleware.AkkaDirective.authenticateJwt
-import com.blackfynn.auth.middleware.{ Jwt, UserClaim }
-import com.blackfynn.discover._
-import com.blackfynn.discover.clients.{
+import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
+import com.pennsieve.auth.middleware.{ Jwt, UserClaim }
+import com.pennsieve.discover._
+import com.pennsieve.discover.clients.{
   APIPreviewAccessRequest,
   AuthorizationClient,
   DatasetPreview,
   HttpError
 }
-import com.blackfynn.discover.db._
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.downloads.ZipStream
-import com.blackfynn.discover.logging.{
+import com.pennsieve.discover.db._
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.downloads.ZipStream
+import com.pennsieve.discover.logging.{
   logRequestAndResponse,
   DiscoverLogContext
 }
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.server.dataset.{
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.server.dataset.{
   DatasetHandler => GuardrailHandler,
   DatasetResource => GuardrailResource
 }
-import com.blackfynn.discover.server.definitions
-import com.blackfynn.discover.server.definitions.{
+import com.pennsieve.discover.server.definitions
+import com.pennsieve.discover.server.definitions.{
   DownloadRequest,
   DownloadResponse,
   DownloadResponseHeader,
@@ -47,8 +47,8 @@ import com.blackfynn.discover.server.definitions.{
   PreviewAccessRequest,
   PublicDatasetDTO
 }
-import com.blackfynn.models.PublishStatus
-import com.blackfynn.models.PublishStatus.{
+import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.PublishStatus.{
   EmbargoSucceeded,
   NotPublished,
   PublishSucceeded,

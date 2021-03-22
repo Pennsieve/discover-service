@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
@@ -8,35 +8,35 @@ import akka.http.scaladsl.model.{ HttpHeader, HttpResponse, Uri }
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import cats.implicits._
-import com.blackfynn.auth.middleware.AkkaDirective.authenticateJwt
-import com.blackfynn.auth.middleware.Jwt
-import com.blackfynn.discover.Authenticator.{
+import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
+import com.pennsieve.auth.middleware.Jwt
+import com.pennsieve.discover.Authenticator.{
   withAuthorization,
   withOrganizationAccess,
   withServiceOwnerAuthorization
 }
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.db._
-import com.blackfynn.discover.logging.{
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.db._
+import com.pennsieve.discover.logging.{
   logRequestAndResponse,
   DiscoverLogContext
 }
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.server.definitions
-import com.blackfynn.discover.server.publish.{
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.server.definitions
+import com.pennsieve.discover.server.publish.{
   PublishHandler => GuardrailHandler,
   PublishResource => GuardrailResource
 }
-import com.blackfynn.discover._
-import com.blackfynn.discover.search.Search
-import com.blackfynn.doi.models.{ DoiDTO, DoiState }
-import com.blackfynn.models.{ License, PublishStatus, RelationshipType }
-import com.blackfynn.models.PublishStatus.Unpublished
+import com.pennsieve.discover._
+import com.pennsieve.discover.search.Search
+import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.models.{ License, PublishStatus, RelationshipType }
+import com.pennsieve.models.PublishStatus.Unpublished
 import io.circe.{ DecodingFailure, Json }
 import slick.dbio.DBIOAction
 import slick.jdbc.TransactionIsolation
 import software.amazon.awssdk.services.lambda.model.InvokeResponse
-import com.blackfynn.discover.server.definitions.{
+import com.pennsieve.discover.server.definitions.{
   InternalContributor,
   SponsorshipRequest,
   SponsorshipResponse
@@ -45,7 +45,7 @@ import java.time.LocalDate
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
-import com.blackfynn.discover.db.PublicFilesMapper
+import com.pennsieve.discover.db.PublicFilesMapper
 
 class PublishHandler(
   ports: Ports,

@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.stream.ActorMaterializer
 import software.amazon.awssdk.services.lambda.model.InvokeResponse

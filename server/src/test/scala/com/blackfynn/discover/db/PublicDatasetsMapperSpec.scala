@@ -1,17 +1,17 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.db
+package com.pennsieve.discover.db
 
-import com.blackfynn.discover.server.definitions.DatasetPublishStatus
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.{ ServiceSpecHarness, TestUtilities }
-import com.blackfynn.discover.models.PublicDataset
-import com.blackfynn.models.{ License, PublishStatus }
-import com.blackfynn.models.PublishStatus.{
+import com.pennsieve.discover.server.definitions.DatasetPublishStatus
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.models.PublicDataset
+import com.pennsieve.models.{ License, PublishStatus }
+import com.pennsieve.models.PublishStatus.{
   PublishInProgress,
   PublishSucceeded
 }
-import com.blackfynn.test.AwaitableImplicits
+import com.pennsieve.test.AwaitableImplicits
 import io.circe.syntax._
 import org.scalatest.{ Matchers, WordSpec }
 

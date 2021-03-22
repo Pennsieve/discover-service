@@ -1,16 +1,16 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.Done
-import com.blackfynn.discover.models.{ PublicDataset, PublicDatasetVersion }
-import com.blackfynn.discover.notifications.{
+import com.pennsieve.discover.models.{ PublicDataset, PublicDatasetVersion }
+import com.pennsieve.discover.notifications.{
   JobDoneNotification,
   PublishNotification,
   ReleaseNotification,
   SQSNotification
 }
-import com.blackfynn.service.utilities.{ ContextLogger, LogContext }
+import com.pennsieve.service.utilities.{ ContextLogger, LogContext }
 import io.circe.{ Decoder, Encoder, Json }
 import io.circe.syntax._
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider

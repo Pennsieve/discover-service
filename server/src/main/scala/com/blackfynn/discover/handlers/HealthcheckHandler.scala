@@ -1,17 +1,17 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import akka.stream.ActorMaterializer
 
-import com.blackfynn.discover.Ports
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.server.healthcheck.{
+import com.pennsieve.discover.Ports
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.server.healthcheck.{
   HealthcheckHandler => GuardrailHandler,
   HealthcheckResource
 }
 
-import com.blackfynn.discover.server.healthcheck.{ HealthcheckHandler => Huh }
+import com.pennsieve.discover.server.healthcheck.{ HealthcheckHandler => Huh }
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal

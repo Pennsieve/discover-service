@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import java.time.LocalDate
 import java.time.LocalTime
@@ -8,22 +8,22 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
-import com.blackfynn.discover.db.profile.api.DBIO
+import com.pennsieve.discover.db.profile.api.DBIO
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import com.blackfynn.discover.{ utils, Config, Ports }
+import com.pennsieve.discover.{ utils, Config, Ports }
 import scalikejdbc._
 import scalikejdbc.athena._
-import com.blackfynn.discover.logging.logRequestAndResponse
-import com.blackfynn.discover.server.sync.{
+import com.pennsieve.discover.logging.logRequestAndResponse
+import com.pennsieve.discover.server.sync.{
   SyncHandler => GuardrailHandler,
   SyncResource => GuardrailResource
 }
 
 import scala.concurrent.{ ExecutionContext, Future }
-import com.blackfynn.discover.db.DatasetDownloadsMapper
-import com.blackfynn.discover.models.{ DatasetDownload, DownloadOrigin }
+import com.pennsieve.discover.db.DatasetDownloadsMapper
+import com.pennsieve.discover.models.{ DatasetDownload, DownloadOrigin }
 
 class SyncHandler(
   ports: Ports

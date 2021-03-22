@@ -1,21 +1,21 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.blackfynn.discover.clients._
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.db.{
+import com.pennsieve.discover.clients._
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.db.{
   PublicContributorsMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   PublicFilesMapper
 }
-import com.blackfynn.discover.notifications.SQSNotificationHandler
-import com.blackfynn.discover.models._
-import com.blackfynn.service.utilities.SingleHttpResponder
-import com.blackfynn.test.AwaitableImplicits
+import com.pennsieve.discover.notifications.SQSNotificationHandler
+import com.pennsieve.discover.models._
+import com.pennsieve.service.utilities.SingleHttpResponder
+import com.pennsieve.test.AwaitableImplicits
 import com.spotify.docker.client.DefaultDockerClient
 import com.spotify.docker.client.exceptions.DockerException
 import com.typesafe.scalalogging.StrictLogging

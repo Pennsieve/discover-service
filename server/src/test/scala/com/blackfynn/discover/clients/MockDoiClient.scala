@@ -1,24 +1,24 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.http.scaladsl.model.{ HttpHeader, HttpRequest, HttpResponse }
 import akka.stream.Materializer
 import cats.implicits._
 import cats.data.EitherT
-import com.blackfynn.discover.NoDoiException
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.server.definitions.InternalContributor
-import com.blackfynn.doi.client.definitions._
-import com.blackfynn.doi.client.doi.{
+import com.pennsieve.discover.NoDoiException
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.server.definitions.InternalContributor
+import com.pennsieve.doi.client.definitions._
+import com.pennsieve.doi.client.doi.{
   CreateDraftDoiResponse,
   GetLatestDoiResponse,
   HideDoiResponse,
   PublishDoiResponse
 }
-import com.blackfynn.doi.models.DoiState.Registered
-import com.blackfynn.doi.models.{ DoiDTO, DoiState }
-import com.blackfynn.models.License
+import com.pennsieve.doi.models.DoiState.Registered
+import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.models.License
 import io.circe.syntax._
 
 import scala.collection.mutable.{ ArrayBuffer, Map }

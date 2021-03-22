@@ -1,10 +1,10 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
-import com.blackfynn.discover.PublishJobException
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.TestUtilities
+import com.pennsieve.discover.PublishJobException
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.TestUtilities
 
 import scala.collection.mutable.ListBuffer
 import software.amazon.awssdk.services.sfn.model.StartExecutionResponse

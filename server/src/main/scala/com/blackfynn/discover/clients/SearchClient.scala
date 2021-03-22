@@ -1,14 +1,14 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.{ Done, NotUsed }
 import akka.stream._
 import akka.stream.scaladsl._
-import com.blackfynn.discover.Config
-import com.blackfynn.discover.server.definitions.PublicContributorDTO
-import com.blackfynn.discover.models._
-import com.blackfynn.models.FileManifest
+import com.pennsieve.discover.Config
+import com.pennsieve.discover.server.definitions.PublicContributorDTO
+import com.pennsieve.discover.models._
+import com.pennsieve.models.FileManifest
 import com.sksamuel.elastic4s.http.search.SearchResponse
 import com.sksamuel.elastic4s.http.ElasticDsl._
 import com.sksamuel.elastic4s.http.{

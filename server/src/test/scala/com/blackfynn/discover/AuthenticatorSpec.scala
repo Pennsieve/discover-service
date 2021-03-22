@@ -1,15 +1,15 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
-import com.blackfynn.discover.Authenticator.{
+import com.pennsieve.discover.Authenticator.{
   generateServiceClaim,
   generateUserClaim,
   withAuthorization,
   withServiceOwnerAuthorization
 }
-import com.blackfynn.models.Role
-import com.blackfynn.test.AwaitableImplicits
+import com.pennsieve.models.Role
+import com.pennsieve.test.AwaitableImplicits
 import org.scalatest.{ Matchers, WordSpec }
 import org.scalatest.concurrent.ScalaFutures
 

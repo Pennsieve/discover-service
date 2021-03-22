@@ -1,23 +1,23 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.notifications
+package com.pennsieve.discover.notifications
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.stream.alpakka.sqs.MessageAction
-import com.blackfynn.discover.ServiceSpecHarness
-import com.blackfynn.models.PublishStatus
-import com.blackfynn.models.DatasetMetadata._
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.clients.{
+import com.pennsieve.discover.ServiceSpecHarness
+import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.DatasetMetadata._
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.clients.{
   MockDoiClient,
   MockPennsieveApiClient,
   MockS3StreamClient,
   MockSearchClient,
   MockVictorOpsClient
 }
-import com.blackfynn.discover.models.{
+import com.pennsieve.discover.models.{
   DatasetDocument,
   FileDocument,
   PublicDatasetVersion,
@@ -26,14 +26,14 @@ import com.blackfynn.discover.models.{
   S3Bucket,
   S3Key
 }
-import com.blackfynn.discover.db.{
+import com.pennsieve.discover.db.{
   PublicDatasetVersionsMapper,
   PublicFilesMapper
 }
-import com.blackfynn.doi.models.{ DoiDTO, DoiState }
-import com.blackfynn.discover.server.definitions.DatasetPublishStatus
-import com.blackfynn.discover.TestUtilities
-import com.blackfynn.doi.client.definitions._
+import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.discover.server.definitions.DatasetPublishStatus
+import com.pennsieve.discover.TestUtilities
+import com.pennsieve.doi.client.definitions._
 import com.sksamuel.elastic4s.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._

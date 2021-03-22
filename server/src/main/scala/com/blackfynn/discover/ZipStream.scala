@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.downloads
+package com.pennsieve.discover.downloads
 
 import akka.NotUsed
 import akka.stream._

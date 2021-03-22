@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.search
+package com.pennsieve.discover.search
 
 import akka.{ Done, NotUsed }
 import akka.stream._
@@ -8,15 +8,15 @@ import akka.stream.scaladsl._
 
 import cats.data._
 import cats.implicits._
-import com.blackfynn.discover.Ports
-import com.blackfynn.discover.db._
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.models.PublishStatus
-import com.blackfynn.discover.logging.DiscoverLogContext
-import com.blackfynn.discover.models.{ DatasetDocument, FileDocument }
-import com.blackfynn.discover.S3Exception
-import com.blackfynn.service.utilities.LogContext
+import com.pennsieve.discover.Ports
+import com.pennsieve.discover.db._
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.models.PublishStatus
+import com.pennsieve.discover.logging.DiscoverLogContext
+import com.pennsieve.discover.models.{ DatasetDocument, FileDocument }
+import com.pennsieve.discover.S3Exception
+import com.pennsieve.service.utilities.LogContext
 import com.sksamuel.elastic4s.Index
 import com.typesafe.scalalogging.StrictLogging
 

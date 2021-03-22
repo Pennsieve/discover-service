@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.db
+package com.pennsieve.discover.db
 
 import java.time.OffsetDateTime
 
@@ -8,19 +8,19 @@ import akka.Done
 import cats.implicits._
 import cats.syntax._
 import com.github.tminglei.slickpg._
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.models.{ FileType, PublishStatus }
-import com.blackfynn.models.FileType.GenericData
-import com.blackfynn.discover.models.{
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.models.{ FileType, PublishStatus }
+import com.pennsieve.models.FileType.GenericData
+import com.pennsieve.discover.models.{
   FileDownloadDTO,
   FileTreeNode,
   PublicDatasetVersion,
   PublicFile,
   S3Key
 }
-import com.blackfynn.discover.NoFileException
-import com.blackfynn.models.FileManifest
-import com.blackfynn.discover.utils.{ getFileType, joinPath }
+import com.pennsieve.discover.NoFileException
+import com.pennsieve.models.FileManifest
+import com.pennsieve.discover.utils.{ getFileType, joinPath }
 import slick.basic.DatabasePublisher
 import slick.jdbc.{
   GetResult,

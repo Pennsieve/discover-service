@@ -1,31 +1,31 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.blackfynn.models.PackageType
-import com.blackfynn.discover.client.definitions.DatasetsPage
-import com.blackfynn.discover.{
+import com.pennsieve.models.PackageType
+import com.pennsieve.discover.client.definitions.DatasetsPage
+import com.pennsieve.discover.{
   client,
   server,
   ServiceSpecHarness,
   TestUtilities
 }
-import com.blackfynn.discover.clients.MockSearchClient
-import com.blackfynn.discover.client.search.{
+import com.pennsieve.discover.clients.MockSearchClient
+import com.pennsieve.discover.client.search.{
   SearchClient,
   SearchDatasetsResponse,
   SearchFilesResponse,
   SearchRecordsResponse
 }
-import com.blackfynn.discover.models._
-import com.blackfynn.discover.server.definitions.SponsorshipDTO
-import com.blackfynn.models.PublishStatus.{ EmbargoSucceeded, PublishSucceeded }
-import com.blackfynn.models.DatasetMetadata._
-import com.blackfynn.models.FileManifest
-import com.blackfynn.models.FileType
-import com.blackfynn.test.EitherValue._
+import com.pennsieve.discover.models._
+import com.pennsieve.discover.server.definitions.SponsorshipDTO
+import com.pennsieve.models.PublishStatus.{ EmbargoSucceeded, PublishSucceeded }
+import com.pennsieve.models.DatasetMetadata._
+import com.pennsieve.models.FileManifest
+import com.pennsieve.models.FileType
+import com.pennsieve.test.EitherValue._
 import io.scalaland.chimney.dsl._
 import org.scalatest.{ Matchers, WordSpec }
 

@@ -1,8 +1,8 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
-import com.blackfynn.discover.models.{ DatasetDownload, DownloadOrigin }
+import com.pennsieve.discover.models.{ DatasetDownload, DownloadOrigin }
 import scalikejdbc._
 import scalikejdbc.athena._
 import java.time.LocalDate

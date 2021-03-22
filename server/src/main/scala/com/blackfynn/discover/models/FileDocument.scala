@@ -1,10 +1,10 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.models
+package com.pennsieve.discover.models
 
-import com.blackfynn.models.FileManifest
-import com.blackfynn.discover.server.definitions
-import com.blackfynn.discover.utils.{ getFileType, joinPath }
+import com.pennsieve.models.FileManifest
+import com.pennsieve.discover.server.definitions
+import com.pennsieve.discover.utils.{ getFileType, joinPath }
 import io.circe.{ Decoder, Encoder }
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 

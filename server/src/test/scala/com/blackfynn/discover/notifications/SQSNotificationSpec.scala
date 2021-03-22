@@ -1,8 +1,8 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.notifications
+package com.pennsieve.discover.notifications
 
-import com.blackfynn.models.PublishStatus
+import com.pennsieve.models.PublishStatus
 import io.circe.parser.decode
 import org.scalatest.{ Matchers, Suite, WordSpec }
 

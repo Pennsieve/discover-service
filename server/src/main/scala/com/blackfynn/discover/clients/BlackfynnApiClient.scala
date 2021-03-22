@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import java.time.OffsetDateTime
 
@@ -12,11 +12,11 @@ import akka.http.scaladsl.model.headers.{
 }
 import cats.data.EitherT
 import cats.implicits._
-import com.blackfynn.auth.middleware.Jwt
-import com.blackfynn.discover.Authenticator
-import com.blackfynn.discover.clients.HttpClient.HttpClient
-import com.blackfynn.discover.server.definitions.DatasetPublishStatus
-import com.blackfynn.models.PublishStatus
+import com.pennsieve.auth.middleware.Jwt
+import com.pennsieve.discover.Authenticator
+import com.pennsieve.discover.clients.HttpClient.HttpClient
+import com.pennsieve.discover.server.definitions.DatasetPublishStatus
+import com.pennsieve.models.PublishStatus
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 import io.circe.parser.decode
 import io.circe.syntax._

@@ -1,8 +1,8 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.models
+package com.pennsieve.discover.models
 
-import com.blackfynn.discover.utils.joinPath
+import com.pennsieve.discover.utils.joinPath
 import io.circe.{ Decoder, Encoder, HCursor, Json }
 
 sealed trait S3Key extends Any

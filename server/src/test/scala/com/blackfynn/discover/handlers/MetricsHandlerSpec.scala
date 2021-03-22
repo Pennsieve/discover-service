@@ -1,22 +1,22 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.metrics
+package com.pennsieve.discover.metrics
 
 import java.time._
 
-import com.blackfynn.test.EitherValue._
+import com.pennsieve.test.EitherValue._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.blackfynn.discover.{ ServiceSpecHarness, TestUtilities }
-import com.blackfynn.discover.client.metrics.{
+import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.client.metrics.{
   GetDatasetDownloadsSummaryResponse,
   MetricsClient
 }
 import org.scalatest.{ Matchers, WordSpec }
-import com.blackfynn.discover.handlers.MetricsHandler
-import com.blackfynn.discover.models.DownloadOrigin
-import com.blackfynn.discover.client.definitions.DatasetDownloadSummaryRow
-import com.blackfynn.discover.server.metrics.MetricsResource.{
+import com.pennsieve.discover.handlers.MetricsHandler
+import com.pennsieve.discover.models.DownloadOrigin
+import com.pennsieve.discover.client.definitions.DatasetDownloadSummaryRow
+import com.pennsieve.discover.server.metrics.MetricsResource.{
   getDatasetDownloadsSummaryResponse,
   getDatasetDownloadsSummaryResponseOK
 }

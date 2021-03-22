@@ -1,16 +1,16 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.handlers
+package com.pennsieve.discover.handlers
 
 import java.time._
 import java.time.temporal.ChronoUnit
 
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import com.blackfynn.discover.{ utils, ServiceSpecHarness, TestUtilities }
-import com.blackfynn.discover.client.sync.SyncClient
+import com.pennsieve.discover.{ utils, ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.client.sync.SyncClient
 import org.scalatest.{ Matchers, WordSpec }
-import com.blackfynn.discover.models.{ DatasetDownload, DownloadOrigin }
+import com.pennsieve.discover.models.{ DatasetDownload, DownloadOrigin }
 
 class SyncHandlerSpec
     extends WordSpec

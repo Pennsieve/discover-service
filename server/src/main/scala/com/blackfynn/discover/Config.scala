@@ -1,8 +1,8 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
-import com.blackfynn.discover.models.S3Bucket
+import com.pennsieve.discover.models.S3Bucket
 import software.amazon.awssdk.regions.Region
 import squants.information.Information
 import squants.information.InformationConversions._

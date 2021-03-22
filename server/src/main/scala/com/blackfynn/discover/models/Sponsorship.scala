@@ -1,7 +1,7 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.models
-import com.blackfynn.discover.server.definitions.SponsorshipDTO
+package com.pennsieve.discover.models
+import com.pennsieve.discover.server.definitions.SponsorshipDTO
 import io.circe.{ Decoder, Encoder }
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 

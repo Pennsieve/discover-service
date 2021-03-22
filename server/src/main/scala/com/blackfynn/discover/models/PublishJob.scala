@@ -1,10 +1,10 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.models
+package com.pennsieve.discover.models
 
-import com.blackfynn.discover.server.definitions.PublishRequest
-import com.blackfynn.doi.models.DoiDTO
-import com.blackfynn.models.PublishStatus
+import com.pennsieve.discover.server.definitions.PublishRequest
+import com.pennsieve.doi.models.DoiDTO
+import com.pennsieve.models.PublishStatus
 import cats.implicits._
 
 import io.circe.{ CursorOp, Decoder, DecodingFailure, Encoder, HCursor, Json }

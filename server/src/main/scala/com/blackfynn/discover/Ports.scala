@@ -1,12 +1,12 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.auth.middleware.Jwt
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.auth.middleware.Jwt
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import com.blackfynn.discover.clients.{
+import com.pennsieve.discover.clients.{
   AlpakkaLambdaClient,
   AlpakkaS3StreamClient,
   AthenaClient,
@@ -26,9 +26,9 @@ import com.blackfynn.discover.clients.{
   VictorOpsClient,
   VictorOpsSNSClient
 }
-import com.blackfynn.discover.logging.DiscoverLogContext
+import com.pennsieve.discover.logging.DiscoverLogContext
 
-import com.blackfynn.service.utilities.{
+import com.pennsieve.service.utilities.{
   ContextLogger,
   LogContext,
   SingleHttpResponder

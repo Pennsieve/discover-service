@@ -1,15 +1,15 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover
+package com.pennsieve.discover
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import com.blackfynn.discover.handlers._
-import com.blackfynn.discover.notifications.SQSNotificationHandler
-import com.blackfynn.service.utilities.MigrationRunner
+import com.pennsieve.discover.handlers._
+import com.pennsieve.discover.notifications.SQSNotificationHandler
+import com.pennsieve.service.utilities.MigrationRunner
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration.Duration

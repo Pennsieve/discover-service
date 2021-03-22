@@ -3,8 +3,8 @@
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import com.blackfynn.discover.{ Config, Ports }
-import com.blackfynn.discover.search._
+import com.pennsieve.discover.{ Config, Ports }
+import com.pennsieve.discover.search._
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration._

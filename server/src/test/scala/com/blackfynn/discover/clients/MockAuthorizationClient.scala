@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{
@@ -10,9 +10,9 @@ import akka.http.scaladsl.model.headers.{
 }
 import cats.data._
 import cats.implicits._
-import com.blackfynn.discover.clients.HttpClient.HttpClient
-import com.blackfynn.discover.Authenticator
-import com.blackfynn.auth.middleware.Jwt
+import com.pennsieve.discover.clients.HttpClient.HttpClient
+import com.pennsieve.discover.Authenticator
+import com.pennsieve.auth.middleware.Jwt
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._

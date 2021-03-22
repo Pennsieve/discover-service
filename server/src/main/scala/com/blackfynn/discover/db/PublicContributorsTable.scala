@@ -1,15 +1,15 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.db
+package com.pennsieve.discover.db
 
-import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.discover.models.{
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.models.{
   PublicContributor,
   PublicDataset,
   PublicDatasetVersion
 }
-import com.blackfynn.discover.NoDatasetVersionException
-import com.blackfynn.models.{ Degree }
+import com.pennsieve.discover.NoDatasetVersionException
+import com.pennsieve.models.{ Degree }
 
 import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }

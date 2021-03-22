@@ -1,4 +1,4 @@
-ThisBuild / organization := "com.blackfynn"
+ThisBuild / organization := "com.pennsieve"
 ThisBuild / scalaVersion := "2.12.11"
 ThisBuild / scalacOptions ++= Seq(
   "-encoding", "utf-8",
@@ -24,8 +24,8 @@ ThisBuild / resolvers ++= Seq(
 ThisBuild / credentials += Credentials(
   "Sonatype Nexus Repository Manager",
   "nexus.pennsieve.cc",
-  sys.env.getOrElse("PENNSIEVE_NEXUS_USER", "pennsieve-ci"),
-  sys.env.getOrElse("PENNSIEVE_NEXUS_PW", "")
+  sys.env("PENNSIEVE_NEXUS_USER"),
+  sys.env("PENNSIEVE_NEXUS_PW")
 )
 
 // Until https://github.com/coursier/coursier/issues/1815 is fixed
@@ -52,11 +52,11 @@ lazy val akkaHttpVersion         = "10.1.11"
 lazy val akkaVersion             = "2.6.5"
 lazy val alpakkaVersion          = "1.1.0"
 lazy val circeVersion            = "0.11.0"
-lazy val coreVersion             = "bootstrap-SNAPSHOT"
-lazy val authMiddlewareVersion   = "4.2.2"
-lazy val serviceUtilitiesVersion = "1.3.4-SNAPSHOT"
-lazy val utilitiesVersion        = "0.1.10-SNAPSHOT"
-lazy val doiServiceClientVersion = "18-0f4025e"
+lazy val coreVersion             = "com.pennsieve-SNAPSHOT"
+lazy val authMiddlewareVersion   = "com.pennsieve-SNAPSHOT"
+lazy val serviceUtilitiesVersion = "6-2a4488a"
+lazy val utilitiesVersion        = "3-cd7539b"
+lazy val doiServiceClientVersion = "com.pennsieve-SNAPSHOT"
 lazy val slickVersion            = "3.2.3"
 lazy val slickPgVersion          = "0.16.3"
 lazy val dockerItVersion         = "0.9.7"
@@ -85,19 +85,19 @@ lazy val server = project
     inConfig(Integration)(Defaults.testTasks),
     Test / testOptions := Seq(Tests.Filter(! _.toLowerCase.contains("integration"))),
     Integration / testOptions := Seq(Tests.Filter(_.toLowerCase.contains("integration"))),
-    
-    Compile / mainClass := Some("com.blackfynn.discover.Server"),
+
+    Compile / mainClass := Some("com.pennsieve.discover.Server"),
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
     ),
     libraryDependencies ++= Seq(
-      "com.blackfynn" %% "service-utilities" % serviceUtilitiesVersion,
-      "com.blackfynn" %% "utilities" % utilitiesVersion,
-      "com.blackfynn" %% "auth-middleware" % authMiddlewareVersion,
-      "com.blackfynn" %% "core-models" % coreVersion,
-      "com.blackfynn" %% "doi-service-client" % doiServiceClientVersion,
+      "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion,
+      "com.pennsieve" %% "utilities" % utilitiesVersion,
+      "com.pennsieve" %% "auth-middleware" % authMiddlewareVersion,
+      "com.pennsieve" %% "core-models" % coreVersion,
+      "com.pennsieve" %% "doi-service-client" % doiServiceClientVersion,
 
       "org.typelevel" %% "cats-core" % catsVersion,
       "io.circe" %% "circe-core" % circeVersion,
@@ -151,8 +151,8 @@ lazy val server = project
       "org.scalatest" %% "scalatest"% "3.0.5" % Test,
       "com.whisk" %% "docker-testkit-scalatest" % dockerItVersion % Test,
       "com.whisk" %% "docker-testkit-impl-spotify" % dockerItVersion % Test,
-      "com.blackfynn" %% "utilities" % utilitiesVersion % "test" classifier "tests",
-      "com.blackfynn" %% "service-utilities" % serviceUtilitiesVersion % "test" classifier "tests",
+      "com.pennsieve" %% "utilities" % utilitiesVersion % "test" classifier "tests",
+      "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion % "test" classifier "tests",
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
       "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
       "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
@@ -161,8 +161,8 @@ lazy val server = project
       "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test,
     ),
     guardrailTasks in Compile := List(
-      ScalaServer(file("openapi/discover-service.yml"), pkg="com.blackfynn.discover.server"),
-      ScalaServer(file("openapi/discover-service-internal.yml"), pkg="com.blackfynn.discover.server")
+      ScalaServer(file("openapi/discover-service.yml"), pkg="com.pennsieve.discover.server"),
+      ScalaServer(file("openapi/discover-service-internal.yml"), pkg="com.pennsieve.discover.server")
     ),
     dockerfile in docker := {
       val artifact: File = assembly.value
@@ -200,9 +200,9 @@ lazy val server = project
     },
     coverageExcludedPackages :=
       """
-       | com.blackfynn.discover.client\..*;
-       | com.blackfynn.discover.server\..*;
-       | com.blackfynn.discover.Server;
+       | com.pennsieve.discover.client\..*;
+       | com.pennsieve.discover.server\..*;
+       | com.pennsieve.discover.Server;
       """.stripMargin.replace("\n", ""),
     coverageMinimum := 70,
     coverageFailOnMinimum := true,
@@ -266,7 +266,7 @@ lazy val client = project
     headerLicense := headerLicenseValue,
     headerMappings := headerMappings.value + headerMappingsValue,
     libraryDependencies ++= Seq(
-      "com.blackfynn" %% "core-models" % coreVersion,
+      "com.pennsieve" %% "core-models" % coreVersion,
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-java8" % circeVersion,
@@ -286,8 +286,8 @@ lazy val client = project
     },
     publishMavenStyle := true,
     guardrailTasks in Compile := List(
-      ScalaClient(file("openapi/discover-service.yml"), pkg="com.blackfynn.discover.client"),
-      ScalaClient(file("openapi/discover-service-internal.yml"), pkg="com.blackfynn.discover.client")
+      ScalaClient(file("openapi/discover-service.yml"), pkg="com.pennsieve.discover.client"),
+      ScalaClient(file("openapi/discover-service-internal.yml"), pkg="com.pennsieve.discover.client")
     ),
   )
 
@@ -305,7 +305,7 @@ lazy val scripts = project
       "io.circe" %% "circe-java8" % circeVersion,
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-      "com.blackfynn" %% "service-utilities" % serviceUtilitiesVersion,
+      "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion,
     )
   )
 

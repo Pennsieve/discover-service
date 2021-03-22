@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.blackfynn.discover.clients
+package com.pennsieve.discover.clients
 
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -10,11 +10,11 @@ import akka.stream.scaladsl._
 import akka.stream.testkit.scaladsl.TestSink
 import akka.stream.alpakka.s3.{ S3Attributes, S3Ext }
 import akka.util.ByteString
-import com.blackfynn.discover.S3Exception
-import com.blackfynn.discover.DockerS3Service
-import com.blackfynn.discover.models._
-import com.blackfynn.models._
-import com.blackfynn.test.AwaitableImplicits
+import com.pennsieve.discover.S3Exception
+import com.pennsieve.discover.DockerS3Service
+import com.pennsieve.discover.models._
+import com.pennsieve.models._
+import com.pennsieve.test.AwaitableImplicits
 import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
 import com.whisk.docker.scalatest.DockerTestKit
 import com.whisk.docker.DockerFactory
