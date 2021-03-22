@@ -326,7 +326,7 @@ class PublishHandlerSpec
         'description (requestBody.description),
         'status (PublishStatus.PublishInProgress),
         's3Bucket ("bucket"),
-        's3Key (s"${publicDataset.id}/${publicVersion.version}/"),
+        's3Key (s"versioned/${publicDataset.id}/"),
         'doi (doi.doi)
       )
 
@@ -360,11 +360,9 @@ class PublishHandlerSpec
             'userOrcid (requestBody.ownerOrcid),
             's3PgdumpKey (
               S3Key
-                .Version(publicDataset.id, publicVersion.version) / "dump.sql" toString
+                .Dataset(publicDataset.id) / "dump.sql" toString
             ),
-            's3PublishKey (
-              S3Key.Version(publicDataset.id, publicVersion.version) toString
-            ),
+            's3PublishKey (S3Key.Dataset(publicDataset.id) toString),
             'version (publicVersion.version),
             'doi (doi.doi)
           )
@@ -459,7 +457,7 @@ class PublishHandlerSpec
         'description (requestBody.description),
         'status (PublishStatus.EmbargoInProgress),
         's3Bucket ("embargo-bucket"),
-        's3Key (s"${publicDataset.id}/${publicVersion.version}/"),
+        's3Key (s"versioned/${publicDataset.id}/"),
         'doi (doi.doi),
         'embargoReleaseDate (Some(embargoReleaseDate))
       )
@@ -522,7 +520,7 @@ class PublishHandlerSpec
         'size (requestBody.size),
         'status (PublishStatus.PublishInProgress),
         's3Bucket ("bucket"),
-        's3Key (s"${publicDataset.id}/${publicVersion.version}/"),
+        's3Key (s"versioned/${publicDataset.id}/"),
         'doi (doi.doi)
       )
     }
@@ -576,7 +574,7 @@ class PublishHandlerSpec
         'size (requestBody.size),
         'status (PublishStatus.PublishInProgress),
         's3Bucket ("bucket"),
-        's3Key (s"${publicDataset.id}/${latestVersion.version}/"),
+        's3Key (s"versioned/${publicDataset.id}/"),
         'doi (doi.doi)
       )
     }
@@ -630,7 +628,7 @@ class PublishHandlerSpec
         'size (requestBody.size),
         'status (PublishStatus.PublishInProgress),
         's3Bucket ("bucket"),
-        's3Key (s"${publicDataset.id}/${latestVersion.version}/"),
+        's3Key (s"versioned/${publicDataset.id}/"),
         'doi (doi.doi)
       )
     }

@@ -1361,7 +1361,7 @@ class DatasetHandlerSpec
         .getFile(
           v.datasetId,
           v.version,
-          "s3://" + config.s3.publishBucket + f.s3Key.toString
+          "s3://" + config.s3.publishBucket + "/" + f.s3Key.toString
         )
         .awaitFinite()
         .value

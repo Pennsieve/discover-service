@@ -10,69 +10,74 @@ import org.scalatest.{ Matchers, WordSpec }
 
 class S3KeySpec extends WordSpec with Matchers {
 
-  "S3 version key" should {
+  "S3 dataset key" should {
 
-    "build from id and version" in {
-      S3Key.Version(0, 1) shouldBe S3Key.Version("0/1/")
+    "build from id" in {
+      S3Key.Dataset(0) shouldBe S3Key.Dataset("versioned/0/")
     }
 
     "join with a path to make a file key" in {
-      S3Key.Version(0, 1) / "files/test.txt" shouldBe S3Key.File(
-        "0/1/files/test.txt"
+      S3Key.Dataset(0) / "files/test.txt" shouldBe S3Key.File(
+        "versioned/0/files/test.txt"
       )
     }
 
     "strip leading slashes when joining" in {
-      S3Key.Version(0, 1) / "/files/test.txt" shouldBe S3Key.File(
-        "0/1/files/test.txt"
+      S3Key.Dataset(0) / "/files/test.txt" shouldBe S3Key.File(
+        "versioned/0/files/test.txt"
       )
     }
 
     "strip trailing slashes when joining" in {
-      S3Key.Version(0, 1) / "files/test.txt/" shouldBe S3Key.File(
-        "0/1/files/test.txt"
+      S3Key.Dataset(0) / "files/test.txt/" shouldBe S3Key.File(
+        "versioned/0/files/test.txt"
       )
     }
 
     "be converted to a string" in {
-      S3Key.Version(0, 1).toString shouldBe "0/1/"
+      S3Key.Dataset(0).toString shouldBe "versioned/0/"
     }
 
     "be encoded correctly" in {
-      S3Key.Version(0, 1).asJson shouldBe Json.fromString("0/1/")
+      S3Key.Dataset(0).asJson shouldBe Json.fromString("versioned/0/")
     }
     "be decoded correctly" in {
-      decode[S3Key.Version]("\"0/1/\"") shouldBe Right(S3Key.Version(0, 1))
+      decode[S3Key.Dataset]("\"versioned/0/\"") shouldBe Right(S3Key.Dataset(0))
     }
 
   }
 
   "S3 file key" should {
     "be converted to a string" in {
-      S3Key.File("0/1/test.txt").toString shouldBe "0/1/test.txt"
+      S3Key
+        .File("versioned/0/test.txt")
+        .toString shouldBe "versioned/0/test.txt"
     }
 
     "be encoded correctly" in {
-      S3Key.File("0/1/test.txt").asJson shouldBe Json.fromString("0/1/test.txt")
+      S3Key.File("versioned/0/test.txt").asJson shouldBe Json.fromString(
+        "versioned/0/test.txt"
+      )
     }
     "be decoded correctly" in {
-      decode[S3Key.File]("\"0/1/test.txt\"") shouldBe Right(
-        S3Key.File("0/1/test.txt")
+      decode[S3Key.File]("\"versioned/0/test.txt\"") shouldBe Right(
+        S3Key.File("versioned/0/test.txt")
       )
     }
     "remove version prefix" in {
       S3Key
-        .File("0/1/test.txt")
-        .removeVersionPrefix(S3Key.Version(0, 1)) shouldBe "test.txt"
+        .File("versioned/0/test.txt")
+        .removeDatasetPrefix(S3Key.Dataset(0)) shouldBe "test.txt"
     }
   }
 
   "S3 revision key" should {
 
     "be built correctly" in {
-      S3Key.Revision(0, 1, 3).asJson shouldBe Json.fromString(
-        "0/1/revisions/3/"
+      S3Key.Revision(0, 1).asJson shouldBe Json.fromString(
+        "versioned/0/revisions/1/"
       )
     }
   }
+
 }

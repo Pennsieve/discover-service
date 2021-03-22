@@ -503,12 +503,11 @@ class DatasetHandler(
       } else {
         pathNoSchemeNoBucket
       }
-      path = if (!noSlashPath.startsWith(datasetId + "/" + versionId)) {
-        datasetId + "/" + versionId + "/" + noSlashPath
+      path = if (!noSlashPath.startsWith("versioned/" + datasetId)) {
+        "versioned/" + datasetId + "/" + noSlashPath
       } else {
         noSlashPath
       }
-
       file <- PublicFilesMapper.getFile(version, S3Key.File(path))
 
     } yield (dataset, version, file)

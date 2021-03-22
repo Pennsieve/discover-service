@@ -135,6 +135,15 @@ trait S3StreamClient {
   }
 
   def getPresignedUrlForFile(s3Bucket: S3Bucket, key: S3Key.File): String
+
+  def writeDatasetFilesList(
+    version: PublicDatasetVersion,
+    files: List[PublishedFile]
+  )(implicit
+    system: ActorSystem,
+    materializer: ActorMaterializer,
+    ec: ExecutionContext
+  ): Future[S3Key.File]
 }
 
 class AlpakkaS3StreamClient(
@@ -149,6 +158,7 @@ class AlpakkaS3StreamClient(
   private val README_FILE = "readme.md"
   private val BANNER = "banner"
   private val README = "readme"
+  private val PREVIOUS_VERSION_FILES_LIST_KEY = "versions.json"
 
   private val chunkSizeBytes: Long = chunkSize.toBytes.toLong
 
@@ -335,7 +345,7 @@ class AlpakkaS3StreamClient(
       `@id` = version.doi
     )
 
-    val key = S3Key.Revision(dataset.id, version.version, revision.revision)
+    val key = S3Key.Revision(dataset.id, revision.revision)
 
     // Remove the empty file field
     implicit val encoder: Encoder[DatasetMetadataV4_0] =
@@ -370,7 +380,7 @@ class AlpakkaS3StreamClient(
           result =>
             FileManifest(
               path = (key / MANIFEST_FILE)
-                .removeVersionPrefix(version.s3Key)
+                .removeDatasetPrefix(version.s3Key)
                 .toString,
               size = bytes.length,
               fileType = FileType.Json
@@ -392,6 +402,32 @@ class AlpakkaS3StreamClient(
         readme = readmeManifest,
         banner = bannerManifest
       )
+  }
+
+  def writeDatasetFilesList(
+    version: PublicDatasetVersion,
+    files: List[PublishedFile]
+  )(implicit
+    system: ActorSystem,
+    materializer: ActorMaterializer,
+    ec: ExecutionContext
+  ): Future[S3Key.File] = {
+    val bytes = ByteString(
+      Printer.spaces2.copy(dropNullValues = true).pretty(files.asJson)
+    )
+
+    val key = S3Key.Dataset(version.datasetId)
+
+    for {
+      _ <- Source
+        .single(bytes)
+        .runWith(
+          S3.multipartUpload(
+            version.s3Bucket.value,
+            (key / PREVIOUS_VERSION_FILES_LIST_KEY).toString
+          )
+        )
+    } yield (key / PREVIOUS_VERSION_FILES_LIST_KEY)
   }
 
   private def newNameSameExtension(
@@ -424,7 +460,7 @@ class AlpakkaS3StreamClient(
       size <- getObjectSize(version.s3Bucket, key)
     } yield
       FileManifest(
-        path = key.removeVersionPrefix(version.s3Key).toString,
+        path = key.removeDatasetPrefix(version.s3Key).toString,
         size = size,
         fileType = utils.getFileTypeFromExtension(
           FilenameUtils.getExtension(key.toString)

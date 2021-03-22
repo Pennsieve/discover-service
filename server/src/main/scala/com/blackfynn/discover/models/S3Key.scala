@@ -17,7 +17,7 @@ object S3Key {
 
     // TODO: should this return an Either to capture failures when the string
     // does not start with the version?
-    def removeVersionPrefix(prefix: S3Key.Version): String =
+    def removeDatasetPrefix(prefix: S3Key.Dataset): String =
       value.stripPrefix(prefix.toString)
   }
 
@@ -31,9 +31,9 @@ object S3Key {
   }
 
   /**
-    * Base key of a dataset version in S3, which is :datasetId/:version
+    * Base key of a dataset in S3 versioning-enabled, which is versioned/:datasetId
     */
-  case class Version(value: String) extends AnyVal with S3Key {
+  case class Dataset(value: String) extends AnyVal with S3Key {
 
     /**
       * Add a suffix to this base key.
@@ -44,16 +44,16 @@ object S3Key {
     override def toString: String = value
   }
 
-  object Version {
-    def apply(datasetId: Int, version: Int): Version =
-      Version(s"$datasetId/$version/")
+  object Dataset {
+    def apply(datasetId: Int): Dataset =
+      Dataset(s"versioned/$datasetId/")
 
-    implicit val encodeVersion: Encoder[Version] =
-      Encoder.encodeString.contramap[Version](_.value)
+    implicit val encodeVersion: Encoder[Dataset] =
+      Encoder.encodeString.contramap[Dataset](_.value)
 
-    implicit val decodeVersion: Decoder[Version] = Decoder.decodeString.emap {
+    implicit val decodeVersion: Decoder[Dataset] = Decoder.decodeString.emap {
       str =>
-        Right(Version(str))
+        Right(Dataset(str))
     }
   }
 
@@ -73,8 +73,8 @@ object S3Key {
   }
 
   object Revision {
-    def apply(datasetId: Int, version: Int, revision: Int): Revision =
-      Revision(s"$datasetId/$version/revisions/$revision/")
+    def apply(datasetId: Int, revision: Int): Revision =
+      Revision(s"versioned/$datasetId/revisions/$revision/")
 
     implicit val encodeRevision: Encoder[Revision] =
       Encoder.encodeString.contramap[Revision](_.value)

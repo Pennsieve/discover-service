@@ -146,10 +146,10 @@ class S3StreamClientSpec
       val (client, bucket, _) = createClient()
 
       // Data is even multiple of chunk size
-      putObject(bucket, "0/1/files/file1.txt", "file1 data")
+      putObject(bucket, "versioned/0/files/file1.txt", "file1 data")
       // Not a multiple - last chunk is truncated
-      putObject(bucket, "0/1/files/file2.txt", "file2 data+")
-      putObject(bucket, "0/1/files/nested/file3.txt", "file3 data")
+      putObject(bucket, "versioned/0/files/file2.txt", "file2 data+")
+      putObject(bucket, "versioned/0/files/nested/file3.txt", "file3 data")
 
       val sink = client
         .datasetFilesSource(version(0, 1, bucket), "dataset")
@@ -171,8 +171,8 @@ class S3StreamClientSpec
 
     "ignore other keys" in {
       val (client, bucket, _) = createClient()
-      putObject(bucket, "0/1/files/file1.txt", "file1 data")
-      putObject(bucket, "5/67/files/file7329.txt", "some other stuff")
+      putObject(bucket, "versioned/0/files/file1.txt", "file1 data")
+      putObject(bucket, "versioned/5/files/file7329.txt", "some other stuff")
 
       val sink = client
         .datasetFilesSource(version(0, 1, bucket), "dataset")
@@ -193,7 +193,11 @@ class S3StreamClientSpec
     "stream manifest.json from S3 bucket" in {
       val (client, bucket, _) = createClient()
 
-      putObject(bucket, "0/1/manifest.json", "{\"name\": \"Test Dataset\"}")
+      putObject(
+        bucket,
+        "versioned/0/manifest.json",
+        "{\"name\": \"Test Dataset\"}"
+      )
 
       val (source, contentLength) = client
         .datasetMetadataSource(version(0, 1, bucket))
@@ -211,7 +215,7 @@ class S3StreamClientSpec
   "S3 readme source" should {
     "stream readme.md from S3 bucket" in {
       val (client, bucket, _) = createClient()
-      putObject(bucket, "0/1/readme.md", "This is a description")
+      putObject(bucket, "versioned/0/readme.md", "This is a description")
 
       val readme = client
         .readDatasetReadme(version(0, 1, bucket), None)
@@ -224,7 +228,7 @@ class S3StreamClientSpec
       val (client, bucket, _) = createClient()
       putObject(
         bucket,
-        "0/1/revisions/2/readme.md",
+        "versioned/0/revisions/2/readme.md",
         "This is a revised description"
       )
 
@@ -242,11 +246,11 @@ class S3StreamClientSpec
 
       val tempResult =
         PublishJobOutput(
-          S3Key.Version(0, 1) / "readme.md",
-          S3Key.Version(0, 1) / "banner.jpg",
+          S3Key.Dataset(0) / "readme.md",
+          S3Key.Dataset(0) / "banner.jpg",
           totalSize = 76543
         )
-      putObject(bucket, "0/1/outputs.json", tempResult.asJson.toString)
+      putObject(bucket, "versioned/0/outputs.json", tempResult.asJson.toString)
 
       client
         .readPublishJobOutput(version(0, 1, bucket))
@@ -293,7 +297,7 @@ class S3StreamClientSpec
       fileCount = 0L,
       recordCount = 0L,
       s3Bucket = S3Bucket(bucket),
-      s3Key = S3Key.Version(datasetId, version),
+      s3Key = S3Key.Dataset(datasetId),
       status = PublishStatus.PublishSucceeded,
       doi = "10.21397/abcd-1234",
       schemaVersion = PennsieveSchemaVersion.latest,
@@ -352,13 +356,13 @@ class S3StreamClientSpec
 
       putObject(
         bucket,
-        "3/4/metadata/schema.json",
+        "versioned/3/metadata/schema.json",
         getResource("/metadata/schema.json")
       )
 
       putObject(
         bucket,
-        "3/4/metadata/samples.csv",
+        "versioned/3/metadata/samples.csv",
         getResource("/metadata/samples.csv")
       )
 
@@ -454,13 +458,15 @@ class S3StreamClientSpec
           fileType = FileType.Json
         )
       )
-      val readme = getObject(publishBucket, "3/4/revisions/5/readme.md")
+      val readme = getObject(publishBucket, "versioned/3/revisions/5/readme.md")
       readme shouldBe readResourceContents("/readme.md")
 
-      val banner = getObject(publishBucket, "3/4/revisions/5/banner.jpg")
+      val banner =
+        getObject(publishBucket, "versioned/3/revisions/5/banner.jpg")
       banner shouldBe readResourceContents("/banner.jpg")
 
-      val manifest = getObject(publishBucket, "3/4/revisions/5/manifest.json")
+      val manifest =
+        getObject(publishBucket, "versioned/3/revisions/5/manifest.json")
 
       // Should drop the empty "files" key.
       parse(manifest).right.get.hcursor.keys.get should not contain "files"
@@ -503,11 +509,17 @@ class S3StreamClientSpec
       // Should also copy assets to the frontend bucket
 
       val frontendReadme =
-        getObject(frontendBucket, "dataset-assets/3/4/revisions/5/readme.md")
+        getObject(
+          frontendBucket,
+          "dataset-assets/versioned/3/revisions/5/readme.md"
+        )
       frontendReadme shouldBe readResourceContents("/readme.md")
 
       val frontendBanner =
-        getObject(frontendBucket, "dataset-assets/3/4/revisions/5/banner.jpg")
+        getObject(
+          frontendBucket,
+          "dataset-assets/versioned/3/revisions/5/banner.jpg"
+        )
       frontendBanner shouldBe readResourceContents("/banner.jpg")
     }
   }
