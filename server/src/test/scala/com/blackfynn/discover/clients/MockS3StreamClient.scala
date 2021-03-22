@@ -108,6 +108,17 @@ class MockS3StreamClient extends S3StreamClient {
   ] =
     mutable.ArrayBuffer.empty
 
+  def writeDatasetFilesList(
+    version: PublicDatasetVersion,
+    files: List[PublishedFile]
+  )(implicit
+    system: ActorSystem,
+    materializer: ActorMaterializer,
+    ec: ExecutionContext
+  ): Future[S3Key.File] = {
+    Future(S3Key.File("versions.json"))
+  }
+
   def writeDatasetRevisionMetadata(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
@@ -158,10 +169,10 @@ class MockS3StreamClient extends S3StreamClient {
       Readme(revision.map(_ => revisedReadme).getOrElse(sampleReadme))
     )
 
-  val publishResults: mutable.Map[S3Key.Version, PublishJobOutput] =
+  val publishResults: mutable.Map[S3Key.Dataset, PublishJobOutput] =
     mutable.Map.empty
 
-  def withNextPublishResult(key: S3Key.Version, result: PublishJobOutput) =
+  def withNextPublishResult(key: S3Key.Dataset, result: PublishJobOutput) =
     publishResults += key -> result
 
   def readPublishJobOutput(

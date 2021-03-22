@@ -5,6 +5,7 @@ package com.blackfynn.discover.db
 import com.blackfynn.models.{ Degree, License, PublishStatus, RelationshipType }
 import com.blackfynn.discover.models.{
   DownloadOrigin,
+  ObjectVersion,
   PennsieveSchemaVersion,
   S3Bucket,
   S3Key
@@ -82,10 +83,15 @@ trait PostgresProfile
       MappedColumnType
         .base[S3Key.File, String](s => s.value, s => S3Key.File(s))
 
-    implicit val s3VersionKeyMapper
-      : JdbcType[S3Key.Version] with BaseTypedType[S3Key.Version] =
+    implicit val s3ObjectVersionKeyMapper
+      : JdbcType[ObjectVersion] with BaseTypedType[ObjectVersion] =
       MappedColumnType
-        .base[S3Key.Version, String](s => s.value, s => S3Key.Version(s))
+        .base[ObjectVersion, String](s => s.value, s => ObjectVersion(s))
+
+    implicit val s3DatasetKeyMapper
+      : JdbcType[S3Key.Dataset] with BaseTypedType[S3Key.Dataset] =
+      MappedColumnType
+        .base[S3Key.Dataset, String](s => s.value, s => S3Key.Dataset(s))
 
   }
 

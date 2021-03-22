@@ -12,7 +12,7 @@ case class EmbargoReleaseJob(
   organizationId: Int,
   datasetId: Int,
   version: Int,
-  s3Key: S3Key.Version
+  s3Key: S3Key.Dataset
 )
 
 object EmbargoReleaseJob {

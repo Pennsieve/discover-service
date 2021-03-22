@@ -38,7 +38,7 @@ final class PublicDatasetVersionsTable(tag: Tag)
   def fileCount = column[Long]("file_count")
   def recordCount = column[Long]("record_count")
   def s3Bucket = column[S3Bucket]("s3_bucket")
-  def s3Key = column[S3Key.Version]("s3_key")
+  def s3Key = column[S3Key.Dataset]("s3_key")
   def status = column[PublishStatus]("status")
   def doi = column[String]("doi")
   def schemaVersion = column[PennsieveSchemaVersion]("schema_version")
@@ -699,7 +699,7 @@ object PublicDatasetVersionsMapper
         fileCount = fileCount,
         recordCount = recordCount,
         s3Bucket = s3Bucket,
-        s3Key = S3Key.Version(id, version),
+        s3Key = S3Key.Dataset(id),
         status = status,
         doi = doi,
         schemaVersion = schemaVersion,

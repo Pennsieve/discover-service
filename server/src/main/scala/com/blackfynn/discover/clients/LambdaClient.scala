@@ -4,26 +4,24 @@ package com.blackfynn.discover.clients
 
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.awslambda.scaladsl.AwsLambdaFlow
-import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.scaladsl.{Sink, Source}
 import com.blackfynn.discover.LambdaException
+import com.blackfynn.discover.models.S3Key.Dataset
 import com.typesafe.scalalogging.StrictLogging
 import io.circe.syntax._
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.lambda.model.{
-  InvokeRequest,
-  InvokeResponse
-}
+import software.amazon.awssdk.services.lambda.model.{InvokeRequest, InvokeResponse}
 import software.amazon.awssdk.services.lambda.LambdaAsyncClient
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 trait LambdaClient {
 
   def runS3Clean(
-    s3KeyPrefix: String
+                  datasetId: Int
   )(implicit
     materializer: ActorMaterializer,
     ec: ExecutionContext
@@ -46,7 +44,8 @@ class AlpakkaLambdaClient(
     .build()
 
   def runS3Clean(
-    s3KeyPrefix: String
+    s3KeyPrefix: String,
+    datasetId: Int
   )(implicit
     materializer: ActorMaterializer,
     ec: ExecutionContext
@@ -56,8 +55,8 @@ class AlpakkaLambdaClient(
       .functionName(s3CleanFunction)
       .payload(
         SdkBytes
-          .fromUtf8String(Map("s3_key_prefix" -> s3KeyPrefix).asJson.noSpaces)
-      )
+          .fromUtf8String(Map("s3_key_prefix" -> Dataset(datasetId).toString, "version" -> "all", "dataset_id" -> datasetId.toString, "s3_versioned_files_key" -> "")
+          ))
       .build()
     Source
       .single(lambdaRequest)

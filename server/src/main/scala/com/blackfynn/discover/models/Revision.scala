@@ -16,7 +16,7 @@ final case class Revision(
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   id: Int = 0
 ) {
-  def s3Key: S3Key.Revision = S3Key.Revision(datasetId, version, revision)
+  def s3Key: S3Key.Revision = S3Key.Revision(datasetId, revision)
 }
 
 object Revision {

@@ -3,49 +3,36 @@
 package com.blackfynn.discover.handlers
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
-import akka.http.scaladsl.model.{ HttpHeader, HttpResponse, Uri }
+import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
+import akka.http.scaladsl.model.{HttpHeader, HttpResponse, Uri}
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import cats.implicits._
 import com.blackfynn.auth.middleware.AkkaDirective.authenticateJwt
 import com.blackfynn.auth.middleware.Jwt
-import com.blackfynn.discover.Authenticator.{
-  withAuthorization,
-  withOrganizationAccess,
-  withServiceOwnerAuthorization
-}
+import com.blackfynn.discover.Authenticator.{withAuthorization, withOrganizationAccess, withServiceOwnerAuthorization}
 import com.blackfynn.discover.db.profile.api._
 import com.blackfynn.discover.db._
-import com.blackfynn.discover.logging.{
-  logRequestAndResponse,
-  DiscoverLogContext
-}
+import com.blackfynn.discover.logging.{DiscoverLogContext, logRequestAndResponse}
 import com.blackfynn.discover.models._
 import com.blackfynn.discover.server.definitions
-import com.blackfynn.discover.server.publish.{
-  PublishHandler => GuardrailHandler,
-  PublishResource => GuardrailResource
-}
+import com.blackfynn.discover.server.publish.{PublishHandler => GuardrailHandler, PublishResource => GuardrailResource}
 import com.blackfynn.discover._
 import com.blackfynn.discover.search.Search
-import com.blackfynn.doi.models.{ DoiDTO, DoiState }
-import com.blackfynn.models.{ License, PublishStatus, RelationshipType }
+import com.blackfynn.doi.models.{DoiDTO, DoiState}
+import com.blackfynn.models.{License, PublishStatus, RelationshipType}
 import com.blackfynn.models.PublishStatus.Unpublished
-import io.circe.{ DecodingFailure, Json }
+import io.circe.{DecodingFailure, Json}
 import slick.dbio.DBIOAction
 import slick.jdbc.TransactionIsolation
 import software.amazon.awssdk.services.lambda.model.InvokeResponse
-import com.blackfynn.discover.server.definitions.{
-  InternalContributor,
-  SponsorshipRequest,
-  SponsorshipResponse
-}
+import com.blackfynn.discover.server.definitions.{InternalContributor, SponsorshipRequest, SponsorshipResponse}
 import java.time.LocalDate
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import com.blackfynn.discover.db.PublicFilesMapper
+import com.blackfynn.discover.models.S3Key.Dataset
 
 class PublishHandler(
   ports: Ports,
@@ -218,6 +205,10 @@ class PublishHandler(
               s"Public external publications: $externalPublications"
             )
 
+            maybePreviousVersionsFilesKey <- DBIOAction.from(
+              maybeCreatePreviousVersionsFilesKey(publicDataset, version)
+            )
+
             // Wrap the AWS call in a DBIOAction so that a failure will rollback
             // the database transaction
             sfnResponse <- DBIOAction.from(
@@ -230,7 +221,8 @@ class PublishHandler(
                     doi,
                     contributors,
                     collections,
-                    externalPublications
+                    externalPublications,
+                    maybePreviousVersionsFilesKey
                   )
                 )
             )
@@ -664,7 +656,7 @@ class PublishHandler(
                 .hideDoi(version.doi, headers)
           )
         )
-        _ <- DBIO.from(deleteAssets(s3Key = dataset.id.toString))
+        _ <- DBIO.from(deleteAssets(datasetId = dataset.id, version = "all",  ))
         status <- PublicDatasetVersionsMapper.getDatasetStatus(dataset)
       } yield status
 
@@ -925,8 +917,9 @@ class PublishHandler(
     }
   }
 
-  def deleteAssets(s3Key: String): Future[InvokeResponse] = {
-    ports.lambdaClient.runS3Clean(s3Key)
+  def deleteAssets(datasetId: Int): Future[InvokeResponse] = {
+
+    ports.lambdaClient.runS3Clean(datasetId)
   }
 
   def getOrCreateDoi(organizationId: Int, datasetId: Int): Future[DoiDTO] = {
@@ -954,6 +947,44 @@ class PublishHandler(
       } else Future.successful(latestDoi)
     } yield validDoi
   }
+
+  def maybeCreatePreviousVersionsFilesKey(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion
+  ): Future[Option[S3Key.File]] = {
+    for {
+      maybeKey <- ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVisibleVersion(dataset)
+        )
+        .flatMap {
+          case None => Future.successful(None: Option[S3Key.File])
+          case Some(visibleVersion) => {
+            for {
+              files <- ports.db.run(
+                PublicFilesMapper
+                  .forVersion(visibleVersion)
+                  .result
+              )
+              fileDTOs = files
+                .map(
+                  f =>
+                    PublishedFile(
+                      f.s3Key,
+                      f.sourceFileId,
+                      f.s3Version.map(_.toString)
+                    )
+                )
+                .toList
+              key <- ports.s3StreamClient
+                .writeDatasetFilesList(version, fileDTOs)
+            } yield Some(key)
+          }
+        }
+    } yield maybeKey
+  }
+
 }
 
 object PublishHandler {

@@ -56,13 +56,14 @@ class JobEncodingSpec extends WordSpec with Suite with Matchers {
         userLastName = "Bill",
         userOrcid = "1234-5678-0987-5432",
         s3Bucket = S3Bucket("publish-bucket"),
-        s3PgdumpKey = S3Key.Version(2, 5) / "dump.sql",
-        s3PublishKey = S3Key.Version(2, 5),
+        s3PgdumpKey = S3Key.Dataset(2) / "dump.sql",
+        s3PublishKey = S3Key.Dataset(2),
         version = 5,
         doi = "10.324/4529",
         contributors = List(contrib1),
         collections = List(collection1),
-        externalPublications = List(externalPublication)
+        externalPublications = List(externalPublication),
+        s3VersionedFilesKey = Some(S3Key.Dataset(2) / "versions.json")
       )
 
       val json = job.asJson.toString
@@ -81,13 +82,14 @@ class JobEncodingSpec extends WordSpec with Suite with Matchers {
           |  "user_last_name" : "Bill",
           |  "user_orcid" : "1234-5678-0987-5432",
           |  "s3_bucket" : "publish-bucket",
-          |  "s3_pgdump_key" : "2/5/dump.sql",
-          |  "s3_publish_key" : "2/5/",
+          |  "s3_pgdump_key" : "versioned/2/dump.sql",
+          |  "s3_publish_key" : "versioned/2/",
           |  "version" : "5",
           |  "doi" : "10.324/4529",
           |  "contributors" : "[{\\"id\\":1,\\"first_name\\":\\"Alfred\\",\\"middle_initial\\":\\"C\\",\\"last_name\\":\\"Kinsey\\",\\"degree\\":\\"Ph.D.\\",\\"orcid\\":null}]",
           |  "collections" : "[{\\"name\\":\\"My Awesome Collection\\",\\"source_collection_id\\":2,\\"dataset_id\\":1,\\"version_id\\":1}]",
-          |  "external_publications" : "[{\\"doi\\":\\"10.26275/t6j6-77pu\\",\\"relationshipType\\":\\"IsSourceOf\\"}]"
+          |  "external_publications" : "[{\\"doi\\":\\"10.26275/t6j6-77pu\\",\\"relationshipType\\":\\"IsSourceOf\\"}]",
+          |  "s3_versioned_files_key" : "versioned/2/versions.json"
           |}""".stripMargin
 
     }
@@ -96,14 +98,14 @@ class JobEncodingSpec extends WordSpec with Suite with Matchers {
   "EmbargoReleaseJob" should {
 
     "encode integers as strings" in {
-      val job = EmbargoReleaseJob(1, 10, 7, S3Key.Version(2, 5))
+      val job = EmbargoReleaseJob(1, 10, 7, S3Key.Dataset(2))
 
       job.asJson.toString shouldBe
         s"""{
           |  "organization_id" : "1",
           |  "dataset_id" : "10",
           |  "version" : "7",
-          |  "s3_key" : "2/5/"
+          |  "s3_key" : "versioned/2/"
           |}""".stripMargin
     }
   }

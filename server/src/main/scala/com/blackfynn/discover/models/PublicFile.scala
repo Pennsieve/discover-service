@@ -2,10 +2,6 @@
 
 package com.blackfynn.discover.models
 
-import com.blackfynn.models.FileType
-import io.circe.{ Decoder, Encoder }
-import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
-import org.apache.commons.io.FilenameUtils
 import com.github.tminglei.slickpg.LTree
 
 import java.time.{ OffsetDateTime, ZoneOffset }
@@ -21,7 +17,9 @@ case class PublicFile(
   sourcePackageId: Option[String],
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
-  id: Int = 0
+  id: Int = 0,
+  s3Version: Option[ObjectVersion] = None,
+  sourceFileId: Option[String] = None
 )
 
 object PublicFile {

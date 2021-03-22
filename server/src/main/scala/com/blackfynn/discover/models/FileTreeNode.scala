@@ -21,9 +21,11 @@ object FileTreeNode {
     path: String,
     fileType: FileType,
     s3Key: S3Key.File,
+    s3Version: Option[ObjectVersion],
     size: Long,
     sourcePackageId: Option[String],
-    createdAt: Option[OffsetDateTime] = None
+    createdAt: Option[OffsetDateTime] = None,
+    sourceFileId: Option[String] = None
   ) extends FileTreeNode
 
   case class Directory(name: String, path: String, size: Long)
@@ -33,21 +35,23 @@ object FileTreeNode {
 
     val path =
       if (file.s3Key.toString
-          .startsWith(file.datasetId + "/" + file.version)) {
+          .startsWith("versioned/" + file.datasetId + "/")) {
         file.s3Key.toString
-          .replace(file.datasetId + "/" + file.version + "/", "")
+          .replace("versioned/" + file.datasetId + "/", "")
       } else {
         file.s3Key.toString
       }
 
     File(
-      file.name,
-      path,
-      utils.getFileType(file.fileType),
-      file.s3Key,
-      file.size,
-      file.sourcePackageId,
-      Some(file.createdAt)
+      name = file.name,
+      path = path,
+      fileType = utils.getFileType(file.fileType),
+      s3Key = file.s3Key,
+      s3Version = file.s3Version,
+      size = file.size,
+      sourcePackageId = file.sourcePackageId,
+      createdAt = Some(file.createdAt),
+      sourceFileId = file.sourceFileId
     )
   }
 }

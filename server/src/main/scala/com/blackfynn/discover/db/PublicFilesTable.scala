@@ -2,35 +2,27 @@
 
 package com.blackfynn.discover.db
 
-import java.time.OffsetDateTime
-
 import akka.Done
 import cats.implicits._
-import cats.syntax._
-import com.github.tminglei.slickpg._
+import com.blackfynn.discover.NoFileException
 import com.blackfynn.discover.db.profile.api._
-import com.blackfynn.models.{ FileType, PublishStatus }
-import com.blackfynn.models.FileType.GenericData
 import com.blackfynn.discover.models.{
   FileDownloadDTO,
   FileTreeNode,
+  ObjectVersion,
   PublicDatasetVersion,
   PublicFile,
   S3Key
 }
-import com.blackfynn.discover.NoFileException
-import com.blackfynn.models.FileManifest
 import com.blackfynn.discover.utils.{ getFileType, joinPath }
+import com.blackfynn.models.{ FileManifest, PublishStatus }
+import com.github.tminglei.slickpg._
 import slick.basic.DatabasePublisher
-import slick.jdbc.{
-  GetResult,
-  PositionedParameters,
-  ResultSetConcurrency,
-  ResultSetType,
-  SetParameter
-}
-import java.util.Base64
+import slick.jdbc.{ GetResult, ResultSetConcurrency, ResultSetType }
+
 import java.nio.charset.StandardCharsets
+import java.time.OffsetDateTime
+import java.util.Base64
 import scala.concurrent.ExecutionContext
 
 final class PublicFilesTable(tag: Tag)
@@ -43,12 +35,14 @@ final class PublicFilesTable(tag: Tag)
   def size = column[Long]("size")
   // File path in S3
   def s3Key = column[S3Key.File]("s3_key")
+  def s3Version = column[Option[ObjectVersion]]("s3_version")
   // LTree representation of S3 path
   def path = column[LTree]("path")
   def sourcePackageId = column[Option[String]]("source_package_id")
   def createdAt = column[OffsetDateTime]("created_at")
   def updatedAt = column[OffsetDateTime]("updated_at")
   def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
+  def sourceFileId = column[Option[String]]("source_file_id")
 
   def publicDatasetVersion =
     foreignKey(
@@ -69,7 +63,9 @@ final class PublicFilesTable(tag: Tag)
       sourcePackageId,
       createdAt,
       updatedAt,
-      id
+      id,
+      s3Version,
+      sourceFileId
     ).mapTo[PublicFile]
 }
 
@@ -94,7 +90,9 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     fileType: String,
     size: Long,
     s3Key: S3Key.File,
-    sourcePackageId: Option[String]
+    s3Version: Option[ObjectVersion],
+    sourcePackageId: Option[String],
+    sourceFileId: Option[String]
   ): PublicFile =
     PublicFile(
       name = name,
@@ -103,8 +101,10 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
       fileType = fileType,
       size = size,
       s3Key = s3Key,
+      s3Version = s3Version,
       path = LTree(PublicFilesMapper.convertPathToTree(s3Key)),
-      sourcePackageId = sourcePackageId
+      sourcePackageId = sourcePackageId,
+      sourceFileId = sourceFileId
     )
 
   private def buildFile(
@@ -117,7 +117,9 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
       fileType = fileManifest.fileType.toString,
       size = fileManifest.size,
       s3Key = version.s3Key / fileManifest.path,
-      sourcePackageId = fileManifest.sourcePackageId
+      s3Version = fileManifest.versionId.map(ObjectVersion(_)),
+      sourcePackageId = fileManifest.sourcePackageId,
+      sourceFileId = fileManifest.sourceFileId.map(_.toString)
     )
 
   def forVersion(
@@ -156,7 +158,9 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     fileType: String,
     size: Long,
     s3Key: S3Key.File,
-    sourcePackageId: Option[String] = None
+    sourcePackageId: Option[String] = None,
+    s3Version: Option[ObjectVersion] = None,
+    sourceFileId: Option[String] = None
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[
@@ -170,7 +174,9 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
       fileType = fileType,
       size = size,
       s3Key = s3Key,
-      sourcePackageId = sourcePackageId
+      s3Version = s3Version,
+      sourcePackageId = sourcePackageId,
+      sourceFileId = sourceFileId
     )
 
   def getFile(
@@ -323,26 +329,28 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     val result = sql"""
      WITH
        files AS (
-         SELECT name, file_type, s3_key, size, f.source_package_id
+         SELECT f.name, f.file_type, f.s3_key, f.size, f.source_package_id, f.s3_version, f.source_file_id
          FROM public_files AS f
          WHERE f.path ~ $leafChildSelector::lquery
        ),
 
        directories AS (
-         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id
+         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id, q.s3_version, q.source_file_id
          FROM (
            SELECT
              split_part(f.s3_key, '/', nlevel($parent::ltree) + 1) AS name,
              null::text AS file_type,
              null::text AS s3_key,
              size,
-             null::text AS source_package_id
+             null::text AS source_package_id,
+             null::text AS s3_version,
+             null::text AS source_file_id
            FROM public_files AS f
            WHERE NOT f.path ~ $leafChildSelector::lquery
            AND f.path <@ $parent::ltree
            AND nlevel(f.path) > nlevel($parent::ltree)
          ) as q
-         GROUP BY q.name, q.file_type, q.s3_key, q.source_package_id
+         GROUP BY q.name, q.file_type, q.s3_key, q.source_package_id, q.s3_version, q.source_file_id
        ),
 
        -- Compute the total number of file + directory results, stored in the `size` column
@@ -352,7 +360,9 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
            null::text AS file_type,
            null::text AS s3_key,
            (SELECT COALESCE(COUNT(*), 0) FROM files) + (SELECT COALESCE(COUNT(*), 0) FROM directories) AS size,
-           null::text AS source_package_id
+           null::text AS source_package_id,
+           null::text AS s3_version,
+           null::text AS source_file_id
        )
      (
        SELECT 'count', * FROM total_count
@@ -367,7 +377,7 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
          OFFSET $offset
        )
      )
-     ORDER BY 1 ASC, 2 ASC  -- Ensure rows are stil ordered after the `count` union
+     ORDER BY 1 ASC, 2 ASC  -- Ensure rows are still ordered after the `count` union
     """.as[Either[TotalCount, FileTreeNode]]
 
     // Separate the header row containing the total number of rows from the rows
@@ -405,7 +415,10 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
                 fileType = getFileType(r.nextString),
                 s3Key = S3Key.File(r.nextString),
                 size = r.nextLong,
-                sourcePackageId = r.nextStringOption
+                sourcePackageId = r.nextStringOption,
+                s3Version = r.nextStringOption.map(ObjectVersion(_)),
+                createdAt = None,
+                sourceFileId = r.nextStringOption
               )
           )
         case "directory" =>

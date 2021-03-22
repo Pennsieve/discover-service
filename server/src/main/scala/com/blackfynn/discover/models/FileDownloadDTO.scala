@@ -72,6 +72,6 @@ case object FileDownloadDTO {
     version: PublicDatasetVersion,
     file: S3Key.File
   ): Seq[String] = {
-    file.removeVersionPrefix(version.s3Key).split("/").dropRight(1)
+    file.removeDatasetPrefix(version.s3Key).split("/").dropRight(1)
   }
 }

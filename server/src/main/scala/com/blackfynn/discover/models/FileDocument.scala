@@ -40,7 +40,7 @@ object FileDocument {
     FileDocument(
       FileManifest(
         path = file.s3Key
-          .removeVersionPrefix(S3Key.Version(file.datasetId, file.version)),
+          .removeDatasetPrefix(S3Key.Dataset(file.datasetId)),
         size = file.size,
         fileType = getFileType(file.fileType),
         sourcePackageId = file.sourcePackageId

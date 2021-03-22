@@ -28,12 +28,13 @@ case class PublishJob(
   userOrcid: String,
   s3Bucket: S3Bucket,
   s3PgdumpKey: S3Key.File,
-  s3PublishKey: S3Key.Version,
+  s3PublishKey: S3Key.Dataset,
   version: Int,
   doi: String,
   contributors: List[PublicContributor],
   collections: List[PublicCollection],
-  externalPublications: List[PublicExternalPublication]
+  externalPublications: List[PublicExternalPublication],
+  s3VersionedFilesKey: Option[S3Key.File]
 )
 
 object PublishJob {
@@ -45,7 +46,8 @@ object PublishJob {
     doi: DoiDTO,
     contributors: List[PublicContributor],
     collections: List[PublicCollection],
-    externalPublications: List[PublicExternalPublication]
+    externalPublications: List[PublicExternalPublication],
+    s3VersionedFilesKey: Option[S3Key.File]
   ): PublishJob = {
     PublishJob(
       organizationId = publicDataset.sourceOrganizationId,
@@ -66,7 +68,8 @@ object PublishJob {
       doi = doi.doi,
       contributors = contributors,
       collections = collections,
-      externalPublications = externalPublications
+      externalPublications = externalPublications,
+      s3VersionedFilesKey = s3VersionedFilesKey
     )
   }
 
@@ -103,7 +106,7 @@ object PublishJob {
     * way to transform JSON types in Step Function input/output/result parameters.
     * Contributors are therefore encoded as a string rather than a collection fo objects
     */
-  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct19(
+  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct20(
     "organization_id",
     "organization_node_id",
     "organization_name",
@@ -122,7 +125,8 @@ object PublishJob {
     "doi",
     "contributors",
     "collections",
-    "external_publications"
+    "external_publications",
+    "s3_versioned_files_key"
   )(
     j =>
       (
@@ -144,7 +148,8 @@ object PublishJob {
         j.doi,
         j.contributors.asJson.noSpaces,
         j.collections.asJson.noSpaces,
-        j.externalPublications.asJson.noSpaces
+        j.externalPublications.asJson.noSpaces,
+        j.s3VersionedFilesKey.asJson
       )
   )
 }

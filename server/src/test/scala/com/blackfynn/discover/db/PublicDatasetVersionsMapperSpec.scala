@@ -49,9 +49,7 @@ class PublicDatasetVersionsMapperSpec
       assert(publicDatasetV1.fileCount == 0L)
       assert(publicDatasetV1.recordCount == 0L)
       assert(publicDatasetV1.s3Bucket.value == "bucket")
-      assert(
-        publicDatasetV1.s3Key == S3Key.Version(publicDatasetV1.datasetId, 1)
-      )
+      assert(publicDatasetV1.s3Key == S3Key.Dataset(publicDatasetV1.datasetId))
       assert(publicDatasetV1.status == PublishStatus.NotPublished)
 
       val publicDatasetV2 = TestUtilities.createNewDatasetVersion(ports.db)(
@@ -71,33 +69,11 @@ class PublicDatasetVersionsMapperSpec
       assert(publicDatasetV2.fileCount == 300L)
       assert(publicDatasetV2.recordCount == 50L)
       assert(publicDatasetV2.s3Bucket.value == s"bucket")
-      assert(
-        publicDatasetV2.s3Key == S3Key.Version(publicDatasetV1.datasetId, 2)
-      )
+      assert(publicDatasetV2.s3Key == S3Key.Dataset(publicDatasetV1.datasetId))
       assert(publicDatasetV2.status == PublishStatus.PublishInProgress)
     }
 
-    "version s3 key must be unique" in {
-
-      val publicDatasetV1 = TestUtilities.createDatasetV1(ports.db)()
-      val publicDatasetV2 = TestUtilities.createNewDatasetVersion(ports.db)(
-        id = publicDatasetV1.datasetId
-      )
-
-      intercept[PSQLException] {
-        ports.db
-          .run(sql"""
-               UPDATE public_dataset_versions
-               SET s3_key = ${publicDatasetV2.s3Key.value}
-               WHERE version = ${publicDatasetV1.version}
-               """.as[Int])
-          .awaitFinite()
-      }.getMessage() should include(
-        "duplicate key value violates unique constraint"
-      )
-    }
-
-    "s3 key must be formatted :datasetId/:version/" in {
+    "s3 key must be formatted versioned/:datasetId/" in {
 
       val publicDatasetV1 = TestUtilities.createDatasetV1(ports.db)()
 

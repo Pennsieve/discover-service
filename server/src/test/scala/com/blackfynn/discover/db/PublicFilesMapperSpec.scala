@@ -9,6 +9,7 @@ import com.blackfynn.discover.{ ServiceSpecHarness, TestUtilities }
 import com.blackfynn.discover.models.{
   FileDownloadDTO,
   FileTreeNode,
+  ObjectVersion,
   PublicDataset,
   PublicFile,
   S3Key
@@ -18,6 +19,7 @@ import com.blackfynn.test.AwaitableImplicits
 import io.circe.syntax._
 import org.scalatest.{ Matchers, WordSpec }
 
+import java.util.UUID
 import scala.concurrent.duration._
 
 class PublicFilesMapperSpec
@@ -37,6 +39,7 @@ class PublicFilesMapperSpec
     "find files and directories in the tree" in {
 
       val version = TestUtilities.createDatasetV1(ports.db)()
+      val zfile1Id = UUID.randomUUID().toString()
 
       val f1 = run(
         PublicFilesMapper
@@ -46,7 +49,9 @@ class PublicFilesMapperSpec
             "ZIP",
             100,
             version.s3Key / "A/file1.zip",
-            Some("N:package:1")
+            Some("N:package:1"),
+            s3Version = Some(ObjectVersion("123")),
+            sourceFileId = Some(zfile1Id)
           )
       )
       val f2 = run(
@@ -117,6 +122,7 @@ class PublicFilesMapperSpec
                 "A/file2.txt",
                 FileType.Text,
                 f2.s3Key,
+                None,
                 100,
                 Some("N:package:1")
               ),
@@ -126,8 +132,11 @@ class PublicFilesMapperSpec
                 "A/zfile1.zip",
                 FileType.ZIP,
                 f1.s3Key,
+                Some(ObjectVersion("123")),
                 100,
-                Some("N:package:1")
+                Some("N:package:1"),
+                None,
+                Some(zfile1Id)
               )
           )
         )
@@ -146,6 +155,7 @@ class PublicFilesMapperSpec
               "A/file2.txt",
               FileType.Text,
               f2.s3Key,
+              None,
               100,
               Some("N:package:1")
             )
@@ -163,6 +173,7 @@ class PublicFilesMapperSpec
                 "A/Z/file3.dcm",
                 FileType.DICOM,
                 f3.s3Key,
+                None,
                 100,
                 Some("N:package:2")
               )
@@ -181,6 +192,7 @@ class PublicFilesMapperSpec
                 "A/Z/file3.dcm",
                 FileType.DICOM,
                 f3.s3Key,
+                None,
                 100,
                 Some("N:package:2")
               )
@@ -199,6 +211,7 @@ class PublicFilesMapperSpec
                 "A/Z/file3.dcm",
                 FileType.DICOM,
                 f3.s3Key,
+                None,
                 100,
                 Some("N:package:2")
               )

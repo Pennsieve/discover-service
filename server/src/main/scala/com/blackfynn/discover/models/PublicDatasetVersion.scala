@@ -18,7 +18,7 @@ final case class PublicDatasetVersion(
   fileCount: Long,
   recordCount: Long,
   s3Bucket: S3Bucket,
-  s3Key: S3Key.Version,
+  s3Key: S3Key.Dataset,
   status: PublishStatus,
   doi: String,
   schemaVersion: PennsieveSchemaVersion,
