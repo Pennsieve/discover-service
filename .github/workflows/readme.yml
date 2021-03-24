@@ -9,6 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Find and Replace
+        uses: jacobtomlinson/gha-find-replace@master
+        with:
+          find: "https://api.pennsieve.io"
+          replace: "https://api.pennsieve.io/discover"
+          include: "openapi/discover-service.yml"
       - uses: readmeio/github-readme-sync@v2
         with:
           readme-oas-key: ${{ secrets.README_OAS_KEY }}
