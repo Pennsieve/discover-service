@@ -14,5 +14,5 @@ jobs:
           readme-oas-key: ${{ secrets.README_OAS_KEY }}
            
           # OPTIONAL CONFIG, use if necessary
-          oas-file-path: '/openapi/discover-service.yml'
+          oas-file-path: 'openapi/discover-service.yml'
           api-version: 'v1.0.0'
