@@ -803,7 +803,7 @@ paths:
   "/organizations/{organizationId}/datasets/metrics":
     get:
       security: []
-      summary:
+      summary: "Get Organization Dataset Metrics"
       operationId: getOrganizationDatasetMetrics
       x-scala-package: organization
       parameters:
@@ -1465,7 +1465,6 @@ components:
           $ref: '#/components/schemas/DownloadResponseHeader'
         data:
           type: array
-          required: true
           items:
             $ref: '#/components/schemas/DownloadResponseItem'
 
