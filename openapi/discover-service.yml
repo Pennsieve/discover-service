@@ -2,8 +2,6 @@ openapi: 3.0.0
 info:
   version: 0.0.0
   title: Discover Service
-tags:
-  - name: Discover
 
 servers:
   # This URL (without `/discover`) is required to generate the correct routes.
