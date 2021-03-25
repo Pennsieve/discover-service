@@ -13,9 +13,18 @@ servers:
   - url: https://api.pennsieve.io/discover
   - url: https://api.pennsieve.net/discover
 
+tags:
+  - name: Datasets
+  - name: Tags
+  - name: Search
+  - name: Packages 
+  - name: Metrics
+
 paths:
   "/datasets":
     get:
+      tags:
+        - Datasets
       security: []
       summary: get the latest published version of each dataset
       operationId: getDatasets
@@ -84,6 +93,8 @@ paths:
 
   "/datasets/{datasetId}":
     get:
+      tags:
+        - Datasets
       security: []
       summary: get the latest version of a dataset
       operationId: getDataset
@@ -124,6 +135,8 @@ paths:
 
   "/datasets/doi/{doiPrefix}/{doiSuffix}":
     get:
+      tags:
+        - Datasets
       security: []
       summary: get a dataset by DOI
       description: |
@@ -169,6 +182,8 @@ paths:
 
   "/datasets/{datasetId}/preview":
     post:
+      tags:
+        - Datasets
       security: []
       summary: request preview access to a dataset
       operationId: requestPreview
@@ -204,9 +219,10 @@ paths:
               schema:
                 type: string
 
-
   "/datasets/{datasetId}/versions":
     get:
+      tags:
+        - Datasets
       security: []
       summary: get all published versions of a dataset
       operationId: getDatasetVersions
@@ -237,6 +253,8 @@ paths:
 
   "/datasets/{datasetId}/versions/{versionId}":
     get:
+      tags:
+        - Datasets
       security: []
       summary: get a dataset by version
       operationId: getDatasetVersion
@@ -278,6 +296,8 @@ paths:
 
   "/datasets/{datasetId}/versions/{versionId}/files":
     get:
+      tags:
+        - Datasets
       security: []
       summary: get a file from a dataset
       operationId: getFile
@@ -337,6 +357,8 @@ paths:
 
   "/datasets/{datasetId}/versions/{versionId}/download":
     get:
+      tags:
+        - Datasets
       security: []
       summary: download the dataset as a ZIP archive
       operationId: downloadDatasetVersion
@@ -384,6 +406,8 @@ paths:
 
   "/datasets/{datasetId}/versions/{versionId}/metadata":
     get:
+      tags:
+        - Datasets
       security: []
       summary: download the metadata of the dataset
       operationId: getDatasetMetadata
@@ -430,6 +454,8 @@ paths:
 
   "/datasets/{datasetId}/versions/{versionId}/files/browse":
     get:
+      tags:
+        - Datasets
       security: []
       summary: view files for a dataset
       operationId: browseFiles
@@ -509,6 +535,8 @@ paths:
 
   "/datasets/{datasetId}/versions/{versionId}/files/download-manifest":
     post:
+      tags:
+        - Datasets
       security: []
       summary: get a manifest of files to be downloaded for a dataset
       operationId: downloadManifest
@@ -577,9 +605,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/TombstoneDTO"
 
-
   "/datasets/{datasetId}/data-use-agreement":
     get:
+      tags:
+        - Datasets
       security: []
       summary: get the data use agreement for this dataset, if under embargo
       operationId: getDataUseAgreement
@@ -614,9 +643,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/TombstoneDTO"
 
-
   "/datasets/{datasetId}/data-use-agreement/download":
     get:
+      tags:
+        - Datasets
       security: []
       summary: download the data use agreement for this dataset, if under embargo
       operationId: downloadDataUseAgreement
@@ -650,6 +680,8 @@ paths:
 
   "/tags":
     get:
+      tags:
+        - Tags
       security: []
       summary: get all dataset tags
       operationId: getTags
@@ -666,6 +698,8 @@ paths:
 
   "/search/datasets":
     get:
+      tags:
+        - Search
       security: []
       summary: get datasets matching criteria
       operationId: searchDatasets
@@ -739,6 +773,8 @@ paths:
 
   "/search/files":
     get:
+      tags:
+        - Search
       security: []
       summary: get files matching criteria
       operationId: searchFiles
@@ -802,6 +838,8 @@ paths:
 
   "/organizations/{organizationId}/datasets/metrics":
     get:
+      tags:
+        - Metrics
       security: []
       summary: "Get Organization Dataset Metrics"
       operationId: getOrganizationDatasetMetrics
@@ -830,6 +868,8 @@ paths:
 
   "/search/records":
     get:
+      tags:
+        - Search
       security: []
       summary: get records matching criteria
       operationId: searchRecords
@@ -880,6 +920,8 @@ paths:
 
   "/packages/{sourcePackageId}/files":
     get:
+      tags:
+        - Packages
       security: []
       summary: get the files from the sourcePackageId of a package
       operationId: getFileFromSourcePackageId
@@ -921,9 +963,10 @@ paths:
               schema:
                 type: string
 
-
   "/metrics/dataset/downloads/summary":
     get:
+      tags:
+        - Metrics
       security: []
       summary: metrics
       operationId: getDatasetDownloadsSummary
@@ -961,6 +1004,7 @@ paths:
             application/json:
               schema:
                 type: string
+
 components:
   parameters:
     downloadOrigin:
