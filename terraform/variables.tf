@@ -38,7 +38,7 @@ locals {
   service = element(split("-", var.service_name), 0)
   tier    = element(split("-", var.service_name), 1)
 
-  hosted_zone = var.environment_name == "prod" ? data.terraform_remote_state.account.outputs.pennsieve_org_route53_zone_id : data.terraform_remote_state.account.outputs.public_hosted_zone_id
+  hosted_zone = data.terraform_remote_state.account.outputs.public_hosted_zone_id
   domain_name = data.terraform_remote_state.account.outputs.domain_name
 
   common_tags = {
