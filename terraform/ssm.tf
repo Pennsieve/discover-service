@@ -105,7 +105,7 @@ resource "aws_ssm_parameter" "s3_embargo_bucket" {
 resource "aws_ssm_parameter" "s3_frontend_bucket" {
   name  = "/${var.environment_name}/${var.service_name}/s3-frontend-bucket"
   type  = "String"
-  value = data.terraform_remote_state.platform_infrastructure.outputs.discover_publish_bucket_id
+  value = data.terraform_remote_state.platform_infrastructure.outputs.discover_s3_bucket_id
 }
 
 resource "aws_ssm_parameter" "s3_assets_key_prefix" {
