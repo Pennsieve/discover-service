@@ -189,26 +189,3 @@ data "aws_iam_policy_document" "iam_policy_document" {
   #   ]
   # }
 }
-
-# # Create Discover S3 Bucket Policy
-# data "aws_iam_policy_document" "discover_iam_policy_document" {
-#   statement {
-#     actions   = ["s3:GetObject"]
-#     resources = ["arn:aws:s3:::${var.environment_name}-discover-${data.terraform_remote_state.region.outputs.aws_region_shortname}/*"]
-
-#     principals {
-#       type        = "AWS"
-#       identifiers = [aws_cloudfront_origin_access_identity.cloudfront_origin_access_identity.iam_arn]
-#     }
-#   }
-
-#   statement {
-#     actions   = ["s3:ListBucket"]
-#     resources = ["arn:aws:s3:::${var.environment_name}-discover-${data.terraform_remote_state.region.outputs.aws_region_shortname}"]
-
-#     principals {
-#       type        = "AWS"
-#       identifiers = [aws_cloudfront_origin_access_identity.cloudfront_origin_access_identity.iam_arn]
-#     }
-#   }
-# }
