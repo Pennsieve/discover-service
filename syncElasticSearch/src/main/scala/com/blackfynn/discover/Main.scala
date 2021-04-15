@@ -21,7 +21,7 @@ object Main extends App with StrictLogging {
 
   var exitCode: Int = 0
   try {
-    Await.result(Search.buildSearchIndex(ports), 10.minutes)
+    Await.result(Search.buildSearchIndex(ports), 30.minutes)
     logger.info("Done")
   } catch {
     case e: Exception => {
