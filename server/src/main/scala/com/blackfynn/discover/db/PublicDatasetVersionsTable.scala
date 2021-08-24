@@ -138,7 +138,10 @@ object PublicDatasetVersionsMapper
       .result
       .headOption
       .flatMap {
-        case Some((d, v)) if v.status == PublishStatus.PublishSucceeded =>
+        case Some((d, v)) if v.status in Seq(
+          PublishStatus.PublishSucceeded,
+          PublishStatus.EmbargoSucceeded
+        ) =>
           DBIO.successful((d, v))
         case Some((d, v)) if v.status == PublishStatus.Unpublished =>
           DBIO.failed(DatasetUnpublishedException(d, v))
