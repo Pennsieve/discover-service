@@ -648,7 +648,7 @@ class ElasticSearchSpec
       val revision = Revision(dataset.id, version.version, revision = 1)
 
       val revisedReadme =
-        FileManifest("revisions/1/readme.md", 12345L, FileType.Markdown)
+        FileManifest("revisions/1/readme.md", 12345L, FileType.Markdown, None)
 
       // Reindex while revising
       searchClient
@@ -733,19 +733,19 @@ class ElasticSearchSpec
 
     val file1 =
       FileDocument(
-        FileManifest("files/about.zip", 1000L, FileType.ZIP),
+        FileManifest("files/about.zip", 1000L, FileType.ZIP, None),
         dataset1
       )
     val file2 = FileDocument(
-      FileManifest("files/brain.dcm", 12345L, FileType.DICOM),
+      FileManifest("files/brain.dcm", 12345L, FileType.DICOM, None),
       dataset2
     )
     val file3 = FileDocument(
-      FileManifest("files/results.zip", 50000L, FileType.ZIP),
+      FileManifest("files/results.zip", 50000L, FileType.ZIP, None),
       dataset2
     )
     val file4 = FileDocument(
-      FileManifest("files/zippy-the-dog.jpg", 824555L, FileType.JPEG),
+      FileManifest("files/zippy-the-dog.jpg", 824555L, FileType.JPEG, None),
       dataset1
     )
     val files = Seq(file1, file2, file3, file4)
@@ -881,7 +881,7 @@ class ElasticSearchSpec
             .map(
               i =>
                 FileDocument(
-                  FileManifest(s"files/file$i.zip", 50000L, FileType.ZIP),
+                  FileManifest(s"files/file$i.zip", 50000L, FileType.ZIP, None),
                   dataset
                 )
             )

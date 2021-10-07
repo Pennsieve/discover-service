@@ -128,17 +128,20 @@ class MockS3StreamClient extends S3StreamClient {
         manifest = FileManifest(
           path = s"revisions/${revision.revision}/manifest.json",
           size = 100,
-          fileType = FileType.Json
+          fileType = FileType.Json,
+          None
         ),
         readme = FileManifest(
           path = s"revisions/${revision.revision}/readme.md",
           size = 100,
-          fileType = FileType.Markdown
+          fileType = FileType.Markdown,
+          None
         ),
         banner = FileManifest(
           path = s"revisions/${revision.revision}/banner.jpg",
           size = 100,
-          fileType = FileType.JPEG
+          fileType = FileType.JPEG,
+          None
         )
       )
     )
