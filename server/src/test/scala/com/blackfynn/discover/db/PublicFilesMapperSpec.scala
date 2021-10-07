@@ -296,8 +296,8 @@ class PublicFilesMapperSpec
         PublicFilesMapper.createMany(
           version,
           List(
-            FileManifest("A/file1.zip", 100, FileType.ZIP),
-            FileManifest("A/file2.txt", 200, FileType.Text)
+            FileManifest("A/file1.zip", 100, FileType.ZIP, None),
+            FileManifest("A/file2.txt", 200, FileType.Text, None)
           )
         )
       )
@@ -312,7 +312,7 @@ class PublicFilesMapperSpec
           version,
           List
             .range(0, 100000)
-            .map(i => FileManifest(s"file$i.zip", 100, FileType.ZIP))
+            .map(i => FileManifest(s"file$i.zip", 100, FileType.ZIP, None))
         ),
         30.seconds
       )

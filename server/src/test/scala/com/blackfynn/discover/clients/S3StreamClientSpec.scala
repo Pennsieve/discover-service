@@ -441,17 +441,20 @@ class S3StreamClientSpec
         banner = FileManifest(
           path = "revisions/5/banner.jpg",
           size = 43649,
-          fileType = FileType.JPEG
+          fileType = FileType.JPEG,
+          None
         ),
         readme = FileManifest(
           path = "revisions/5/readme.md",
           size = 29,
-          fileType = FileType.Markdown
+          fileType = FileType.Markdown,
+          None
         ),
         manifest = FileManifest(
           path = "revisions/5/manifest.json",
           size = 902,
-          fileType = FileType.Json
+          fileType = FileType.Json,
+          None
         )
       )
       val readme = getObject(publishBucket, "3/4/revisions/5/readme.md")

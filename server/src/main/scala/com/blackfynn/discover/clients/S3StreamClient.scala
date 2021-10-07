@@ -373,7 +373,8 @@ class AlpakkaS3StreamClient(
                 .removeVersionPrefix(version.s3Key)
                 .toString,
               size = bytes.length,
-              fileType = FileType.Json
+              fileType = FileType.Json,
+              None
             )
         )
 
@@ -428,7 +429,8 @@ class AlpakkaS3StreamClient(
         size = size,
         fileType = utils.getFileTypeFromExtension(
           FilenameUtils.getExtension(key.toString)
-        )
+        ),
+        None
       )
   }
 
