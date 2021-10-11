@@ -254,6 +254,7 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     ec: ExecutionContext
   ): DBIOAction[Seq[FileDownloadDTO], NoStream, Effect.Read with Effect] = {
 
+    // Assumes that the provided name is equal to the s3key file name
     val treePaths =
       paths
         .map(p => s"${convertPathToTree(version.s3Key / p)}.*")
