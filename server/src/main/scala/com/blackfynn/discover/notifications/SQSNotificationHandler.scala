@@ -3,7 +3,6 @@
 package com.pennsieve.discover.notifications
 
 import java.util.Calendar
-
 import akka.NotUsed
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
@@ -13,6 +12,7 @@ import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Source }
 import akka.stream.{ ActorMaterializer, _ }
 import cats.data._
 import cats.implicits._
+import com.blackfynn.discover.models.DoiRedirect
 import com.pennsieve.discover.db.{
   PublicCollectionsMapper,
   PublicContributorsMapper,
@@ -21,7 +21,6 @@ import com.pennsieve.discover.db.{
   PublicExternalPublicationsMapper,
   PublicFilesMapper
 }
-
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.logging.DiscoverLogContext
 import com.pennsieve.discover.models._
@@ -333,8 +332,9 @@ class SQSNotificationHandler(
       name = publicDataset.name,
       publicationYear = publicationYear,
       contributors = contributors,
-      url =
-        s"${ports.config.publicUrl}/datasets/${publicDataset.id}/version/${version.version}",
+      url = DoiRedirect.getUrl(ports.config.publicUrl, publicDataset, version),
+//      url =
+//        s"${ports.config.publicUrl}/datasets/${publicDataset.id}/version/${version.version}",
       owner = Some(
         InternalContributor(
           id = publicDataset.ownerId, //id is not used so the value does not matter
