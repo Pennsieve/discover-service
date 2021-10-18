@@ -114,6 +114,7 @@ class DoiClient(
     publicationYear: Int,
     contributors: List[PublicContributor],
     url: String,
+    publisher: Option[String],
     owner: Option[InternalContributor] = None,
     version: Option[Int] = None,
     description: Option[String] = None,
@@ -140,6 +141,7 @@ class DoiClient(
             .toIndexedSeq,
           publicationYear = publicationYear,
           url = url,
+          publisher = publisher,
           owner = owner.map(
             o =>
               CreatorDTO(
