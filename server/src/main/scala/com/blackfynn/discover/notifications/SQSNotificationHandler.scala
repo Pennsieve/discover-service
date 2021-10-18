@@ -332,9 +332,8 @@ class SQSNotificationHandler(
       name = publicDataset.name,
       publicationYear = publicationYear,
       contributors = contributors,
+      publisher = DoiRedirect.getPublisher(publicDataset),
       url = DoiRedirect.getUrl(ports.config.publicUrl, publicDataset, version),
-//      url =
-//        s"${ports.config.publicUrl}/datasets/${publicDataset.id}/version/${version.version}",
       owner = Some(
         InternalContributor(
           id = publicDataset.ownerId, //id is not used so the value does not matter

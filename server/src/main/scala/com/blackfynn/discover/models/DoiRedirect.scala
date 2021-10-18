@@ -18,11 +18,11 @@ object DoiRedirect {
     }
   }
 
-  def getPublisher(publicDataset: PublicDataset): String = {
+  def getPublisher(publicDataset: PublicDataset): Option[String] = {
     if (publicDataset.sourceOrganizationName == "SPARC Consortium") {
-      "SPARC Consortium"
+      Some("SPARC Consortium")
     } else {
-      "Pennsieve Discover"
+      Some("Pennsieve Discover")
     }
   }
 
