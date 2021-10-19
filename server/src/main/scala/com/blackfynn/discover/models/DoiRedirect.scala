@@ -11,7 +11,7 @@ object DoiRedirect {
     publicVersion: PublicDatasetVersion
   ): String = {
     if (publicDataset.sourceOrganizationName == "SPARC Consortium" &&
-      publicDiscoverUrl == "https://disover.pennsieve.io") {
+      publicDiscoverUrl == "https://discover.pennsieve.io") {
       getSPARCUrl(publicDataset.id, publicVersion.version)
     } else {
       getDiscoverUrl(publicDiscoverUrl, publicDataset.id, publicVersion.version)
