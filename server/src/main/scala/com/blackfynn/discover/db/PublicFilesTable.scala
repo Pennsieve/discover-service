@@ -198,7 +198,11 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     offset: Int
   )(implicit
     executionContext: ExecutionContext
-  ): DBIOAction[(Long, List[PublicFile]), NoStream, Effect.Read with Effect] = {
+  ): DBIOAction[
+    (Long, Option[Int], List[PublicFile]),
+    NoStream,
+    Effect.Read with Effect
+  ] = {
     val latestDatasetVersions =
       PublicDatasetVersionsMapper.getLatestDatasetVersions(
         PublishStatus.PublishSucceeded
@@ -206,24 +210,31 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
 
     val allMatchingFiles = this
       .join(latestDatasetVersions)
+      .join(PublicDatasetsMapper)
       .on {
-        case (file, dataset) =>
-          file.datasetId === dataset.datasetId && file.version === dataset.version
+        case ((file, datasetVersion), dataset) =>
+          file.datasetId === datasetVersion.datasetId && datasetVersion.datasetId === dataset.id && file.version === datasetVersion.version
       }
-      .filter(_._1.sourcePackageId === sourcePackageId)
+      .filter(_._1._1.sourcePackageId === sourcePackageId)
 
     for {
       totalCount <- allMatchingFiles.length.result.map(_.toLong)
 
+      // These should all be the same
+      organizationId <- allMatchingFiles
+        .map(_._2.sourceOrganizationId)
+        .result
+        .headOption
+
       files <- allMatchingFiles
-        .sortBy(_._1.name)
+        .sortBy(_._1._1.name)
         .drop(offset)
         .take(limit)
-        .map(_._1)
+        .map(_._1._1)
         .result
         .map(_.toList)
 
-    } yield (totalCount, files)
+    } yield (totalCount, organizationId, files)
   }
 
   def createMany(

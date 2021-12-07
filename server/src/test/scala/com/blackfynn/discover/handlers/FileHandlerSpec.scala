@@ -37,7 +37,9 @@ class FileHandlerSpec
   "GET /files/{sourcePackageId}" should {
 
     "return the files of the latest version of a dataset when a valid sourcePackageId is passed" in {
+      val expectedOrgId = 3
       val v1 = TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = expectedOrgId,
         status = PublishStatus.PublishSucceeded
       )
 
@@ -71,10 +73,11 @@ class FileHandlerSpec
         .getFileFromSourcePackageId("N:package:1")
         .awaitFinite()
 
-      val expected = client.definitions.FileTreePage(
+      val expected = client.definitions.FileTreeWithOrgPage(
         totalCount = 2,
         limit = 100,
         offset = 0,
+        organizationId = expectedOrgId,
         files = IndexedSeq(
           client.definitions.File(
             name = f1.name,
@@ -105,7 +108,9 @@ class FileHandlerSpec
     }
 
     "respect limit and offset and return the files of the latest version of a dataset when a valid sourcePackageId is passed" in {
+      val expectedOrgId = 4
       val v1 = TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = expectedOrgId,
         status = PublishStatus.PublishSucceeded
       )
 
@@ -138,10 +143,11 @@ class FileHandlerSpec
         )
         .awaitFinite()
 
-      val expected = client.definitions.FileTreePage(
+      val expected = client.definitions.FileTreeWithOrgPage(
         totalCount = 3,
         limit = 2,
         offset = 1,
+        organizationId = expectedOrgId,
         files = IndexedSeq(
           client.definitions.File(
             name = f2.name,

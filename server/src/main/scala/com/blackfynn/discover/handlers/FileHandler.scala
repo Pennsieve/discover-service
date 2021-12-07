@@ -11,14 +11,16 @@ import com.pennsieve.discover.server.file.{
   FileHandler => GuardrailHandler,
   FileResource => GuardrailResource
 }
-
 import com.pennsieve.discover.db.PublicFilesMapper
 import com.pennsieve.discover.logging.{
   logRequestAndResponse,
   DiscoverLogContext
 }
 import com.pennsieve.discover.models.{ FileTreeNode, FileTreeNodeDTO }
-import com.pennsieve.discover.server.definitions.FileTreePage
+import com.pennsieve.discover.server.definitions.{
+  FileTreePage,
+  FileTreeWithOrgPage
+}
 
 /**
   * Handler for public endpoints for getting files from their sourcePackageId
@@ -56,16 +58,17 @@ class FileHandler(
     ports.db
       .run(query)
       .map {
-        case (total, Nil) =>
+        case (total, _, Nil) =>
           GuardrailResource.getFileFromSourcePackageIdResponse
             .NotFound(sourcePackageId)
-        case (total, files) =>
+        case (total, Some(organizationId), files) =>
           GuardrailResource.getFileFromSourcePackageIdResponse
             .OK(
-              FileTreePage(
+              FileTreeWithOrgPage(
                 totalCount = total,
                 limit = limit.getOrElse(defaultFileLimit),
                 offset = offset.getOrElse(defaultFileOffset),
+                organizationId = organizationId,
                 files = files.map { f =>
                   FileTreeNodeDTO(FileTreeNode(f))
                 }.toIndexedSeq

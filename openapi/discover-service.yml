@@ -953,7 +953,7 @@ paths:
           content:
             application/json:
               schema:
-                  $ref: "#/components/schemas/FileTreePage"
+                  $ref: "#/components/schemas/FileTreeWithOrgPage"
         "404":
           description: resource not found
           content:
@@ -1332,6 +1332,23 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/FileTreeNodeDTO"
+
+    FileTreeWithOrgPage:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/GenericResponsePage"
+        - type: object
+          required:
+            - organizationId
+            - files
+          properties:
+            files:
+              type: array
+              items:
+                $ref: "#/components/schemas/FileTreeNodeDTO"
+            organizationId:
+              type: integer
+
 
     FileTreeNodeDTO:
       description: >
