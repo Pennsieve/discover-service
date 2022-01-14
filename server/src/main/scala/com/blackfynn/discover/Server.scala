@@ -83,7 +83,8 @@ object Server extends App with StrictLogging {
       PublishHandler.routes(ports) ~
       SearchHandler.routes(ports) ~
       DatasetHandler.routes(ports) ~
-        OrganizationHandler.routes(ports)
+        OrganizationHandler.routes(ports) ~
+        FileHandler.routes(ports)
     )
   // format: on
 
