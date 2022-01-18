@@ -60,33 +60,35 @@ object Server extends App with StrictLogging {
     killswitch.shutdown()
   }
 
-  // format: off
-  val routes: Route =
-    Route.seal(
-
+  def createRoutes(ports: Ports): Route =
+    concat(
       // In order to differentiate public and private routes, NGINX adds
       // a '/public' prefix to external requests to Discover.
       // Strip the prefix and pass the request to the public handlers.
       pathPrefix("public") {
-        DatasetHandler.routes(ports) ~
-        TagHandler.routes(ports) ~
-        SearchHandler.routes(ports) ~
-        FileHandler.routes(ports) ~
-          MetricsHandler.routes(ports) ~
+        concat(
+          DatasetHandler.routes(ports),
+          TagHandler.routes(ports),
+          SearchHandler.routes(ports),
+          FileHandler.routes(ports),
+          MetricsHandler.routes(ports),
           OrganizationHandler.routes(ports)
-      } ~
-
+        )
+      },
       // Any URLs without the /public prefix must be internal. Send them to the
       // JWT-protected service-level routes.
-      HealthcheckHandler.routes(ports) ~
-        SyncHandler.routes(ports) ~
-      PublishHandler.routes(ports) ~
-      SearchHandler.routes(ports) ~
-      DatasetHandler.routes(ports) ~
-        OrganizationHandler.routes(ports) ~
+      concat(
+        HealthcheckHandler.routes(ports),
+        SyncHandler.routes(ports),
+        PublishHandler.routes(ports),
+        SearchHandler.routes(ports),
+        DatasetHandler.routes(ports),
+        OrganizationHandler.routes(ports),
         FileHandler.routes(ports)
+      )
     )
-  // format: on
+
+  val routes: Route = Route.seal(createRoutes(ports))
 
   Http().bindAndHandle(routes, config.host, config.port)
   logger.info(s"Server online at http://${config.host}:${config.port}")
