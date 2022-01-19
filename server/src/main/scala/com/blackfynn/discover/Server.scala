@@ -60,7 +60,13 @@ object Server extends App with StrictLogging {
     killswitch.shutdown()
   }
 
-  def createRoutes(ports: Ports): Route =
+  def createRoutes(
+    ports: Ports
+  )(implicit
+    system: ActorSystem,
+    materializer: ActorMaterializer,
+    executionContext: ExecutionContext
+  ): Route =
     concat(
       // In order to differentiate public and private routes, NGINX adds
       // a '/public' prefix to external requests to Discover.
