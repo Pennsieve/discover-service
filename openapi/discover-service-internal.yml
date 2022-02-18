@@ -567,6 +567,10 @@ components:
           type: string
         datasetNodeId:
           type: string
+        publishBucket:
+          type: string
+        embargoBucket:
+          type: string
 
     ReviseRequest:
       type: object
