@@ -79,9 +79,9 @@ class PublishHandler(
     val shouldEmbargo = embargo.getOrElse(false)
 
     val targetS3Bucket = if (shouldEmbargo) {
-      ports.config.s3.embargoBucket
+      body.embargoBucket.getOrElse(ports.config.s3.embargoBucket)
     } else {
-      ports.config.s3.publishBucket
+      body.publishBucket.getOrElse(ports.config.s3.publishBucket)
     }
 
     withServiceOwnerAuthorization[PublishResponse](
