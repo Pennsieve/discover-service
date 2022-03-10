@@ -70,7 +70,7 @@ class FileHandler(
                 offset = offset.getOrElse(defaultFileOffset),
                 organizationId = organizationId,
                 files = files.map { f =>
-                  FileTreeNodeDTO(FileTreeNode(f))
+                  FileTreeNodeDTO(FileTreeNode(f._1, f._2))
                 }.toIndexedSeq
               )
             )

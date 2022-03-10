@@ -497,7 +497,7 @@ class DatasetHandler(
       _ <- authorizeIfUnderEmbargo(dataset, version)
 
       pathNoSchemeNoBucket = originalPath
-        .replace("s3://" + config.s3.publishBucket, "")
+        .replace("s3://" + version.s3Bucket, "")
       noSlashPath = if (pathNoSchemeNoBucket.startsWith("/")) {
         pathNoSchemeNoBucket.replaceFirst("/", "")
       } else {

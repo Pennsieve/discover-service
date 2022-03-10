@@ -78,7 +78,7 @@ lazy val server = project
     headerLicense := headerLicenseValue,
     headerMappings := headerMappings.value + headerMappingsValue,
     scalafmtOnCompile := true,
-    test in assembly := {},
+    assembly / test := {},
     Test / fork := true,
     Test / testForkedParallel := true,
     // Only run integration tests with the `integration:test` command
@@ -160,11 +160,11 @@ lazy val server = project
       "software.amazon.awssdk" % "s3" % awsSdkVersion % Test,
       "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test,
     ),
-    guardrailTasks in Compile := List(
+    Compile / guardrailTasks := List(
       ScalaServer(file("openapi/discover-service.yml"), pkg="com.pennsieve.discover.server"),
       ScalaServer(file("openapi/discover-service-internal.yml"), pkg="com.pennsieve.discover.server")
     ),
-    dockerfile in docker := {
+    docker / dockerfile := {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
       new Dockerfile {
@@ -178,10 +178,10 @@ lazy val server = project
         cmd("--service", "discover-service", "exec", "app/run.sh", artifactTargetPath)
       }
     },
-    imageNames in docker := Seq(
+    docker / imageNames := Seq(
       ImageName("pennsieve/discover-service:latest")
     ),
-    assemblyMergeStrategy in assembly := {
+    assembly / assemblyMergeStrategy := {
       case PathList("META-INF", _ @_*) => MergeStrategy.discard
       case PathList(ps @ _*) if ps.last endsWith "AWSCredentials.class"  => MergeStrategy.first
       case PathList(ps @ _*) if ps.last endsWith "AWSCredentialsProvider.class"  => MergeStrategy.first
@@ -195,7 +195,7 @@ lazy val server = project
       case PathList("codegen-resources", "waiters-2.json", _ @_*) => MergeStrategy.discard
 
       case x =>
-        val oldStrategy = (assemblyMergeStrategy in assembly).value
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
     coverageExcludedPackages :=
@@ -224,7 +224,7 @@ lazy val syncElasticSearch = project
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
     ),
-    dockerfile in docker := {
+    docker / dockerfile := {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
       new Dockerfile {
@@ -236,10 +236,10 @@ lazy val syncElasticSearch = project
         cmd("--service", "discover-service", "exec", "java", "-jar", artifactTargetPath)
       }
     },
-    imageNames in docker := Seq(
+    docker / imageNames := Seq(
       ImageName("pennsieve/discover-service-sync-elasticsearch:latest")
     ),
-    assemblyMergeStrategy in assembly := {
+    assembly / assemblyMergeStrategy := {
       case PathList("META-INF", _ @_*) => MergeStrategy.discard
       case PathList(ps @ _*) if ps.last endsWith "AWSCredentials.class"  => MergeStrategy.first
       case PathList(ps @ _*) if ps.last endsWith "AWSCredentialsProvider.class"  => MergeStrategy.first
@@ -252,7 +252,7 @@ lazy val syncElasticSearch = project
       case PathList("codegen-resources", "examples-1.json", _ @_*) => MergeStrategy.discard
       case PathList("codegen-resources", "waiters-2.json", _ @_*) => MergeStrategy.discard
       case x =>
-        val oldStrategy = (assemblyMergeStrategy in assembly).value
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
     },
 
@@ -285,7 +285,7 @@ lazy val client = project
       }
     },
     publishMavenStyle := true,
-    guardrailTasks in Compile := List(
+    Compile / guardrailTasks := List(
       ScalaClient(file("openapi/discover-service.yml"), pkg="com.pennsieve.discover.client"),
       ScalaClient(file("openapi/discover-service-internal.yml"), pkg="com.pennsieve.discover.client")
     ),
