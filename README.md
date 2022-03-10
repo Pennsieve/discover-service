@@ -1,6 +1,6 @@
 # Discover Service
 
-Public collection of datasets published from the Pennsieve platform
+Public collection of datasets published from the Pennsieve platform.
 
 - A **dataset** has a one-to-one correspondence with a dataset in the platform
 - A **version** of a dataset is a snapshot of the files and metadata (graph) of a dataset from a certain point in time. Each version of a dataset has a unique DOI.
