@@ -48,7 +48,7 @@ object EmbargoReleaseJob {
           j.datasetId.toString,
           j.version.toString,
           j.s3Key.value,
-          j.s3Bucket
+          j.s3Bucket.toString
         )
     )
 }

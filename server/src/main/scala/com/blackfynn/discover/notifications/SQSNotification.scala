@@ -7,9 +7,7 @@ import com.pennsieve.models.PublishStatus
 import io.circe._
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder }
-import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 import enumeratum.EnumEntry.UpperSnakecase
-import enumeratum.EnumEntry.{ Snakecase, UpperSnakecase }
 import enumeratum._
 
 /**
@@ -180,7 +178,7 @@ object ReleaseNotification {
           organizationId <- c.downField("organization_id").as[Int]
           datasetId <- c.downField("dataset_id").as[Int]
           success <- c.downField("success").as[Boolean]
-          s3Bucket <- c.downField("s3_bucket").as[String]
+          s3Bucket <- c.downField("s3_bucket").as[S3Bucket]
           version <- c.downField("version").as[Int]
           error <- c.downField("error").as[Option[String]]
         } yield {
@@ -188,7 +186,7 @@ object ReleaseNotification {
             organizationId,
             datasetId,
             version,
-            S3Bucket(s3Bucket),
+            s3Bucket,
             success,
             error
           )
