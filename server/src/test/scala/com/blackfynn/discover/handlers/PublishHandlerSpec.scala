@@ -1038,7 +1038,7 @@ class PublishHandlerSpec
 
     "fail with a user JWT" in {
       val response = client
-        .release(organizationId, datasetId, null, userAuthToken)
+        .release(organizationId, datasetId, None, userAuthToken)
         .awaitFinite()
         .value
 
@@ -1055,7 +1055,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, null, authToken)
+        .release(organizationId, datasetId, None, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1070,7 +1070,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, null, authToken)
+        .release(organizationId, datasetId, None, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1080,7 +1080,7 @@ class PublishHandlerSpec
     "fail to release a dataset that does not exist" in {
 
       val response = client
-        .release(organizationId, datasetId, null, authToken)
+        .release(organizationId, datasetId, None, authToken)
         .awaitFinite()
         .value shouldBe ReleaseResponse.NotFound
     }
@@ -1094,7 +1094,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, null, authToken)
+        .release(organizationId, datasetId, None, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
@@ -1143,7 +1143,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, null, authToken)
+        .release(organizationId, datasetId, None, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
