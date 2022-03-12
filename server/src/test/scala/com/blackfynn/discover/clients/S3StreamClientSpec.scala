@@ -83,8 +83,6 @@ class S3StreamClientSpec
 
   implicit lazy private val system: ActorSystem =
     ActorSystem("discover-service", config)
-  implicit lazy private val materializer: ActorMaterializer =
-    ActorMaterializer()
   implicit lazy private val executionContext: ExecutionContext =
     system.dispatcher
 

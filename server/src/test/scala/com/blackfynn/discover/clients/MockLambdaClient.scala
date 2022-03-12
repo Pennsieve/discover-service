@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.clients
 
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import software.amazon.awssdk.services.lambda.model.InvokeResponse
 
@@ -16,7 +17,7 @@ class MockLambdaClient extends LambdaClient {
   def runS3Clean(
     s3KeyPrefix: String
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[InvokeResponse] = {
     this.s3Keys += s3KeyPrefix

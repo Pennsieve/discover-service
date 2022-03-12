@@ -30,8 +30,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 class SearchHandler(
   ports: Ports
 )(implicit
-  executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  executionContext: ExecutionContext
 ) extends GuardrailHandler {
 
   implicit val config: Config = ports.config
@@ -166,7 +165,6 @@ object SearchHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     logRequestAndResponse(ports) {

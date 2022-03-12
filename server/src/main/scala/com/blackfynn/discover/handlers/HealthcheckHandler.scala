@@ -2,15 +2,14 @@
 
 package com.pennsieve.discover.handlers
 
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-
 import com.pennsieve.discover.Ports
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.server.healthcheck.{
-  HealthcheckHandler => GuardrailHandler,
-  HealthcheckResource
+  HealthcheckResource,
+  HealthcheckHandler => GuardrailHandler
 }
-
 import com.pennsieve.discover.server.healthcheck.{ HealthcheckHandler => Huh }
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -48,7 +47,7 @@ object HealthcheckHandler {
   def routes(
     ports: Ports
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     executionContext: ExecutionContext
   ) = HealthcheckResource.routes(new HealthcheckHandler(ports))
 }
