@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.clients
 
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.alpakka.awslambda.scaladsl.AwsLambdaFlow
 import akka.stream.scaladsl.{ Sink, Source }
@@ -25,7 +26,7 @@ trait LambdaClient {
   def runS3Clean(
     s3KeyPrefix: String
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[InvokeResponse]
 
@@ -48,7 +49,7 @@ class AlpakkaLambdaClient(
   def runS3Clean(
     s3KeyPrefix: String
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[InvokeResponse] = {
     val lambdaRequest = InvokeRequest

@@ -20,8 +20,7 @@ import com.pennsieve.discover.db.DatasetDownloadsMapper
 class MetricsHandler(
   ports: Ports
 )(implicit
-  executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  executionContext: ExecutionContext
 ) extends GuardrailHandler {
 
   override def getDatasetDownloadsSummary(
@@ -60,7 +59,6 @@ object MetricsHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     logRequestAndResponse(ports) {

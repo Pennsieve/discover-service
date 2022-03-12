@@ -2,20 +2,17 @@
 
 package com.pennsieve.discover.db
 
-import com.pennsieve.discover.server.definitions.DatasetPublishStatus
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.db.PublicFilesMapper.TotalCount
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.models.{
   FileDownloadDTO,
   FileTreeNode,
-  PublicDataset,
-  PublicFile,
+  S3Bucket,
   S3Key
 }
 import com.pennsieve.models.{ FileManifest, FileType }
 import com.pennsieve.test.AwaitableImplicits
-import io.circe.syntax._
 import org.scalatest.{ Matchers, WordSpec }
 
 import scala.concurrent.duration._
@@ -31,6 +28,7 @@ class PublicFilesMapperSpec
     timeout: FiniteDuration = 5.seconds
   ) =
     ports.db.run(dbio).awaitFinite(timeout)
+  val publishBucket = S3Bucket("bucket")
 
   "PublicFilesMapper" should {
 
@@ -117,6 +115,7 @@ class PublicFilesMapperSpec
                 "A/file2.txt",
                 FileType.Text,
                 f2.s3Key,
+                publishBucket,
                 100,
                 Some("N:package:1")
               ),
@@ -126,6 +125,7 @@ class PublicFilesMapperSpec
                 "A/zfile1.zip",
                 FileType.ZIP,
                 f1.s3Key,
+                publishBucket,
                 100,
                 Some("N:package:1")
               )
@@ -146,6 +146,7 @@ class PublicFilesMapperSpec
               "A/file2.txt",
               FileType.Text,
               f2.s3Key,
+              publishBucket,
               100,
               Some("N:package:1")
             )
@@ -163,6 +164,7 @@ class PublicFilesMapperSpec
                 "A/Z/file3.dcm",
                 FileType.DICOM,
                 f3.s3Key,
+                publishBucket,
                 100,
                 Some("N:package:2")
               )
@@ -181,6 +183,7 @@ class PublicFilesMapperSpec
                 "A/Z/file3.dcm",
                 FileType.DICOM,
                 f3.s3Key,
+                publishBucket,
                 100,
                 Some("N:package:2")
               )
@@ -199,6 +202,7 @@ class PublicFilesMapperSpec
                 "A/Z/file3.dcm",
                 FileType.DICOM,
                 f3.s3Key,
+                publishBucket,
                 100,
                 Some("N:package:2")
               )

@@ -68,7 +68,7 @@ class DatasetHandler(
   claim: Option[Jwt.Claim]
 )(implicit
   executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  system: ActorSystem
 ) extends GuardrailHandler {
 
   implicit val config: Config = ports.config
@@ -497,7 +497,7 @@ class DatasetHandler(
       _ <- authorizeIfUnderEmbargo(dataset, version)
 
       pathNoSchemeNoBucket = originalPath
-        .replace("s3://" + config.s3.publishBucket, "")
+        .replace("s3://" + version.s3Bucket, "")
       noSlashPath = if (pathNoSchemeNoBucket.startsWith("/")) {
         pathNoSchemeNoBucket.replaceFirst("/", "")
       } else {
@@ -1045,7 +1045,6 @@ object DatasetHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     logRequestAndResponse(ports) {

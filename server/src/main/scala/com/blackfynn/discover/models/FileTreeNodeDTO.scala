@@ -17,10 +17,7 @@ object FileTreeNodeDTO {
     node match {
       case f: FileTreeNode.File =>
         f.into[definitions.File]
-          .withFieldComputed(
-            _.uri,
-            _ => s"s3://${config.s3.publishBucket}/${f.s3Key}"
-          )
+          .withFieldComputed(_.uri, _ => s"s3://${f.s3Bucket}/${f.s3Key}")
           .withFieldComputed(
             _.packageType,
             _ => utils.getPackageType(f.fileType)

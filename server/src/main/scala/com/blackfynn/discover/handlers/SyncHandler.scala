@@ -29,7 +29,7 @@ class SyncHandler(
   ports: Ports
 )(implicit
   executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  system: ActorSystem
 ) extends GuardrailHandler {
 
   override def syncAthenaDownloads(

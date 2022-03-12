@@ -200,7 +200,7 @@ object RewriteMetadata extends StrictLogging {
     version: PublicDatasetVersion,
     toAdd: List[LocalFileManifest]
   )(implicit
-    mat: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[DatasetMetadata] =
     for {

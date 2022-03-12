@@ -28,8 +28,7 @@ import com.pennsieve.discover.server.definitions.{
 class FileHandler(
   ports: Ports
 )(implicit
-  executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  executionContext: ExecutionContext
 ) extends GuardrailHandler {
 
   implicit val config: Config = ports.config
@@ -70,7 +69,7 @@ class FileHandler(
                 offset = offset.getOrElse(defaultFileOffset),
                 organizationId = organizationId,
                 files = files.map { f =>
-                  FileTreeNodeDTO(FileTreeNode(f))
+                  FileTreeNodeDTO(FileTreeNode(f._1, f._2))
                 }.toIndexedSeq
               )
             )
@@ -84,7 +83,6 @@ object FileHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     logRequestAndResponse(ports) {

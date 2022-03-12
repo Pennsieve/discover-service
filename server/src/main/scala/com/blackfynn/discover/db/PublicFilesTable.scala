@@ -3,7 +3,6 @@
 package com.pennsieve.discover.db
 
 import java.time.OffsetDateTime
-
 import akka.Done
 import cats.implicits._
 import cats.syntax._
@@ -16,6 +15,7 @@ import com.pennsieve.discover.models.{
   FileTreeNode,
   PublicDatasetVersion,
   PublicFile,
+  S3Bucket,
   S3Key
 }
 import com.pennsieve.discover.NoFileException
@@ -29,6 +29,7 @@ import slick.jdbc.{
   ResultSetType,
   SetParameter
 }
+
 import java.util.Base64
 import java.nio.charset.StandardCharsets
 import scala.concurrent.ExecutionContext
@@ -187,7 +188,7 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
       .headOption
       .flatMap {
         case Some(f) =>
-          DBIO.successful(FileTreeNode(f))
+          DBIO.successful(FileTreeNode(f, version.s3Bucket))
         case _ =>
           DBIO.failed(NoFileException(version.datasetId, version.version, path))
       }
@@ -199,7 +200,7 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[
-    (Long, Option[Int], List[PublicFile]),
+    (Long, Option[Int], List[(PublicFile, S3Bucket)]),
     NoStream,
     Effect.Read with Effect
   ] = {
@@ -230,7 +231,7 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
         .sortBy(_._1._1.name)
         .drop(offset)
         .take(limit)
-        .map(_._1._1)
+        .map(x => (x._1._1, x._1._2.s3Bucket))
         .result
         .map(_.toList)
 
@@ -322,7 +323,7 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
 
     implicit val getTreeNodeResult
       : GetResult[Either[TotalCount, FileTreeNode]] =
-      buildTreeNodeGetter(path)
+      buildTreeNodeGetter(path, version.s3Bucket)
 
     val parent = convertPathToTree(path match {
       case Some(d) => version.s3Key / d
@@ -400,7 +401,8 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     * (relative to the dataset root) of the files and directories in the query.
     */
   private def buildTreeNodeGetter(
-    basePath: Option[String]
+    basePath: Option[String],
+    bucket: S3Bucket
   ): GetResult[Either[TotalCount, FileTreeNode]] =
     GetResult(r => {
       val nodeType = r.nextString
@@ -416,6 +418,7 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
                 path = buildPath(basePath, name),
                 fileType = getFileType(r.nextString),
                 s3Key = S3Key.File(r.nextString),
+                s3Bucket = bucket,
                 size = r.nextLong,
                 sourcePackageId = r.nextStringOption
               )

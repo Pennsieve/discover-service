@@ -52,8 +52,7 @@ class PublishHandler(
   claim: Jwt.Claim
 )(implicit
   system: ActorSystem,
-  executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  executionContext: ExecutionContext
 ) extends GuardrailHandler {
 
   implicit val config: Config = ports.config
@@ -79,9 +78,13 @@ class PublishHandler(
     val shouldEmbargo = embargo.getOrElse(false)
 
     val targetS3Bucket = if (shouldEmbargo) {
-      S3Bucket(body.embargoBucket.getOrElse(ports.config.s3.embargoBucket.value))
+      S3Bucket(
+        body.embargoBucket.getOrElse(ports.config.s3.embargoBucket.value)
+      )
     } else {
-      S3Bucket(body.publishBucket.getOrElse(ports.config.s3.publishBucket.value))
+      S3Bucket(
+        body.publishBucket.getOrElse(ports.config.s3.publishBucket.value)
+      )
     }
 
     withServiceOwnerAuthorization[PublishResponse](
@@ -520,7 +523,8 @@ class PublishHandler(
     respond: GuardrailResource.releaseResponse.type
   )(
     organizationId: Int,
-    datasetId: Int
+    datasetId: Int,
+    body: definitions.ReleaseRequest
   ): Future[GuardrailResource.releaseResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(organizationId),
@@ -531,6 +535,8 @@ class PublishHandler(
       organizationId,
       datasetId
     ) { _ =>
+      val publishBucket = S3Bucket(body.publishBucket)
+
       val query = for {
         dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(
           organizationId,
@@ -565,7 +571,7 @@ class PublishHandler(
 
         sfnResponse <- DBIO.from(
           ports.stepFunctionsClient
-            .startRelease(EmbargoReleaseJob(dataset, version))
+            .startRelease(EmbargoReleaseJob(dataset, version, publishBucket))
         )
 
         _ = ports.log.info(s"Started step function ${sfnResponse.toString}")
@@ -961,7 +967,6 @@ object PublishHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route = {
     logRequestAndResponse(ports) {

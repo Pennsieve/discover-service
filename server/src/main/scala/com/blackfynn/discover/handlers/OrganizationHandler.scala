@@ -27,8 +27,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 class OrganizationHandler(
   ports: Ports
 )(implicit
-  executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  executionContext: ExecutionContext
 ) extends GuardrailHandler {
 
   override def getOrganizationDatasetMetrics(
@@ -51,7 +50,6 @@ object OrganizationHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     logRequestAndResponse(ports) {

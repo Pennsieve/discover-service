@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.clients
 
+import akka.actor.ActorSystem
 import akka.{ Done, NotUsed }
 import akka.stream._
 import akka.stream.scaladsl._
@@ -25,8 +26,8 @@ import com.sksamuel.elastic4s.http.index.admin.AliasActionResponse
 import com.sksamuel.elastic4s.mappings.MappingDefinition
 import com.sksamuel.elastic4s.RefreshPolicy
 import com.typesafe.scalalogging.StrictLogging
-import java.time.OffsetDateTime
 
+import java.time.OffsetDateTime
 import scala.collection.mutable
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -70,7 +71,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     recordIndex: Option[Index] = None
   )(implicit
     executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    system: ActorSystem
   ): Future[Done] = {
 
     val indexedFiles = files.runWith(Sink.seq).map(_.toList).awaitFinite()
@@ -129,8 +130,8 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     readme: Readme,
     sponsorship: Option[Sponsorship] = None
   )(implicit
-    executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    system: ActorSystem,
+    executionContext: ExecutionContext
   ): Future[Done] = {
     indexedDatasets += (
       (

@@ -21,6 +21,7 @@ object FileTreeNode {
     path: String,
     fileType: FileType,
     s3Key: S3Key.File,
+    s3Bucket: S3Bucket,
     size: Long,
     sourcePackageId: Option[String],
     createdAt: Option[OffsetDateTime] = None
@@ -29,7 +30,7 @@ object FileTreeNode {
   case class Directory(name: String, path: String, size: Long)
       extends FileTreeNode
 
-  def apply(file: PublicFile): FileTreeNode = {
+  def apply(file: PublicFile, s3Bucket: S3Bucket): FileTreeNode = {
 
     val path =
       if (file.s3Key.toString
@@ -45,6 +46,7 @@ object FileTreeNode {
       path,
       utils.getFileType(file.fileType),
       file.s3Key,
+      s3Bucket,
       file.size,
       file.sourcePackageId,
       Some(file.createdAt)

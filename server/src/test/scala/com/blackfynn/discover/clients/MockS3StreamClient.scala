@@ -46,7 +46,7 @@ class MockS3StreamClient extends S3StreamClient {
     version: PublicDatasetVersion,
     zipPrefix: String
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Source[ZipSource, NotUsed] = {
     val testFiles = nextResponse match {
@@ -96,7 +96,7 @@ class MockS3StreamClient extends S3StreamClient {
   def datasetMetadataSource(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] =
     Future.successful(
@@ -119,7 +119,6 @@ class MockS3StreamClient extends S3StreamClient {
     readmePresignedUrl: Uri
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     ec: ExecutionContext
   ): Future[NewFiles] = {
     revisions += ((dataset, version, contributors, revision))
@@ -154,7 +153,7 @@ class MockS3StreamClient extends S3StreamClient {
     version: PublicDatasetVersion,
     revision: Option[Revision]
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Readme] =
     Future.successful(
@@ -170,14 +169,14 @@ class MockS3StreamClient extends S3StreamClient {
   def readPublishJobOutput(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput] = Future(publishResults(version.s3Key))
 
   def deletePublishJobOutput(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Unit] = Future(publishResults -= version.s3Key)
 
@@ -185,7 +184,7 @@ class MockS3StreamClient extends S3StreamClient {
     dataset: PublicDataset,
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Source[Record, NotUsed] =
     Source.single(
@@ -205,7 +204,7 @@ case class TestFile(
 ) extends AwaitableImplicits {
 
   // create the source file, filled with random bytes
-  def generate(implicit materializer: ActorMaterializer): Unit = {
+  def generate(implicit system: ActorSystem): Unit = {
     Source
       .repeat(NotUsed)
       .take(numBytes)
@@ -238,7 +237,7 @@ object TestFile extends AwaitableImplicits {
   def sourceAndDestAreEqual(
     testFiles: List[TestFile]
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Boolean =
     Future
