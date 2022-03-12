@@ -64,7 +64,6 @@ object Server extends App with StrictLogging {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     concat(

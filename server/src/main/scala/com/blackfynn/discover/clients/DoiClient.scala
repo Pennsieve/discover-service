@@ -2,7 +2,6 @@
 
 package com.pennsieve.discover.clients
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
@@ -43,7 +42,7 @@ class DoiClient(
 )(implicit
   httpClient: HttpRequest => Future[HttpResponse],
   ec: ExecutionContext,
-  system: ActorSystem
+  mat: Materializer
 ) {
 
   val client = DoiServiceClient(doiServiceHost)
