@@ -540,7 +540,7 @@ class PublishHandler(
 //        case Some(b) => S3Bucket(b.publishBucket)
 //        case None => ports.config.s3.publishBucket
 //      }
-      val publishBucket = body.publishBucket
+      val publishBucket = S3Bucket(body.publishBucket)
 
       val query = for {
         dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(
