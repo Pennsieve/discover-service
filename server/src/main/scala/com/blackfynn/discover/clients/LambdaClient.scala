@@ -3,7 +3,6 @@
 package com.pennsieve.discover.clients
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.alpakka.awslambda.scaladsl.AwsLambdaFlow
 import akka.stream.scaladsl.{ Sink, Source }
 import com.pennsieve.discover.LambdaException

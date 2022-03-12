@@ -14,7 +14,6 @@ import akka.http.scaladsl.model.headers.{
 }
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import cats.data.EitherT
 import cats.implicits._
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt

@@ -6,7 +6,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.withOrganizationAccess

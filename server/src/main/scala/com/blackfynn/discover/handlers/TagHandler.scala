@@ -4,7 +4,6 @@ package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import com.pennsieve.discover.server.tag.{
   TagHandler => GuardrailHandler,
   TagResource => GuardrailResource
@@ -21,8 +20,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 class TagHandler(
   ports: Ports
 )(implicit
-  executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  executionContext: ExecutionContext
 ) extends GuardrailHandler {
 
   override def getTags(
@@ -44,7 +42,6 @@ object TagHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     logRequestAndResponse(ports) {

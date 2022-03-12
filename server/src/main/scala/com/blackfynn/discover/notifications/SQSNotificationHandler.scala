@@ -10,7 +10,7 @@ import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.alpakka.sqs.scaladsl.{ SqsAckSink, SqsSource }
 import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Source }
-import akka.stream.{ ActorMaterializer, _ }
+import akka.stream.{ _ }
 import cats.data._
 import cats.implicits._
 import com.blackfynn.discover.models.DoiRedirect

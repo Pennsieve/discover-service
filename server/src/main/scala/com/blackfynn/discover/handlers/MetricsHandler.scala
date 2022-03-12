@@ -6,7 +6,6 @@ import java.time.LocalDate
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import com.pennsieve.discover.Ports
 import com.pennsieve.discover.logging.logRequestAndResponse
 import com.pennsieve.discover.server.metrics.{

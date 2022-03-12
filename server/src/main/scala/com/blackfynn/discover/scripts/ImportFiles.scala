@@ -7,7 +7,6 @@ import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.alpakka.s3.scaladsl.S3
 import cats.data._
 import cats.implicits._
@@ -96,6 +95,7 @@ object ImportFiles extends StrictLogging {
     } finally {
       logger.info("Shutting down actor system...")
       ports.db.close()
+      system.terminate()
       materializer.shutdown()
       Await.result(system.terminate(), 5.seconds)
     }
