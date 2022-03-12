@@ -203,7 +203,7 @@ case class TestFile(
 ) extends AwaitableImplicits {
 
   // create the source file, filled with random bytes
-  def generate(implicit materializer: ActorMaterializer): Unit = {
+  def generate(implicit system: ActorSystem): Unit = {
     Source
       .repeat(NotUsed)
       .take(numBytes)
