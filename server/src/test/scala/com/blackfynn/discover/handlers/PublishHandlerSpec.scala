@@ -1032,7 +1032,7 @@ class PublishHandlerSpec
     "fail without a JWT" in {
 
       val response = client
-        .release(organizationId, datasetId)
+        .release(organizationId, datasetId, releaseBody)
         .awaitFinite()
         .value
 
