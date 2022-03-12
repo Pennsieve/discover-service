@@ -2,7 +2,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
 import akka.stream.Materializer
 
 import cats.data.EitherT
@@ -27,7 +26,6 @@ sealed trait CoreError extends Exception
 object CreateS3LogTable extends App {
 
   implicit val system: ActorSystem = ActorSystem("discover-service-scripts")
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   val config: com.pennsieve.discover.Config = com.pennsieve.discover.Config.load

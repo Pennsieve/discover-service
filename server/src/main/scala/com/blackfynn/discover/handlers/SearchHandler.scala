@@ -4,7 +4,6 @@ package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import com.pennsieve.discover.{ BadQueryParameter, Config, Ports }
 import com.pennsieve.discover.db.PublicDatasetVersionsMapper
 import com.pennsieve.discover.models.{

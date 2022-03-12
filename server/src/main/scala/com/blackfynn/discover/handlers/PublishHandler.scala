@@ -6,7 +6,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.http.scaladsl.model.{ HttpHeader, HttpResponse, Uri }
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import cats.implicits._
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt

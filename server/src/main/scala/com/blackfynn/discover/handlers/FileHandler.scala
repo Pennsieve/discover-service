@@ -5,7 +5,6 @@ package com.pennsieve.discover.handlers
 import scala.concurrent.{ ExecutionContext, Future }
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import com.pennsieve.discover._
 import com.pennsieve.discover.server.file.{
   FileHandler => GuardrailHandler,

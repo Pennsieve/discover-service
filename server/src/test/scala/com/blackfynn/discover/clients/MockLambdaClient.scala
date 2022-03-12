@@ -3,7 +3,6 @@
 package com.pennsieve.discover.clients
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import software.amazon.awssdk.services.lambda.model.InvokeResponse
 
 import scala.collection.mutable.ListBuffer

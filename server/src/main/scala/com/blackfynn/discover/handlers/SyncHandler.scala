@@ -11,7 +11,6 @@ import java.time.temporal.ChronoUnit
 import com.pennsieve.discover.db.profile.api.DBIO
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import com.pennsieve.discover.{ utils, Config, Ports }
 import scalikejdbc._
 import scalikejdbc.athena._
@@ -76,7 +75,6 @@ object SyncHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     logRequestAndResponse(ports) {
