@@ -2,24 +2,37 @@
 
 package com.pennsieve.discover.clients
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model._
 import akka.stream.Materializer
 import cats.data._
 import cats.implicits._
 import com.pennsieve.discover.server.definitions.InternalContributor
-import com.pennsieve.doi.client.doi.{DoiClient => DoiServiceClient}
+import com.pennsieve.doi.client.doi.{ DoiClient => DoiServiceClient }
 import com.pennsieve.doi.client.definitions._
-import com.pennsieve.doi.client.doi.{CreateDraftDoiResponse, GetLatestDoiResponse, HideDoiResponse, PublishDoiResponse, ReviseDoiResponse}
-import com.pennsieve.doi.models.{DoiDTO, DoiState}
-import com.pennsieve.discover.{Authenticator, DoiCreationException, DoiServiceException, ForbiddenException, NoDoiException, Ports, UnauthorizedException}
+import com.pennsieve.doi.client.doi.{
+  CreateDraftDoiResponse,
+  GetLatestDoiResponse,
+  HideDoiResponse,
+  PublishDoiResponse,
+  ReviseDoiResponse
+}
+import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.discover.{
+  Authenticator,
+  DoiCreationException,
+  DoiServiceException,
+  ForbiddenException,
+  NoDoiException,
+  Ports,
+  UnauthorizedException
+}
 import com.pennsieve.discover.models._
 import com.pennsieve.models.License
-import io.circe.{DecodingFailure, Json}
+import io.circe.{ DecodingFailure, Json }
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 /**
   * Thin wrapper around the Guardrail DOI service client
@@ -29,7 +42,7 @@ class DoiClient(
 )(implicit
   httpClient: HttpRequest => Future[HttpResponse],
   ec: ExecutionContext,
-  system: ActorSystem,
+  mat: Materializer
 ) {
 
   val client = DoiServiceClient(doiServiceHost)

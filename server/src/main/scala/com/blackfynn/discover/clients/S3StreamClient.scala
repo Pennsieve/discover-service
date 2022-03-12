@@ -45,6 +45,7 @@ trait S3StreamClient {
     version: PublicDatasetVersion,
     zipPrefix: String // folder under which to place files in the zip archive
   )(implicit
+    materializer: ActorMaterializer,
     ec: ExecutionContext
   ): Source[ZipSource, NotUsed]
 
@@ -121,6 +122,7 @@ trait S3StreamClient {
     readmePresignedUrl: Uri
   )(implicit
     system: ActorSystem,
+    materializer: ActorMaterializer,
     ec: ExecutionContext
   ): Future[NewFiles]
 
