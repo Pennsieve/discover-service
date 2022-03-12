@@ -86,6 +86,7 @@ class SQSNotificationSpec extends WordSpec with Suite with Matchers {
           |  "organization_id" : "1",
           |  "dataset_id" : "2",
           |  "version" : "5",
+          |  "s3_bucket" : "bucket",
           |  "success" : true
           |}""".stripMargin
 
