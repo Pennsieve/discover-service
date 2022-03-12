@@ -130,8 +130,8 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     readme: Readme,
     sponsorship: Option[Sponsorship] = None
   )(implicit
-    executionContext: ExecutionContext,
-    system: ActorSystem
+    system: ActorSystem,
+    executionContext: ExecutionContext
   ): Future[Done] = {
     indexedDatasets += (
       (

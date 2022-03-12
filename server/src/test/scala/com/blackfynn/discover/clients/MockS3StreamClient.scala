@@ -153,6 +153,7 @@ class MockS3StreamClient extends S3StreamClient {
     version: PublicDatasetVersion,
     revision: Option[Revision]
   )(implicit
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Readme] =
     Future.successful(
