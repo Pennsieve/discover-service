@@ -157,7 +157,7 @@ object ReleaseNotification {
     "organization_id",
     "dataset_id",
     "version",
-    "s3Bucket",
+    "s3_bucket",
     "success",
     "error"
   )(

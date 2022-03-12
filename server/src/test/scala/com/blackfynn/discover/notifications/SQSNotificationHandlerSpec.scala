@@ -45,7 +45,7 @@ import java.util.Calendar
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class SQSNotificationHandlerSpec
+class vSQSNotificationHandlerSpec
     extends WordSpec
     with Matchers
     with Inside
