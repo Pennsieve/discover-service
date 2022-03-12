@@ -68,7 +68,7 @@ class DatasetHandler(
   claim: Option[Jwt.Claim]
 )(implicit
   executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  system: ActorSystem
 ) extends GuardrailHandler {
 
   implicit val config: Config = ports.config

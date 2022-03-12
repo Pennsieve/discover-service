@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.clients
 
+import akka.actor.ActorSystem
 import akka.{ Done, NotUsed }
 import akka.stream._
 import akka.stream.scaladsl._
@@ -34,8 +35,8 @@ import com.sksamuel.elastic4s.searches.queries.{
   SimpleStringQuery
 }
 import com.typesafe.scalalogging.StrictLogging
-import java.time.OffsetDateTime
 
+import java.time.OffsetDateTime
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.language.higherKinds
 
@@ -142,7 +143,7 @@ trait SearchClient {
     recordIndex: Option[Index] = None
   )(implicit
     executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    system: ActorSystem
   ): Future[Done]
 
   def indexSponsoredDataset(
@@ -178,8 +179,8 @@ trait SearchClient {
     readme: Readme,
     sponsorship: Option[Sponsorship] = None
   )(implicit
-    executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    system: ActorSystem,
+    executionContext: ExecutionContext
   ): Future[Done]
 
   /**
@@ -264,8 +265,8 @@ class AwsElasticSearchClient(
   config: Config,
   refreshPolicy: RefreshPolicy = RefreshPolicy.None
 )(implicit
-  executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  system: ActorSystem,
+  executionContext: ExecutionContext
 ) extends SearchClient
     with StrictLogging {
 
@@ -304,7 +305,7 @@ class AwsElasticSearchClient(
     recordIndex: Option[Index] = None
   )(implicit
     executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    system: ActorSystem
   ): Future[Done] = {
 
     val datasetDocument = DatasetDocument(
@@ -344,8 +345,8 @@ class AwsElasticSearchClient(
     readme: Readme,
     sponsorship: Option[Sponsorship] = None
   )(implicit
-    executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    system: ActorSystem,
+    executionContext: ExecutionContext
   ): Future[Done] = {
 
     val datasetDocument =

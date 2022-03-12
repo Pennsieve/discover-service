@@ -2,10 +2,10 @@
 
 package com.pennsieve.discover.search
 
+import akka.actor.ActorSystem
 import akka.{ Done, NotUsed }
 import akka.stream._
 import akka.stream.scaladsl._
-
 import cats.data._
 import cats.implicits._
 import com.pennsieve.discover.Ports
@@ -19,7 +19,6 @@ import com.pennsieve.discover.S3Exception
 import com.pennsieve.service.utilities.LogContext
 import com.sksamuel.elastic4s.Index
 import com.typesafe.scalalogging.StrictLogging
-
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 import io.circe.{ Decoder, Encoder }
 
@@ -35,7 +34,7 @@ object Search extends StrictLogging {
     ports: Ports
   )(implicit
     executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    system: ActorSystem
   ): Future[Done] = {
     val query = PublicDatasetsMapper
       .join(
@@ -118,7 +117,7 @@ object Search extends StrictLogging {
     recordIndex: Option[Index] = None
   )(implicit
     executionContext: ExecutionContext,
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     logContext: LogContext
   ): Future[Done] = {
 

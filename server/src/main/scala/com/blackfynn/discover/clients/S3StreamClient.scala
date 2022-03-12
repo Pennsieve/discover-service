@@ -45,14 +45,14 @@ trait S3StreamClient {
     version: PublicDatasetVersion,
     zipPrefix: String // folder under which to place files in the zip archive
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Source[ZipSource, NotUsed]
 
   def datasetMetadataSource(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)]
 
@@ -60,7 +60,7 @@ trait S3StreamClient {
     dataset: PublicDataset,
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Source[Record, NotUsed]
 
@@ -73,21 +73,21 @@ trait S3StreamClient {
     version: PublicDatasetVersion,
     revision: Option[Revision]
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Readme]
 
   def readPublishJobOutput(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput]
 
   def deletePublishJobOutput(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Unit]
 
@@ -97,7 +97,7 @@ trait S3StreamClient {
   def readDatasetMetadata(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[DatasetMetadata] =
     for {
@@ -122,7 +122,6 @@ trait S3StreamClient {
     readmePresignedUrl: Uri
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     ec: ExecutionContext
   ): Future[NewFiles]
 
@@ -202,7 +201,7 @@ class AlpakkaS3StreamClient(
     version: PublicDatasetVersion,
     zipPrefix: String // folder under which to place files in the zip archive
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Source[ZipSource, NotUsed] = {
     logger.info(s"Listing s3://${version.s3Bucket}")
@@ -239,7 +238,7 @@ class AlpakkaS3StreamClient(
     s3Object: ListBucketResultContents,
     start: Long
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Option[(DownloadState, Source[ByteString, NotUsed])]] = {
 
@@ -275,7 +274,7 @@ class AlpakkaS3StreamClient(
   def datasetMetadataSource(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] =
     s3FileSource(version.s3Bucket, metadataKey(version))
@@ -296,7 +295,6 @@ class AlpakkaS3StreamClient(
     readmePresignedUrl: Uri
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     ec: ExecutionContext
   ): Future[NewFiles] = {
 
@@ -409,7 +407,6 @@ class AlpakkaS3StreamClient(
     version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     ec: ExecutionContext
   ): Future[FileManifest] = {
     for {
@@ -439,7 +436,6 @@ class AlpakkaS3StreamClient(
     key: S3Key.File
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     ec: ExecutionContext
   ): Future[String] = {
     for {
@@ -459,7 +455,6 @@ class AlpakkaS3StreamClient(
     presignedUrl: Uri
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     ec: ExecutionContext
   ): Future[(ContentType, Source[ByteString, NotUsed])] = {
     for {
@@ -489,7 +484,7 @@ class AlpakkaS3StreamClient(
     bucket: S3Bucket,
     key: S3Key.File
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Long] =
     for {
@@ -508,7 +503,7 @@ class AlpakkaS3StreamClient(
     version: PublicDatasetVersion,
     revision: Option[Revision]
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Readme] =
     for {
@@ -528,7 +523,7 @@ class AlpakkaS3StreamClient(
   def readPublishJobOutput(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput] =
     for {
@@ -546,7 +541,7 @@ class AlpakkaS3StreamClient(
     bucket: S3Bucket,
     fileKey: S3Key.File
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] =
     S3.download(bucket.value, fileKey.value)
@@ -565,7 +560,7 @@ class AlpakkaS3StreamClient(
   def deletePublishJobOutput(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Future[Unit] =
     S3.deleteObject(version.s3Bucket.value, outputKey(version).value)
@@ -582,7 +577,7 @@ class AlpakkaS3StreamClient(
     dataset: PublicDataset,
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Source[Record, NotUsed] =
     datasetModelsSource(version)
@@ -643,7 +638,7 @@ class AlpakkaS3StreamClient(
   private def datasetModelsSource(
     version: PublicDatasetVersion
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Source[ModelSchema, NotUsed] = {
     val graphSchema = Source
@@ -671,7 +666,7 @@ class AlpakkaS3StreamClient(
     bucket: S3Bucket,
     fileKey: S3Key.File
   )(implicit
-    materializer: ActorMaterializer,
+    system: ActorSystem,
     ec: ExecutionContext
   ): Source[Map[String, String], NotUsed] =
     Source

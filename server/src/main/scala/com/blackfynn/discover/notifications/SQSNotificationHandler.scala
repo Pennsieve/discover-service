@@ -4,6 +4,7 @@ package com.pennsieve.discover.notifications
 
 import java.util.Calendar
 import akka.NotUsed
+import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.stream.alpakka.sqs.MessageAction
@@ -58,7 +59,7 @@ class SQSNotificationHandler(
   parallelism: Int
 )(implicit
   executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  system: ActorSystem
 ) {
 
   implicit val sqsClient: SqsAsyncClient = ports.sqsClient
@@ -292,6 +293,7 @@ class SQSNotificationHandler(
     version: PublicDatasetVersion,
     publishStatus: DatasetPublishStatus
   )(implicit
+    system: ActorSystem,
     logContext: LogContext
   ): Future[Unit] =
     for {

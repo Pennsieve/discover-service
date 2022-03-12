@@ -66,8 +66,7 @@ object Ports {
     config: Config
   )(implicit
     system: ActorSystem,
-    executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    executionContext: ExecutionContext
   ): Ports = {
 
     val jwt: Jwt.Config = new Jwt.Config {
@@ -101,11 +100,7 @@ object Ports {
 
     val doiClient: DoiClient = {
       val client = new SingleHttpResponder().responder
-      new DoiClient(config.doiService.host)(
-        client,
-        executionContext,
-        materializer
-      )
+      new DoiClient(config.doiService.host)(client, executionContext, system)
     }
 
     val stepFunctionsClient: StepFunctionsClient = new AwsStepFunctionsClient(

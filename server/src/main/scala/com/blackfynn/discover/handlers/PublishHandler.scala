@@ -52,8 +52,7 @@ class PublishHandler(
   claim: Jwt.Claim
 )(implicit
   system: ActorSystem,
-  executionContext: ExecutionContext,
-  materializer: ActorMaterializer
+  executionContext: ExecutionContext
 ) extends GuardrailHandler {
 
   implicit val config: Config = ports.config
@@ -536,10 +535,6 @@ class PublishHandler(
       organizationId,
       datasetId
     ) { _ =>
-//      val publishBucket: S3Bucket = body match {
-//        case Some(b) => S3Bucket(b.publishBucket)
-//        case None => ports.config.s3.publishBucket
-//      }
       val publishBucket = S3Bucket(body.publishBucket)
 
       val query = for {
@@ -972,7 +967,6 @@ object PublishHandler {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route = {
     logRequestAndResponse(ports) {
