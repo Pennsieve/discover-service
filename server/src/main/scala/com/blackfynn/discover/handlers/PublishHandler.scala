@@ -525,7 +525,7 @@ class PublishHandler(
   )(
     organizationId: Int,
     datasetId: Int,
-    body: Option[definitions.ReleaseRequest]
+    body: definitions.ReleaseRequest
   ): Future[GuardrailResource.releaseResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(organizationId),
@@ -536,10 +536,11 @@ class PublishHandler(
       organizationId,
       datasetId
     ) { _ =>
-      val publishBucket: S3Bucket = body match {
-        case Some(b) => S3Bucket(b.publishBucket)
-        case None => ports.config.s3.publishBucket
-      }
+//      val publishBucket: S3Bucket = body match {
+//        case Some(b) => S3Bucket(b.publishBucket)
+//        case None => ports.config.s3.publishBucket
+//      }
+      val publishBucket = body.publishBucket
 
       val query = for {
         dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(

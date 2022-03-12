@@ -267,7 +267,7 @@ paths:
             schema:
               $ref: "#/components/schemas/ReleaseRequest"
         description: Object identifying custom publish bucket if it exists
-        required: false
+        required: true
       responses:
         "202":
           description: Release started
