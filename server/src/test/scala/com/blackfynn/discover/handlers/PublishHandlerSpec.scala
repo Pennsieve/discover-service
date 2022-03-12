@@ -108,6 +108,9 @@ class PublishHandlerSpec
       relationshipType = Some(RelationshipType.Describes)
     )
 
+  val releaseBody: definitions.ReleaseRequest =
+    definitions.ReleaseRequest(publishBucket = "bucket")
+
   val requestBody: definitions.PublishRequest = definitions.PublishRequest(
     name = datasetName,
     description = "A very very long description...",
@@ -1038,7 +1041,7 @@ class PublishHandlerSpec
 
     "fail with a user JWT" in {
       val response = client
-        .release(organizationId, datasetId, None, userAuthToken)
+        .release(organizationId, datasetId, releaseBody, userAuthToken)
         .awaitFinite()
         .value
 
@@ -1055,7 +1058,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, None, authToken)
+        .release(organizationId, datasetId, releaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1070,7 +1073,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, None, authToken)
+        .release(organizationId, datasetId, releaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1080,7 +1083,7 @@ class PublishHandlerSpec
     "fail to release a dataset that does not exist" in {
 
       val response = client
-        .release(organizationId, datasetId, None, authToken)
+        .release(organizationId, datasetId, releaseBody, authToken)
         .awaitFinite()
         .value shouldBe ReleaseResponse.NotFound
     }
@@ -1094,7 +1097,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, None, authToken)
+        .release(organizationId, datasetId, releaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
@@ -1143,7 +1146,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, None, authToken)
+        .release(organizationId, datasetId, releaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
