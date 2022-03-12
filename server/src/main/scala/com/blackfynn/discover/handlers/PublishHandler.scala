@@ -537,7 +537,7 @@ class PublishHandler(
       datasetId
     ) { _ =>
       val publishBucket: S3Bucket = body match {
-        case Some(b) => S3Bucket(b.publishBucket.get)
+        case Some(b) => S3Bucket(b.publishBucket)
         case None => ports.config.s3.publishBucket
       }
 

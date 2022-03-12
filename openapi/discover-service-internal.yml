@@ -582,6 +582,7 @@ components:
     ReleaseRequest:
       type: object
       required:
+        - publishBucket
       properties:
         publishBucket:
           type: string
