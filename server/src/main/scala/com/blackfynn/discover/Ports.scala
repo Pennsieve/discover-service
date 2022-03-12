@@ -67,7 +67,6 @@ object Ports {
   )(implicit
     system: ActorSystem,
     executionContext: ExecutionContext,
-    materializer: ActorMaterializer
   ): Ports = {
 
     val jwt: Jwt.Config = new Jwt.Config {
@@ -104,7 +103,7 @@ object Ports {
       new DoiClient(config.doiService.host)(
         client,
         executionContext,
-        materializer
+        system
       )
     }
 

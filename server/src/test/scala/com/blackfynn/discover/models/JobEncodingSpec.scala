@@ -96,7 +96,8 @@ class JobEncodingSpec extends WordSpec with Suite with Matchers {
   "EmbargoReleaseJob" should {
 
     "encode integers as strings" in {
-      val job = EmbargoReleaseJob(1, 10, 7, S3Key.Version(2, 5),S3Bucket("bucket"))
+      val job =
+        EmbargoReleaseJob(1, 10, 7, S3Key.Version(2, 5), S3Bucket("bucket"))
 
       job.asJson.toString shouldBe
         s"""{
@@ -104,7 +105,7 @@ class JobEncodingSpec extends WordSpec with Suite with Matchers {
           |  "dataset_id" : "10",
           |  "version" : "7",
           |  "s3_key" : "2/5/",
-          |  "s3_bucket" : "bucket",
+          |  "s3_bucket" : "bucket"
           |}""".stripMargin
     }
   }

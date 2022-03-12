@@ -38,7 +38,6 @@ object Server extends App with StrictLogging {
   val config: Config = Config.load
 
   implicit val system: ActorSystem = ActorSystem("discover-service")
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   implicit val ports: Ports = Ports(config)
@@ -64,7 +63,6 @@ object Server extends App with StrictLogging {
     ports: Ports
   )(implicit
     system: ActorSystem,
-    materializer: ActorMaterializer,
     executionContext: ExecutionContext
   ): Route =
     concat(
