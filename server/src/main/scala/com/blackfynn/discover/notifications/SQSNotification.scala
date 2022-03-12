@@ -167,7 +167,7 @@ object ReleaseNotification {
         j.organizationId.toString,
         j.datasetId.toString,
         j.version.toString,
-        j.s3Bucket,
+        j.s3Bucket.toString,
         j.success.asJson,
         j.error.asJson
       )
@@ -180,7 +180,7 @@ object ReleaseNotification {
           organizationId <- c.downField("organization_id").as[Int]
           datasetId <- c.downField("dataset_id").as[Int]
           success <- c.downField("success").as[Boolean]
-          s3Bucket <- c.downField("s3_bucket").as[S3Bucket]
+          s3Bucket <- c.downField("s3_bucket").as[String]
           version <- c.downField("version").as[Int]
           error <- c.downField("error").as[Option[String]]
         } yield {
@@ -188,7 +188,7 @@ object ReleaseNotification {
             organizationId,
             datasetId,
             version,
-            s3Bucket,
+            S3Bucket(s3Bucket),
             success,
             error
           )
