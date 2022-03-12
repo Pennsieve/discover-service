@@ -1038,7 +1038,7 @@ class PublishHandlerSpec
 
     "fail with a user JWT" in {
       val response = client
-        .release(organizationId, datasetId, userAuthToken)
+        .release(organizationId, datasetId, null, userAuthToken)
         .awaitFinite()
         .value
 
@@ -1055,7 +1055,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, authToken)
+        .release(organizationId, datasetId, null, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1070,7 +1070,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, authToken)
+        .release(organizationId, datasetId, null, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1080,7 +1080,7 @@ class PublishHandlerSpec
     "fail to release a dataset that does not exist" in {
 
       val response = client
-        .release(organizationId, datasetId, authToken)
+        .release(organizationId, datasetId, null, authToken)
         .awaitFinite()
         .value shouldBe ReleaseResponse.NotFound
     }
@@ -1094,7 +1094,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, authToken)
+        .release(organizationId, datasetId, null, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
@@ -1128,6 +1128,7 @@ class PublishHandlerSpec
             organizationId = organizationId,
             datasetId = datasetId,
             version = version.version,
+            s3Bucket = S3Bucket("bucket"),
             s3Key = version.s3Key
           )
       }
@@ -1142,7 +1143,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, authToken)
+        .release(organizationId, datasetId, null, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]

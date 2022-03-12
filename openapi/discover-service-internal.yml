@@ -261,6 +261,13 @@ paths:
           schema:
             type: integer
             format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReleaseRequest"
+        description: Object identifying custom publish bucket if it exists
+        required: false
       responses:
         "202":
           description: Release started
@@ -570,6 +577,13 @@ components:
         publishBucket:
           type: string
         embargoBucket:
+          type: string
+
+    ReleaseRequest:
+      type: object
+      required:
+      properties:
+        publishBucket:
           type: string
 
     ReviseRequest:

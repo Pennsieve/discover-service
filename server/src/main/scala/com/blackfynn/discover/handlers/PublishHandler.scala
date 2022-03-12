@@ -524,7 +524,8 @@ class PublishHandler(
     respond: GuardrailResource.releaseResponse.type
   )(
     organizationId: Int,
-    datasetId: Int
+    datasetId: Int,
+    body: Option[definitions.ReleaseRequest]
   ): Future[GuardrailResource.releaseResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(organizationId),
@@ -535,6 +536,11 @@ class PublishHandler(
       organizationId,
       datasetId
     ) { _ =>
+      val publishBucket: S3Bucket = body match {
+        case Some(b) => S3Bucket(b.publishBucket.get)
+        case None => ports.config.s3.publishBucket
+      }
+
       val query = for {
         dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(
           organizationId,
@@ -569,7 +575,7 @@ class PublishHandler(
 
         sfnResponse <- DBIO.from(
           ports.stepFunctionsClient
-            .startRelease(EmbargoReleaseJob(dataset, version))
+            .startRelease(EmbargoReleaseJob(dataset, version, publishBucket))
         )
 
         _ = ports.log.info(s"Started step function ${sfnResponse.toString}")

@@ -297,7 +297,7 @@ class SQSNotificationHandler(
     for {
       updatedVersion <- ports.db.run(
         PublicDatasetVersionsMapper
-          .setS3Bucket(version, version.s3Bucket)
+          .setS3Bucket(version, message.s3Bucket)
       )
 
       _ <- ports.pennsieveApiClient

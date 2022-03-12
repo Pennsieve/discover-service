@@ -540,6 +540,7 @@ class SQSNotificationHandlerSpec
         organizationId = publicDataset.sourceOrganizationId,
         datasetId = publicDataset.sourceDatasetId,
         version = publicDatasetV1.version,
+        s3Bucket = S3Bucket("bucket"),
         success = true
       )
     ) shouldBe an[MessageAction.Delete]
@@ -623,6 +624,7 @@ class SQSNotificationHandlerSpec
       organizationId = publicDataset.sourceOrganizationId,
       datasetId = publicDataset.sourceDatasetId,
       version = publicDatasetV1.version,
+      s3Bucket = S3Bucket("bucket"),
       success = false,
       Some("Error, error!")
     )

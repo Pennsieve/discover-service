@@ -2,12 +2,12 @@
 
 package com.pennsieve.discover.notifications
 
+import com.pennsieve.discover.models.S3Bucket
 import com.pennsieve.models.PublishStatus
 import io.circe._
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder }
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
-
 import enumeratum.EnumEntry.UpperSnakecase
 import enumeratum.EnumEntry.{ Snakecase, UpperSnakecase }
 import enumeratum._
@@ -144,6 +144,7 @@ case class ReleaseNotification(
   organizationId: Int,
   datasetId: Int,
   version: Int,
+  s3Bucket: S3Bucket,
   success: Boolean,
   error: Option[String] = None
 ) extends SQSNotification
@@ -151,11 +152,12 @@ case class ReleaseNotification(
 
 object ReleaseNotification {
 
-  implicit val encoder: Encoder[ReleaseNotification] = Encoder.forProduct6(
+  implicit val encoder: Encoder[ReleaseNotification] = Encoder.forProduct7(
     "job_type",
     "organization_id",
     "dataset_id",
     "version",
+    "s3Bucket",
     "success",
     "error"
   )(
@@ -165,6 +167,7 @@ object ReleaseNotification {
         j.organizationId.toString,
         j.datasetId.toString,
         j.version.toString,
+        j.s3Bucket,
         j.success.asJson,
         j.error.asJson
       )
@@ -177,6 +180,7 @@ object ReleaseNotification {
           organizationId <- c.downField("organization_id").as[Int]
           datasetId <- c.downField("dataset_id").as[Int]
           success <- c.downField("success").as[Boolean]
+          s3Bucket <- c.downField("s3_bucket").as[S3Bucket]
           version <- c.downField("version").as[Int]
           error <- c.downField("error").as[Option[String]]
         } yield {
@@ -184,6 +188,7 @@ object ReleaseNotification {
             organizationId,
             datasetId,
             version,
+            s3Bucket,
             success,
             error
           )

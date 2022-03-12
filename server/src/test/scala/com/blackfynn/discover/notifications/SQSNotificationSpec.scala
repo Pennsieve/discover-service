@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.notifications
 
+import com.pennsieve.discover.models.S3Bucket
 import com.pennsieve.models.PublishStatus
 import io.circe.parser.decode
 import org.scalatest.{ Matchers, Suite, WordSpec }
@@ -93,6 +94,7 @@ class SQSNotificationSpec extends WordSpec with Suite with Matchers {
           organizationId = 1,
           datasetId = 2,
           version = 5,
+          s3Bucket = S3Bucket("bucket"),
           success = true,
           error = None
         )
