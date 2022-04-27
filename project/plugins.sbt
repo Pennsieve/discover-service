@@ -8,11 +8,6 @@ resolvers ++= Seq(
       "[organization]/[module]/(scala_[scalaVersion]/)(sbt_[sbtVersion]/)[revision]/[type]s/[artifact](-[classifier]).[ext]"
     )
   ),
-  // Hotfix for https://github.com/lightbend/mima/issues/422
-  Resolver.url(
-    "typesafe sbt-plugins",
-    url("https://dl.bintray.com/typesafe/sbt-plugins")
-  )(Resolver.ivyStylePatterns)
 )
 
 credentials += Credentials(

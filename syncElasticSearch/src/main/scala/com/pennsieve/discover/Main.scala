@@ -1,5 +1,7 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
+package com.pennsieve.discover
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
