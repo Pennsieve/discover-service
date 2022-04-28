@@ -52,7 +52,6 @@ class vSQSNotificationHandlerSpec
     with ServiceSpecHarness {
 
   implicit private val system: ActorSystem = ActorSystem("discover-service")
-  implicit private val materializer: ActorMaterializer = ActorMaterializer()
   implicit private val executionContext: ExecutionContext = system.dispatcher
 
   lazy val notificationHandler = new SQSNotificationHandler(

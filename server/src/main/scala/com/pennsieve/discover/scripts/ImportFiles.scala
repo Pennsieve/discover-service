@@ -37,7 +37,6 @@ object ImportFiles extends StrictLogging {
     val config: Config = Config.load
 
     implicit val system: ActorSystem = ActorSystem("discover-service")
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
     implicit val executionContext: ExecutionContext = system.dispatcher
 
     implicit val ports: Ports = Ports(config)
@@ -52,7 +51,7 @@ object ImportFiles extends StrictLogging {
         .map(Source(_))
 
       val end = Source
-        .fromFutureSource(ports.db.run(query))
+        .futureSource(ports.db.run(query))
         .mapAsync(1) {
           case (version, dataset) => {
             println(s"Migrating dataset ${dataset.id}/${version.version}")
@@ -96,7 +95,6 @@ object ImportFiles extends StrictLogging {
       logger.info("Shutting down actor system...")
       ports.db.close()
       system.terminate()
-      materializer.shutdown()
       Await.result(system.terminate(), 5.seconds)
     }
   }

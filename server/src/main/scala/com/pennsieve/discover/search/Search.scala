@@ -72,7 +72,7 @@ object Search extends StrictLogging {
                 )(
                   recordIndex =>
                     Source
-                      .fromFutureSource(ports.db.run(query))
+                      .futureSource(ports.db.run(query))
                       .mapAsync(1) {
                         case (
                             dataset: PublicDataset,

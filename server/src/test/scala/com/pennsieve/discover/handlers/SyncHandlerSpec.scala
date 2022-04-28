@@ -114,14 +114,16 @@ class SyncHandlerSpec
         LocalDate.of(2020, 11, 11)
       )
 
-      // I believe the DB client returns these values in the local time offset.
+      // I believe the DB connection returns these values in the local time offset.
       // Without the conversion to the local offset this test was failing locally on developer machines,
       // but passing in CI where the system timezone is UTC.
       val reqId2DownloadTimeInUTC =
         OffsetDateTime.of(2020, 11, 10, 19, 3, 1, 0, ZoneOffset.UTC)
-      val localZoneId = ZoneId.systemDefault()
       val localOffset =
-        localZoneId.getRules().getOffset(reqId2DownloadTimeInUTC.toInstant)
+        ZoneId
+          .systemDefault()
+          .getRules()
+          .getOffset(reqId2DownloadTimeInUTC.toInstant)
       val reqId2DownloadTimeInLocal =
         reqId2DownloadTimeInUTC.withOffsetSameInstant(localOffset)
 

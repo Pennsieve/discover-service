@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.clients
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ HttpHeader, HttpRequest, HttpResponse }
 import akka.stream.Materializer
 import cats.implicits._
@@ -29,8 +30,8 @@ import scala.util.Random
 class MockDoiClient(
   httpClient: HttpRequest => Future[HttpResponse],
   ec: ExecutionContext,
-  mat: Materializer
-) extends DoiClient("https://mock-doi-service-host")(httpClient, ec, mat) {
+  system: ActorSystem
+) extends DoiClient("https://mock-doi-service-host")(httpClient, ec, system) {
 
   val dois: Map[String, DoiDTO] = Map.empty[String, DoiDTO]
 

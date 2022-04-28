@@ -49,7 +49,6 @@ trait ServiceSpecHarness
     with StrictLogging { suite: Suite =>
 
   implicit private val system: ActorSystem = ActorSystem("discover-service")
-  implicit private val materializer: ActorMaterializer = ActorMaterializer()
   implicit private val executionContext: ExecutionContext = system.dispatcher
 
   override val PullImagesTimeout: FiniteDuration = 5.minutes
@@ -120,7 +119,7 @@ trait ServiceSpecHarness
       new MockDoiClient(
         new SingleHttpResponder().responder,
         executionContext,
-        materializer
+        system
       )
 
     val athenaClient: AthenaClient =

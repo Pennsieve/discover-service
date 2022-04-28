@@ -642,7 +642,7 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Source[ModelSchema, NotUsed] = {
     val graphSchema = Source
-      .fromFutureSource(
+      .futureSource(
         s3FileSource(version.s3Bucket, graphSchemaKey(version)).map(_._1)
       )
       .runWith(Sink.fold(ByteString.empty)(_ ++ _))
@@ -658,7 +658,7 @@ class AlpakkaS3StreamClient(
       }
 
     Source
-      .fromFuture(graphSchema)
+      .future(graphSchema)
       .mapConcat(_.models)
   }
 
@@ -670,7 +670,7 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Source[Map[String, String], NotUsed] =
     Source
-      .fromFutureSource(s3FileSource(bucket, fileKey).map(_._1))
+      .futureSource(s3FileSource(bucket, fileKey).map(_._1))
       .via(CsvParsing.lineScanner())
       .via(CsvToMap.toMapAsStrings(StandardCharsets.UTF_8))
       .mapMaterializedValue(_ => NotUsed)

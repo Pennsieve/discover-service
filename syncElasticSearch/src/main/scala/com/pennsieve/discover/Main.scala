@@ -4,8 +4,6 @@ package com.pennsieve.discover
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
-import com.pennsieve.discover.{ Config, Ports }
 import com.pennsieve.discover.search._
 import com.typesafe.scalalogging.StrictLogging
 
@@ -16,7 +14,6 @@ object Main extends App with StrictLogging {
   val config: Config = Config.load
 
   implicit val system: ActorSystem = ActorSystem("discover-service")
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   implicit val ports: Ports = Ports(config)

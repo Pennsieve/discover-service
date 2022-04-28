@@ -33,8 +33,6 @@ class ElasticSearchSpec
 
   implicit lazy private val system: ActorSystem =
     ActorSystem("discover-service")
-  implicit lazy private val materializer: ActorMaterializer =
-    ActorMaterializer()
   implicit lazy private val executionContext: ExecutionContext =
     system.dispatcher
 

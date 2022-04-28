@@ -5,7 +5,8 @@ package com.pennsieve.discover
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.auth.middleware.Jwt
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
+import akka.stream.Materializer._
 import com.pennsieve.discover.clients.{
   AlpakkaLambdaClient,
   AlpakkaS3StreamClient,
@@ -26,8 +27,6 @@ import com.pennsieve.discover.clients.{
   VictorOpsClient,
   VictorOpsSNSClient
 }
-import com.pennsieve.discover.logging.DiscoverLogContext
-
 import com.pennsieve.service.utilities.{
   ContextLogger,
   LogContext,
@@ -66,8 +65,7 @@ object Ports {
     config: Config
   )(implicit
     system: ActorSystem,
-    executionContext: ExecutionContext,
-    materializer: ActorMaterializer
+    executionContext: ExecutionContext
   ): Ports = {
 
     val jwt: Jwt.Config = new Jwt.Config {
@@ -101,11 +99,7 @@ object Ports {
 
     val doiClient: DoiClient = {
       val client = new SingleHttpResponder().responder
-      new DoiClient(config.doiService.host)(
-        client,
-        executionContext,
-        materializer
-      )
+      new DoiClient(config.doiService.host)(client, executionContext, system)
     }
 
     val stepFunctionsClient: StepFunctionsClient = new AwsStepFunctionsClient(

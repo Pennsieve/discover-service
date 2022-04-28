@@ -38,8 +38,6 @@ object Server extends App with StrictLogging {
   val config: Config = Config.load
 
   implicit val system: ActorSystem = ActorSystem("discover-service")
-  implicit val materializer
-    : ActorMaterializer = ActorMaterializer() //need this for doi client
   implicit val executionContext: ExecutionContext = system.dispatcher
 
   implicit val ports: Ports = Ports(config)

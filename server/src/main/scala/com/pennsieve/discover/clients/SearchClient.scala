@@ -726,7 +726,15 @@ class AwsElasticSearchClient(
       aliasedIndices <- execute(catAliases())
         .map(_.filter(_.alias == alias.name))
 
-      _ <- execute(createIndex(newIndex.name).mappings(mapping))
+      _ <- execute(
+        createIndex(newIndex.name)
+          // in Elasticsearch 6.x the default number of shards is 5, but in 7.x this will change to 1.
+          // 6.x issues a warning if this is not set explicitly.
+          // It also complains if "include_type_name" is not set explicitly, but elastic4s does not
+          // provide a way to set this query parameter.
+          .shards(5)
+          .mappings(mapping)
+      )
 
       _ <- execute(refreshIndex(newIndex.name))
       result <- buildIndex(newIndex)
