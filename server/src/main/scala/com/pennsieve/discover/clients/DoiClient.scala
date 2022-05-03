@@ -3,10 +3,7 @@
 package com.pennsieve.discover.clients
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.HttpExt
 import akka.http.scaladsl.model._
-import akka.stream.Materializer
-import cats.data._
 import cats.implicits._
 import com.pennsieve.discover.server.definitions.InternalContributor
 import com.pennsieve.doi.client.doi.{ DoiClient => DoiServiceClient }
@@ -18,19 +15,16 @@ import com.pennsieve.doi.client.doi.{
   PublishDoiResponse,
   ReviseDoiResponse
 }
-import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.doi.models.DoiDTO
 import com.pennsieve.discover.{
-  Authenticator,
   DoiCreationException,
   DoiServiceException,
   ForbiddenException,
   NoDoiException,
-  Ports,
   UnauthorizedException
 }
 import com.pennsieve.discover.models._
 import com.pennsieve.models.License
-import io.circe.{ DecodingFailure, Json }
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
@@ -61,7 +55,7 @@ class DoiClient(
         case Right(response) =>
           response match {
             case GetLatestDoiResponse.OK(dto) =>
-              decodeDoi(dto).fold(Future.failed(_), Future.successful(_))
+              Future.successful(dto)
             case GetLatestDoiResponse.NotFound(_) =>
               Future.failed(NoDoiException)
             case GetLatestDoiResponse.Forbidden(e) =>
@@ -95,7 +89,7 @@ class DoiClient(
         case Right(response) =>
           response match {
             case CreateDraftDoiResponse.Created(dto) =>
-              decodeDoi(dto).fold(Future.failed(_), Future.successful(_))
+              Future.successful(dto)
             case CreateDraftDoiResponse.Forbidden(e) =>
               Future.failed(ForbiddenException(e))
             case CreateDraftDoiResponse.Unauthorized =>
@@ -132,20 +126,20 @@ class DoiClient(
           creators = contributors
             .map(
               c =>
-                CreatorDTO(
+                CreatorDto(
                   firstName = c.firstName,
                   lastName = c.lastName,
                   middleInitial = c.middleInitial,
                   orcid = c.orcid
                 )
             )
-            .toIndexedSeq,
+            .toVector,
           publicationYear = publicationYear,
           url = url,
           publisher = publisher,
           owner = owner.map(
             o =>
-              CreatorDTO(
+              CreatorDto(
                 firstName = o.firstName,
                 lastName = o.lastName,
                 middleInitial = o.middleInitial,
@@ -156,28 +150,25 @@ class DoiClient(
           description = description,
           collections = Some(
             collections
-              .map(c => CollectionDTO(c.name, c.sourceCollectionId))
-              .toIndexedSeq
+              .map(c => CollectionDto(c.name, c.sourceCollectionId))
+              .toVector
           ),
           externalPublications = Some(
             externalPublications
               .map(
                 p =>
-                  ExternalPublicationDTO(
+                  ExternalPublicationDto(
                     p.doi,
                     Some(p.relationshipType.entryName)
                   )
               )
-              .toIndexedSeq
+              .toVector
           ),
           licenses = license
             .map(
               l =>
-                IndexedSeq(
-                  LicenseDTO(
-                    l.entryName,
-                    License.licenseUri.get(l).getOrElse("")
-                  )
+                Vector(
+                  LicenseDto(l.entryName, License.licenseUri.getOrElse(l, ""))
                 )
             )
         ),
@@ -189,7 +180,7 @@ class DoiClient(
         case Right(response) =>
           response match {
             case PublishDoiResponse.OK(dto) =>
-              decodeDoi(dto).fold(Future.failed(_), Future.successful(_))
+              Future.successful(dto)
 
             case PublishDoiResponse.BadRequest(e) =>
               Future.failed(DoiServiceException(HttpError(400, e)))
@@ -226,17 +217,17 @@ class DoiClient(
           creators = contributors
             .map(
               c =>
-                CreatorDTO(
+                CreatorDto(
                   firstName = c.firstName,
                   lastName = c.lastName,
                   middleInitial = c.middleInitial,
                   orcid = c.orcid
                 )
             )
-            .toIndexedSeq,
+            .toVector,
           owner = owner.map(
             o =>
-              CreatorDTO(
+              CreatorDto(
                 firstName = o.firstName,
                 lastName = o.lastName,
                 middleInitial = o.middleInitial,
@@ -247,24 +238,24 @@ class DoiClient(
           description = description,
           collections = Some(
             collections
-              .map(c => CollectionDTO(c.name, c.sourceCollectionId))
-              .toIndexedSeq
+              .map(c => CollectionDto(c.name, c.sourceCollectionId))
+              .toVector
           ),
           externalPublications = Some(
             externalPublications
               .map(
                 p =>
-                  ExternalPublicationDTO(
+                  ExternalPublicationDto(
                     p.doi,
                     Some(p.relationshipType.entryName)
                   )
               )
-              .toIndexedSeq
+              .toVector
           ),
           licenses = license.map(
             l =>
-              IndexedSeq(
-                LicenseDTO(l.entryName, License.licenseUri.get(l).getOrElse(""))
+              Vector(
+                LicenseDto(l.entryName, License.licenseUri.getOrElse(l, ""))
               )
           )
         ),
@@ -276,7 +267,7 @@ class DoiClient(
         case Right(response) =>
           response match {
             case ReviseDoiResponse.OK(dto) =>
-              decodeDoi(dto).fold(Future.failed(_), Future.successful(_))
+              Future.successful(dto)
             case ReviseDoiResponse.BadRequest(e) =>
               Future.failed(DoiServiceException(HttpError(400, e)))
             case ReviseDoiResponse.NotFound(_) =>
@@ -301,7 +292,7 @@ class DoiClient(
         case Right(response) =>
           response match {
             case HideDoiResponse.OK(dto) =>
-              decodeDoi(dto).fold(Future.failed(_), Future.successful(_))
+              Future.successful(dto)
             case HideDoiResponse.BadRequest(e) =>
               Future.failed(DoiServiceException(HttpError(400, e)))
             case HideDoiResponse.NotFound(_) =>
@@ -316,12 +307,6 @@ class DoiClient(
         case Left(e) => Future.failed(e)
       }
   }
-
-  private def decodeDoi(dto: Json): Either[DecodingFailure, DoiDTO] =
-    dto.as[DoiDTO] match {
-      case Right(decodedDoi) => Right(decodedDoi)
-      case Left(decodingFailure) => Left(decodingFailure)
-    }
 
   /**
     * Handle errors from the Guardrail client.

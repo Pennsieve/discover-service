@@ -1,5 +1,12 @@
 ThisBuild / organization := "com.pennsieve"
-ThisBuild / scalaVersion := "2.12.11"
+
+
+lazy val scala212 = "2.12.11"
+lazy val scala213 = "2.13.8"
+lazy val supportedScalaVersions = List(scala212, scala213)
+
+ThisBuild / scalaVersion := scala212
+
 ThisBuild / scalacOptions ++= Seq(
   "-encoding", "utf-8",
   "-deprecation",
@@ -17,8 +24,6 @@ ThisBuild / Test / fork := true
 ThisBuild / resolvers ++= Seq(
   "Pennsieve Releases" at "https://nexus.pennsieve.cc/repository/maven-releases",
   "Pennsieve Snapshots" at "https://nexus.pennsieve.cc/repository/maven-snapshots",
-  Resolver.jcenterRepo,
-  Resolver.bintrayRepo("commercetools", "maven")
 )
 
 ThisBuild / credentials += Credentials(
@@ -52,11 +57,11 @@ lazy val akkaHttpVersion         = "10.1.11"
 lazy val akkaVersion             = "2.6.5"
 lazy val alpakkaVersion          = "1.1.0"
 lazy val circeVersion            = "0.11.0"
-lazy val coreVersion             = "160-792fcca"
-lazy val authMiddlewareVersion   = "5.1.1"
-lazy val serviceUtilitiesVersion = "7-3a0e351"
-lazy val utilitiesVersion        = "3-cd7539b"
-lazy val doiServiceClientVersion = "10-8f38925"
+lazy val coreVersion             = "166-27f7fae"
+lazy val authMiddlewareVersion   = "5.1.3"
+lazy val serviceUtilitiesVersion = "8-9751ee3"
+lazy val utilitiesVersion        = "4-55953e4"
+lazy val doiServiceClientVersion = "12-756107b"
 lazy val slickVersion            = "3.2.3"
 lazy val slickPgVersion          = "0.16.3"
 lazy val dockerItVersion         = "0.9.7"
@@ -265,6 +270,7 @@ lazy val client = project
     name := "discover-service-client",
     headerLicense := headerLicenseValue,
     headerMappings := headerMappings.value + headerMappingsValue,
+    crossScalaVersions := supportedScalaVersions,
     libraryDependencies ++= Seq(
       "com.pennsieve" %% "core-models" % coreVersion,
       "io.circe" %% "circe-core" % circeVersion,
@@ -298,11 +304,11 @@ lazy val scripts = project
     name := "discover-service-scripts",
     headerLicense := headerLicenseValue,
     headerMappings := headerMappings.value + headerMappingsValue,
+    crossScalaVersions := supportedScalaVersions,
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-jawn" % circeVersion,
-      "io.circe" %% "circe-java8" % circeVersion,
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion,
@@ -310,4 +316,4 @@ lazy val scripts = project
   )
 
 lazy val root = (project in file("."))
-  .aggregate(server, client, syncElasticSearch)
+  .aggregate(server, client, syncElasticSearch, scripts)
