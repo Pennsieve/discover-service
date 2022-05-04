@@ -44,7 +44,7 @@ import com.pennsieve.discover.server.definitions.{
   DownloadResponseHeader,
   FileTreePage,
   PreviewAccessRequest,
-  PublicDatasetDTO
+  PublicDatasetDto
 }
 import com.pennsieve.models.PublishStatus
 import com.pennsieve.models.PublishStatus.{
@@ -123,7 +123,7 @@ class DatasetHandler(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
     preview: Option[DatasetPreview] = None
-  ): DBIO[PublicDatasetDTO] =
+  ): DBIO[PublicDatasetDto] =
     for {
 
       (contributors, collections, externalPublications, sponsorship, revision) <- PublicDatasetVersionsMapper
@@ -142,7 +142,7 @@ class DatasetHandler(
       )
 
   override def getDatasets(
-    respond: GuardrailResource.getDatasetsResponse.type
+    respond: GuardrailResource.GetDatasetsResponse.type
   )(
     limit: Option[Int],
     offset: Option[Int],
@@ -151,7 +151,7 @@ class DatasetHandler(
     embargo: Option[Boolean],
     orderBy: Option[String],
     orderDirection: Option[String]
-  ): Future[GuardrailResource.getDatasetsResponse] = {
+  ): Future[GuardrailResource.GetDatasetsResponse] = {
 
     val response = for {
       orderBy <- param.parse(
@@ -181,25 +181,25 @@ class DatasetHandler(
           )
         )
     } yield
-      GuardrailResource.getDatasetsResponse
+      GuardrailResource.GetDatasetsResponse
         .OK(DatasetsPage.apply(pagedResult))
 
     response.recover {
       case e @ BadQueryParameter(_) =>
-        GuardrailResource.getDatasetsResponse
+        GuardrailResource.GetDatasetsResponse
           .BadRequest(e.getMessage)
 
       case e: NumberFormatException =>
-        GuardrailResource.getDatasetsResponse
+        GuardrailResource.GetDatasetsResponse
           .BadRequest("ids must be numbers")
     }
   }
 
   override def getDataset(
-    respond: GuardrailResource.getDatasetResponse.type
+    respond: GuardrailResource.GetDatasetResponse.type
   )(
     datasetId: Int
-  ): Future[GuardrailResource.getDatasetResponse] = {
+  ): Future[GuardrailResource.GetDatasetResponse] = {
 
     val query = for {
       dataset <- PublicDatasetsMapper.getDataset(datasetId)
@@ -239,16 +239,16 @@ class DatasetHandler(
     ports.db
       .run(query.transactionally)
       .map(
-        GuardrailResource.getDatasetResponse
+        GuardrailResource.GetDatasetResponse
           .OK(_)
       )
       .recover {
         case NoDatasetException(_) =>
-          GuardrailResource.getDatasetResponse
+          GuardrailResource.GetDatasetResponse
             .NotFound(datasetId.toString)
 
         case DatasetUnpublishedException(dataset, version) =>
-          GuardrailResource.getDatasetResponse.Gone(
+          GuardrailResource.GetDatasetResponse.Gone(
             models.TombstoneDTO(dataset, version)
           )
       }
@@ -259,11 +259,11 @@ class DatasetHandler(
     * because Swagger requires `/` to represent a path division.
     */
   override def getDatasetByDoi(
-    respond: GuardrailResource.getDatasetByDoiResponse.type
+    respond: GuardrailResource.GetDatasetByDoiResponse.type
   )(
     doiPrefix: String,
     doiSuffix: String
-  ): Future[GuardrailResource.getDatasetByDoiResponse] = {
+  ): Future[GuardrailResource.GetDatasetByDoiResponse] = {
 
     val doi = s"$doiPrefix/$doiSuffix"
 
@@ -278,27 +278,27 @@ class DatasetHandler(
     ports.db
       .run(query.transactionally)
       .map(
-        GuardrailResource.getDatasetByDoiResponse
+        GuardrailResource.GetDatasetByDoiResponse
           .OK(_)
       )
       .recover {
         case NoDatasetForDoiException(_) =>
-          GuardrailResource.getDatasetByDoiResponse
+          GuardrailResource.GetDatasetByDoiResponse
             .NotFound(doi)
 
         case DatasetUnpublishedException(dataset, version) =>
-          GuardrailResource.getDatasetByDoiResponse.Gone(
+          GuardrailResource.GetDatasetByDoiResponse.Gone(
             models.TombstoneDTO(dataset, version)
           )
       }
   }
 
   override def requestPreview(
-    respond: GuardrailResource.requestPreviewResponse.type
+    respond: GuardrailResource.RequestPreviewResponse.type
   )(
     datasetId: Int,
     body: PreviewAccessRequest
-  ): Future[GuardrailResource.requestPreviewResponse] = {
+  ): Future[GuardrailResource.RequestPreviewResponse] = {
     claim match {
       case Some(c) => {
         c.content match {
@@ -322,7 +322,7 @@ class DatasetHandler(
                         e.statusCode match {
                           case StatusCodes.NotFound => {
                             Future.successful(
-                              GuardrailResource.requestPreviewResponse
+                              GuardrailResource.RequestPreviewResponse
                                 .NotFound("data use agreement not found")
                             )
                           }
@@ -332,7 +332,7 @@ class DatasetHandler(
                       _ =>
                         Future
                           .successful(
-                            GuardrailResource.requestPreviewResponse.OK
+                            GuardrailResource.RequestPreviewResponse.OK
                           )
                     )
                   )
@@ -342,30 +342,30 @@ class DatasetHandler(
               .run(query.transactionally)
               .recover {
                 case NoDatasetException(id) =>
-                  GuardrailResource.requestPreviewResponse
+                  GuardrailResource.RequestPreviewResponse
                     .NotFound(id.toString)
               }
           }
           case _ =>
             Future.successful(
-              GuardrailResource.requestPreviewResponse
+              GuardrailResource.RequestPreviewResponse
                 .Unauthorized("not a user claim")
             )
         }
       }
       case _ =>
         Future.successful(
-          GuardrailResource.requestPreviewResponse
+          GuardrailResource.RequestPreviewResponse
             .Unauthorized("missing token")
         )
     }
   }
 
   override def getDatasetVersions(
-    respond: GuardrailResource.getDatasetVersionsResponse.type
+    respond: GuardrailResource.GetDatasetVersionsResponse.type
   )(
     datasetId: Int
-  ): Future[GuardrailResource.getDatasetVersionsResponse] = {
+  ): Future[GuardrailResource.GetDatasetVersionsResponse] = {
     val query = for {
       dataset <- PublicDatasetsMapper.getDataset(datasetId)
       versions <- PublicDatasetVersionsMapper
@@ -411,7 +411,7 @@ class DatasetHandler(
             collectionsMap,
             externalPublicationsMap
             ) =>
-          GuardrailResource.getDatasetVersionsResponse
+          GuardrailResource.GetDatasetVersionsResponse
             .OK(
               versions
                 .map(
@@ -433,22 +433,22 @@ class DatasetHandler(
                       None
                     )
                 )
-                .toIndexedSeq
+                .toVector
             )
       }
       .recover {
         case NoDatasetException(_) =>
-          GuardrailResource.getDatasetVersionsResponse
+          GuardrailResource.GetDatasetVersionsResponse
             .NotFound(datasetId.toString)
       }
   }
 
   override def getDatasetVersion(
-    respond: GuardrailResource.getDatasetVersionResponse.type
+    respond: GuardrailResource.GetDatasetVersionResponse.type
   )(
     datasetId: Int,
     versionId: Int
-  ): Future[GuardrailResource.getDatasetVersionResponse] = {
+  ): Future[GuardrailResource.GetDatasetVersionResponse] = {
 
     val query = for {
       dataset <- PublicDatasetsMapper.getDataset(datasetId)
@@ -464,28 +464,28 @@ class DatasetHandler(
     ports.db
       .run(query.transactionally)
       .map(
-        GuardrailResource.getDatasetVersionResponse
+        GuardrailResource.GetDatasetVersionResponse
           .OK(_)
       )
       .recover {
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
-          GuardrailResource.getDatasetVersionResponse
+          GuardrailResource.GetDatasetVersionResponse
             .NotFound(datasetId.toString)
 
         case DatasetUnpublishedException(dataset, version) =>
-          GuardrailResource.getDatasetVersionResponse.Gone(
+          GuardrailResource.GetDatasetVersionResponse.Gone(
             models.TombstoneDTO(dataset, version)
           )
       }
   }
 
   override def getFile(
-    respond: GuardrailResource.getFileResponse.type
+    respond: GuardrailResource.GetFileResponse.type
   )(
     datasetId: Int,
     versionId: Int,
     originalPath: String
-  ): Future[GuardrailResource.getFileResponse] = {
+  ): Future[GuardrailResource.GetFileResponse] = {
 
     val query = for {
       dataset <- PublicDatasetsMapper.getDataset(datasetId)
@@ -516,29 +516,29 @@ class DatasetHandler(
       .run(query.transactionally)
       .map {
         case (ds, v, f) =>
-          GuardrailResource.getFileResponse
+          GuardrailResource.GetFileResponse
             .OK(models.FileTreeNodeDTO(f))
       }
       .recover {
         case NoDatasetException(_) =>
-          GuardrailResource.getFileResponse
+          GuardrailResource.GetFileResponse
             .NotFound(datasetId.toString)
         case NoDatasetVersionException(_, _) =>
-          GuardrailResource.getFileResponse
+          GuardrailResource.GetFileResponse
             .NotFound(versionId.toString)
         case NoFileException(_, _, _) =>
-          GuardrailResource.getFileResponse
+          GuardrailResource.GetFileResponse
             .NotFound(originalPath)
         case DatasetUnpublishedException(dataset, version) =>
-          GuardrailResource.getFileResponse.Gone(
+          GuardrailResource.GetFileResponse.Gone(
             models.TombstoneDTO(dataset, version)
           )
         case UnauthorizedException =>
-          GuardrailResource.getFileResponse.Unauthorized(
+          GuardrailResource.GetFileResponse.Unauthorized(
             "Dataset is under embargo"
           )
         case DatasetUnderEmbargo =>
-          GuardrailResource.getFileResponse.Forbidden(
+          GuardrailResource.GetFileResponse.Forbidden(
             "Dataset is under embargo"
           )
       }
@@ -549,7 +549,7 @@ class DatasetHandler(
     * support streaming responses.
     */
   override def downloadDatasetVersion(
-    respond: GuardrailResource.downloadDatasetVersionResponse.type
+    respond: GuardrailResource.DownloadDatasetVersionResponse.type
   )(
     datasetId: Int,
     versionId: Int,
@@ -635,29 +635,29 @@ class DatasetHandler(
       .recoverWith {
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
           Marshal(
-            GuardrailResource.downloadDatasetVersionResponse
+            GuardrailResource.DownloadDatasetVersionResponse
               .NotFound(datasetId.toString)
           ).to[HttpResponse]
 
         case DatasetUnpublishedException(_, _) =>
-          Marshal(GuardrailResource.downloadDatasetVersionResponse.Gone)
+          Marshal(GuardrailResource.DownloadDatasetVersionResponse.Gone)
             .to[HttpResponse]
 
         case DatasetTooLargeException =>
           Marshal(
-            GuardrailResource.downloadDatasetVersionResponse
+            GuardrailResource.DownloadDatasetVersionResponse
               .Forbidden("Dataset is too large to download directly.")
           ).to[HttpResponse]
 
         case UnauthorizedException =>
           Marshal(
-            GuardrailResource.downloadDatasetVersionResponse
+            GuardrailResource.DownloadDatasetVersionResponse
               .Unauthorized("Dataset is under embargo")
           ).to[HttpResponse]
 
         case DatasetUnderEmbargo =>
           Marshal(
-            GuardrailResource.downloadDatasetVersionResponse
+            GuardrailResource.DownloadDatasetVersionResponse
               .Forbidden("Dataset is under embargo")
           ).to[HttpResponse]
       }
@@ -668,7 +668,7 @@ class DatasetHandler(
     * support streaming responses.
     */
   override def getDatasetMetadata(
-    respond: GuardrailResource.getDatasetMetadataResponse.type
+    respond: GuardrailResource.GetDatasetMetadataResponse.type
   )(
     datasetId: Int,
     versionId: Int
@@ -707,37 +707,37 @@ class DatasetHandler(
       .recoverWith {
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
           Marshal(
-            GuardrailResource.getDatasetMetadataResponse
+            GuardrailResource.GetDatasetMetadataResponse
               .NotFound(datasetId.toString)
           ).to[HttpResponse]
 
         case DatasetUnpublishedException(_, _) =>
-          Marshal(GuardrailResource.downloadDatasetVersionResponse.Gone)
+          Marshal(GuardrailResource.DownloadDatasetVersionResponse.Gone)
             .to[HttpResponse]
 
         case UnauthorizedException =>
           Marshal(
-            GuardrailResource.downloadDatasetVersionResponse
+            GuardrailResource.DownloadDatasetVersionResponse
               .Unauthorized("Dataset is under embargo")
           ).to[HttpResponse]
 
         case DatasetUnderEmbargo =>
           Marshal(
-            GuardrailResource.downloadDatasetVersionResponse
+            GuardrailResource.DownloadDatasetVersionResponse
               .Forbidden("Dataset is under embargo")
           ).to[HttpResponse]
       }
   }
 
   override def browseFiles(
-    respond: GuardrailResource.browseFilesResponse.type
+    respond: GuardrailResource.BrowseFilesResponse.type
   )(
     datasetId: Int,
     versionId: Int,
     path: Option[String],
     limit: Option[Int],
     offset: Option[Int]
-  ): Future[GuardrailResource.browseFilesResponse] = {
+  ): Future[GuardrailResource.BrowseFilesResponse] = {
 
     val query = for {
       dataset <- PublicDatasetsMapper.getDataset(datasetId)
@@ -759,44 +759,44 @@ class DatasetHandler(
       .run(query)
       .map {
         case (totalCount, files) =>
-          GuardrailResource.browseFilesResponse.OK(
+          GuardrailResource.BrowseFilesResponse.OK(
             FileTreePage(
               totalCount = totalCount.value,
               limit = limit.getOrElse(defaultFileLimit),
               offset = offset.getOrElse(defaultFileOffset),
-              files = files.map(FileTreeNodeDTO.apply).to[IndexedSeq]
+              files = files.map(FileTreeNodeDTO.apply).to[Vector]
             )
           )
       }
       .recover {
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
-          GuardrailResource.browseFilesResponse
+          GuardrailResource.BrowseFilesResponse
             .NotFound(datasetId.toString)
         case UnauthorizedException =>
-          GuardrailResource.browseFilesResponse.Unauthorized(
+          GuardrailResource.BrowseFilesResponse.Unauthorized(
             "Dataset is under embargo"
           )
         case DatasetUnderEmbargo =>
-          GuardrailResource.browseFilesResponse.Forbidden(
+          GuardrailResource.BrowseFilesResponse.Forbidden(
             "Dataset is under embargo"
           )
       }
   }
 
   override def downloadManifest(
-    respond: GuardrailResource.downloadManifestResponse.type
+    respond: GuardrailResource.DownloadManifestResponse.type
   )(
     datasetId: Int,
     versionId: Int,
     body: DownloadRequest
-  ): Future[GuardrailResource.downloadManifestResponse] = {
+  ): Future[GuardrailResource.DownloadManifestResponse] = {
 
     val pathsMatchRootPath = body.rootPath
       .map(rp => body.paths.count(p => p.startsWith(rp)))
       .getOrElse(body.paths.length) == body.paths.length
     if (!pathsMatchRootPath) {
       Future.successful(
-        GuardrailResource.downloadManifestResponse
+        GuardrailResource.DownloadManifestResponse
           .BadRequest(
             "if root path is specified, all paths must begin with root path"
           )
@@ -857,7 +857,7 @@ class DatasetHandler(
               count: Int,
               size: Long
               ) => {
-            GuardrailResource.downloadManifestResponse.OK(
+            GuardrailResource.DownloadManifestResponse.OK(
               DownloadResponse(
                 DownloadResponseHeader(count, size),
                 downloadDtos
@@ -867,21 +867,21 @@ class DatasetHandler(
                       body.rootPath
                     )
                   )
-                  .toIndexedSeq
+                  .toVector
               )
             )
           }
         }
         .recover {
           case DatasetTooLargeException =>
-            GuardrailResource.downloadManifestResponse
+            GuardrailResource.DownloadManifestResponse
               .Forbidden("requested files are too large to download")
           case UnauthorizedException =>
-            GuardrailResource.downloadManifestResponse.Unauthorized(
+            GuardrailResource.DownloadManifestResponse.Unauthorized(
               "Dataset is under embargo"
             )
           case DatasetUnderEmbargo =>
-            GuardrailResource.downloadManifestResponse.Forbidden(
+            GuardrailResource.DownloadManifestResponse.Forbidden(
               "Dataset is under embargo"
             )
         }
@@ -897,10 +897,10 @@ class DatasetHandler(
     * the one signed by a user.
     */
   override def getDataUseAgreement(
-    respond: GuardrailResource.getDataUseAgreementResponse.type
+    respond: GuardrailResource.GetDataUseAgreementResponse.type
   )(
     datasetId: Int
-  ): Future[GuardrailResource.getDataUseAgreementResponse] = {
+  ): Future[GuardrailResource.GetDataUseAgreementResponse] = {
 
     val query = for {
       dataset <- PublicDatasetsMapper.getDataset(datasetId)
@@ -929,9 +929,9 @@ class DatasetHandler(
       .run(query.transactionally)
       .map {
         case (Some(agreement), dataset) =>
-          GuardrailResource.getDataUseAgreementResponse
+          GuardrailResource.GetDataUseAgreementResponse
             .OK(
-              definitions.DataUseAgreementDTO(
+              definitions.DataUseAgreementDto(
                 id = agreement.id,
                 name = agreement.name,
                 body = agreement.body,
@@ -940,15 +940,15 @@ class DatasetHandler(
             )
 
         case (None, _) =>
-          GuardrailResource.getDataUseAgreementResponse.NoContent
+          GuardrailResource.GetDataUseAgreementResponse.NoContent
       }
       .recover {
         case NoDatasetException(_) =>
-          GuardrailResource.getDataUseAgreementResponse
+          GuardrailResource.GetDataUseAgreementResponse
             .NotFound(datasetId.toString)
 
         case DatasetUnpublishedException(dataset, version) =>
-          GuardrailResource.getDataUseAgreementResponse.Gone(
+          GuardrailResource.GetDataUseAgreementResponse.Gone(
             models.TombstoneDTO(dataset, version)
           )
       }
@@ -959,7 +959,7 @@ class DatasetHandler(
     * possible to set a Content-Disposition response header.
     */
   override def downloadDataUseAgreement(
-    respond: GuardrailResource.downloadDataUseAgreementResponse.type
+    respond: GuardrailResource.DownloadDataUseAgreementResponse.type
   )(
     datasetId: Int
   ): Future[HttpResponse] = {
@@ -1008,18 +1008,18 @@ class DatasetHandler(
           )
 
         case (None, _, _) =>
-          Marshal(GuardrailResource.downloadDataUseAgreementResponse.NoContent)
+          Marshal(GuardrailResource.DownloadDataUseAgreementResponse.NoContent)
             .to[HttpResponse]
       }
       .recoverWith {
         case NoDatasetException(_) =>
           Marshal(
-            GuardrailResource.downloadDataUseAgreementResponse
+            GuardrailResource.DownloadDataUseAgreementResponse
               .NotFound(datasetId.toString)
           ).to[HttpResponse]: Future[HttpResponse]
 
         case DatasetUnpublishedException(_, _) =>
-          Marshal(GuardrailResource.downloadDataUseAgreementResponse.Gone)
+          Marshal(GuardrailResource.DownloadDataUseAgreementResponse.Gone)
             .to[HttpResponse]: Future[HttpResponse]
       }
   }

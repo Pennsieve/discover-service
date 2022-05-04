@@ -41,7 +41,7 @@ class SearchHandler(
     * Search for datasets in ElasticSearch
     */
   override def searchDatasets(
-    respond: GuardrailResource.searchDatasetsResponse.type
+    respond: GuardrailResource.SearchDatasetsResponse.type
   )(
     limit: Option[Int],
     offset: Option[Int],
@@ -52,7 +52,7 @@ class SearchHandler(
     embargo: Option[Boolean],
     orderBy: Option[String],
     orderDirection: Option[String]
-  ): Future[GuardrailResource.searchDatasetsResponse] = {
+  ): Future[GuardrailResource.SearchDatasetsResponse] = {
 
     val actualLimit = limit.getOrElse(defaultLimit)
     val actualOffset = offset.getOrElse(defaultOffset)
@@ -93,18 +93,18 @@ class SearchHandler(
         )
 
     } yield
-      GuardrailResource.searchDatasetsResponse
+      GuardrailResource.SearchDatasetsResponse
         .OK(datasetPage)
 
     response.recover {
       case e @ BadQueryParameter(_) =>
-        GuardrailResource.searchDatasetsResponse
+        GuardrailResource.SearchDatasetsResponse
           .BadRequest(e.getMessage)
     }
   }
 
   override def searchFiles(
-    respond: GuardrailResource.searchFilesResponse.type
+    respond: GuardrailResource.SearchFilesResponse.type
   )(
     limit: Option[Int],
     offset: Option[Int],
@@ -113,7 +113,7 @@ class SearchHandler(
     organization: Option[String],
     organizationId: Option[Int],
     datasetId: Option[Int]
-  ): Future[GuardrailResource.searchFilesResponse] =
+  ): Future[GuardrailResource.SearchFilesResponse] =
     for {
       searchResult <- ports.searchClient
         .searchFiles(
@@ -126,21 +126,21 @@ class SearchHandler(
           offset = offset.getOrElse(defaultOffset)
         )
     } yield
-      GuardrailResource.searchFilesResponse
+      GuardrailResource.SearchFilesResponse
         .OK(
           FilesPage
             .apply(searchResult)
         )
 
   override def searchRecords(
-    respond: GuardrailResource.searchRecordsResponse.type
+    respond: GuardrailResource.SearchRecordsResponse.type
   )(
     limit: Option[Int],
     offset: Option[Int],
     model: Option[String],
     organization: Option[String],
     datasetId: Option[Int]
-  ): Future[GuardrailResource.searchRecordsResponse] =
+  ): Future[GuardrailResource.SearchRecordsResponse] =
     for {
       searchResult <- ports.searchClient
         .searchRecords(
@@ -151,7 +151,7 @@ class SearchHandler(
           offset = offset.getOrElse(defaultOffset)
         )
     } yield
-      GuardrailResource.searchRecordsResponse
+      GuardrailResource.SearchRecordsResponse
         .OK(
           RecordPage
             .apply(searchResult)

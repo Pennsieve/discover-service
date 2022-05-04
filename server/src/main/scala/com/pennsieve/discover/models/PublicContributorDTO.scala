@@ -11,10 +11,10 @@ object PublicContributorDTO {
 
   def apply(
     contributor: PublicContributor
-  ): definitions.PublicContributorDTO = {
+  ): definitions.PublicContributorDto = {
 
     contributor
-      .into[definitions.PublicContributorDTO]
+      .into[definitions.PublicContributorDto]
       .transform
   }
 

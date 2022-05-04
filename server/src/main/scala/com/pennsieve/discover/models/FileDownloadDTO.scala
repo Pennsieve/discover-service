@@ -23,7 +23,7 @@ case class FileDownloadDTO(
           truncatePath(rp.split("/"), path)
         })
         .getOrElse(path)
-        .toIndexedSeq,
+        .toVector,
       s3Client.getPresignedUrlForFile(s3Bucket, s3Key),
       size
     )

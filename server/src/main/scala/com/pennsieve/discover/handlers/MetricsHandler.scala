@@ -23,11 +23,11 @@ class MetricsHandler(
 ) extends GuardrailHandler {
 
   override def getDatasetDownloadsSummary(
-    respond: GuardrailResource.getDatasetDownloadsSummaryResponse.type
+    respond: GuardrailResource.GetDatasetDownloadsSummaryResponse.type
   )(
     startDate: LocalDate,
     endDate: LocalDate
-  ): Future[GuardrailResource.getDatasetDownloadsSummaryResponse] = {
+  ): Future[GuardrailResource.GetDatasetDownloadsSummaryResponse] = {
     val realEndDate = endDate.plusDays(1)
     ports.db
       .run(
@@ -35,7 +35,7 @@ class MetricsHandler(
           .getDatasetDownloadSummaryByDateRange(startDate, realEndDate)
           .map { datasetDownloadsMetrics =>
             {
-              GuardrailResource.getDatasetDownloadsSummaryResponse
+              GuardrailResource.GetDatasetDownloadsSummaryResponse
                 .OK(
                   datasetDownloadsMetrics.sortBy(
                     downloadList =>

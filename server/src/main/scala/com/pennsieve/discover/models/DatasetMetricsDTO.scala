@@ -8,9 +8,10 @@ import io.scalaland.chimney.dsl._
 object DatasetMetricsDTO {
   def apply(
     datasets: IndexedSeq[DatasetMetrics]
-  ): definitions.DatasetMetricsDTO = {
-    definitions.DatasetMetricsDTO(
-      datasets = datasets.map(_.into[definitions.DatasetMetrics].transform)
+  ): definitions.DatasetMetricsDto = {
+    definitions.DatasetMetricsDto(
+      datasets =
+        datasets.toVector.map(_.into[definitions.DatasetMetrics].transform)
     )
   }
 }

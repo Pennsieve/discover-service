@@ -42,13 +42,13 @@ object DatasetsPage {
                   externalPublications,
                   None
                 )
-          }.toIndexedSeq
+          }.toVector
       )
       .transform
 
   def apply(searchResult: DatasetSearchResponse): definitions.DatasetsPage =
     searchResult
       .into[definitions.DatasetsPage]
-      .withFieldComputed(_.datasets, _.datasets.map(_.dataset).to[IndexedSeq])
+      .withFieldComputed(_.datasets, _.datasets.map(_.dataset).to[Vector])
       .transform
 }

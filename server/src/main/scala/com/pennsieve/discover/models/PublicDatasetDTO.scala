@@ -13,19 +13,19 @@ object PublicDatasetDTO {
   def apply(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
-    contributors: IndexedSeq[definitions.PublicContributorDTO],
-    sponsorship: Option[definitions.SponsorshipDTO],
+    contributors: IndexedSeq[definitions.PublicContributorDto],
+    sponsorship: Option[definitions.SponsorshipDto],
     revision: Option[Revision],
-    collections: Option[IndexedSeq[definitions.PublicCollectionDTO]],
+    collections: Option[IndexedSeq[definitions.PublicCollectionDto]],
     externalPublications: Option[
-      IndexedSeq[definitions.PublicExternalPublicationDTO]
+      IndexedSeq[definitions.PublicExternalPublicationDto]
     ],
     datasetPreview: Option[DatasetPreview]
   )(implicit
     config: Config
-  ): definitions.PublicDatasetDTO =
+  ): definitions.PublicDatasetDto =
     version
-      .into[definitions.PublicDatasetDTO]
+      .into[definitions.PublicDatasetDto]
       .withFieldComputed(_.id, _ => dataset.id)
       .withFieldComputed(_.sourceDatasetId, _ => Some(dataset.sourceDatasetId))
       .withFieldComputed(_.name, _ => dataset.name)
@@ -42,11 +42,11 @@ object PublicDatasetDTO {
         _ => Some(dataset.sourceOrganizationId)
       )
       .withFieldComputed(_.license, _ => dataset.license)
-      .withFieldComputed(_.tags, _ => dataset.tags.toIndexedSeq)
+      .withFieldComputed(_.tags, _ => dataset.tags.toVector)
       .withFieldComputed(
         _.modelCount,
         _ =>
-          version.modelCount.toIndexedSeq
+          version.modelCount.toVector
             .map { case (k, v) => definitions.ModelCount(k, v) }
       )
       .withFieldComputed(_.embargo, _ => Some(version.underEmbargo))
@@ -69,9 +69,12 @@ object PublicDatasetDTO {
               )
           )
       )
-      .withFieldComputed(_.contributors, _ => contributors)
-      .withFieldComputed(_.collections, _ => collections)
-      .withFieldComputed(_.externalPublications, _ => externalPublications)
+      .withFieldComputed(_.contributors, _ => contributors.toVector)
+      .withFieldComputed(_.collections, _ => collections.map(_.toVector))
+      .withFieldComputed(
+        _.externalPublications,
+        _ => externalPublications.map(_.toVector)
+      )
       .withFieldComputed(
         _.readme,
         _ =>
@@ -112,7 +115,7 @@ object PublicDatasetDTO {
     datasetPreview: Option[DatasetPreview]
   )(implicit
     config: Config
-  ): definitions.PublicDatasetDTO = {
+  ): definitions.PublicDatasetDto = {
     apply(
       dataset = dataset,
       version = version,
@@ -127,7 +130,7 @@ object PublicDatasetDTO {
           .map(
             p =>
               definitions
-                .PublicExternalPublicationDTO(p.doi, p.relationshipType)
+                .PublicExternalPublicationDto(p.doi, p.relationshipType)
           )
           .toIndexedSeq
       ),

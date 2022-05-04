@@ -36,12 +36,12 @@ class FileHandler(
   val defaultFileOffset = 0
 
   override def getFileFromSourcePackageId(
-    respond: GuardrailResource.getFileFromSourcePackageIdResponse.type
+    respond: GuardrailResource.GetFileFromSourcePackageIdResponse.type
   )(
     sourcePackageId: String,
     limit: Option[Int],
     offset: Option[Int]
-  ): Future[GuardrailResource.getFileFromSourcePackageIdResponse] = {
+  ): Future[GuardrailResource.GetFileFromSourcePackageIdResponse] = {
 
     val query = for {
 
@@ -57,10 +57,10 @@ class FileHandler(
       .run(query)
       .map {
         case (total, _, Nil) =>
-          GuardrailResource.getFileFromSourcePackageIdResponse
+          GuardrailResource.GetFileFromSourcePackageIdResponse
             .NotFound(sourcePackageId)
         case (total, Some(organizationId), files) =>
-          GuardrailResource.getFileFromSourcePackageIdResponse
+          GuardrailResource.GetFileFromSourcePackageIdResponse
             .OK(
               FileTreeWithOrgPage(
                 totalCount = total,
@@ -69,7 +69,7 @@ class FileHandler(
                 organizationId = organizationId,
                 files = files.map { f =>
                   FileTreeNodeDTO(FileTreeNode(f._1, f._2))
-                }.toIndexedSeq
+                }.toVector
               )
             )
       }

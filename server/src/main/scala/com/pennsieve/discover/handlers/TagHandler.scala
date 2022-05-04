@@ -24,14 +24,14 @@ class TagHandler(
 ) extends GuardrailHandler {
 
   override def getTags(
-    respond: GuardrailResource.getTagsResponse.type
+    respond: GuardrailResource.GetTagsResponse.type
   )(
-  ): Future[GuardrailResource.getTagsResponse] = {
+  ): Future[GuardrailResource.GetTagsResponse] = {
     ports.db
       .run(PublicDatasetsMapper.getTagCounts)
       .map { tags =>
-        GuardrailResource.getTagsResponse
-          .OK(tags.toIndexedSeq)
+        GuardrailResource.GetTagsResponse
+          .OK(tags.toVector)
       }
   }
 }

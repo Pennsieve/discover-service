@@ -13,6 +13,7 @@ import com.pennsieve.discover._
 import com.pennsieve.discover.db.PublicDatasetsMapper
 import com.pennsieve.discover.logging.logRequestAndResponse
 import com.pennsieve.discover.models._
+import com.pennsieve.discover.server.definitions.DatasetMetricsDto
 import com.pennsieve.discover.server.organization.{
   OrganizationHandler => GuardrailHandler,
   OrganizationResource => GuardrailResource
@@ -30,15 +31,15 @@ class OrganizationHandler(
 ) extends GuardrailHandler {
 
   override def getOrganizationDatasetMetrics(
-    respond: GuardrailResource.getOrganizationDatasetMetricsResponse.type
+    respond: GuardrailResource.GetOrganizationDatasetMetricsResponse.type
   )(
     organizationId: Int
-  ): Future[GuardrailResource.getOrganizationDatasetMetricsResponse] = {
+  ): Future[GuardrailResource.GetOrganizationDatasetMetricsResponse] = {
     ports.db
       .run(PublicDatasetsMapper.getOrganizationDatasetMetrics(organizationId))
       .map { organizationDatasets =>
-        GuardrailResource.getOrganizationDatasetMetricsResponse
-          .OK(DatasetMetricsDTO(organizationDatasets.toIndexedSeq))
+        GuardrailResource.GetOrganizationDatasetMetricsResponse
+          .OK(DatasetMetricsDto(organizationDatasets.toVector))
       }
   }
 }

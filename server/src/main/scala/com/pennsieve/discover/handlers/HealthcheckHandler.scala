@@ -21,9 +21,9 @@ class HealthcheckHandler(
 ) extends GuardrailHandler {
 
   override def healthcheck(
-    respond: HealthcheckResource.healthcheckResponse.type
+    respond: HealthcheckResource.HealthcheckResponse.type
   )(
-  ): Future[HealthcheckResource.healthcheckResponse] = {
+  ): Future[HealthcheckResource.HealthcheckResponse] = {
 
     ports.db
       .run(sql"select 1".as[Int])

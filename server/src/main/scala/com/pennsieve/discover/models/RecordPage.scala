@@ -22,7 +22,7 @@ object RecordPage {
         _ =>
           searchResponse.records
             .map(_.record.into[definitions.Record].transform)
-            .toIndexedSeq
+            .toVector
       )
       .transform
 }

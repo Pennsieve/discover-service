@@ -36,7 +36,7 @@ object FilesPage {
                 .withFieldComputed(_.icon, r => utils.getIcon(r.file.fileType))
                 .transform
             )
-            .toIndexedSeq
+            .toVector
       )
       .transform
 }

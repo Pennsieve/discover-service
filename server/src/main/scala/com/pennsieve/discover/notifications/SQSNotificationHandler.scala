@@ -13,7 +13,7 @@ import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Source }
 import akka.stream.{ _ }
 import cats.data._
 import cats.implicits._
-import com.blackfynn.discover.models.DoiRedirect
+import com.pennsieve.discover.models.DoiRedirect
 import com.pennsieve.discover.db.{
   PublicCollectionsMapper,
   PublicContributorsMapper,

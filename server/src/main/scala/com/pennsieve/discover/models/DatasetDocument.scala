@@ -4,8 +4,8 @@ package com.pennsieve.discover.models
 
 import com.pennsieve.discover.Config
 import com.pennsieve.discover.server.definitions
-import io.circe.{Decoder, Encoder}
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.{ Decoder, Encoder }
+import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 
 /**
   * The entire PublicDatasetDTO is embedded in the dataset index so that we can

@@ -32,11 +32,11 @@ class SyncHandler(
 ) extends GuardrailHandler {
 
   override def syncAthenaDownloads(
-    respond: GuardrailResource.syncAthenaDownloadsResponse.type
+    respond: GuardrailResource.SyncAthenaDownloadsResponse.type
   )(
     startDate: LocalDate,
     endDate: LocalDate
-  ): Future[GuardrailResource.syncAthenaDownloadsResponse] = {
+  ): Future[GuardrailResource.SyncAthenaDownloadsResponse] = {
     val realEndDate = endDate.plusDays(1)
     val athenaDownloads =
       ports.athenaClient.getDatasetDownloadsForRange(startDate, realEndDate)
@@ -63,7 +63,7 @@ class SyncHandler(
       .run(query)
       .map {
         case _: List[DatasetDownload] => {
-          GuardrailResource.syncAthenaDownloadsResponse.OK
+          GuardrailResource.SyncAthenaDownloadsResponse.OK
         }
       }
   }

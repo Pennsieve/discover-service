@@ -11,12 +11,12 @@ object TombstoneDTO {
   def apply(
     dataset: PublicDataset,
     version: PublicDatasetVersion
-  ): definitions.TombstoneDTO = {
+  ): definitions.TombstoneDto = {
     version
-      .into[definitions.TombstoneDTO]
+      .into[definitions.TombstoneDto]
       .withFieldComputed(_.id, _ => dataset.id)
       .withFieldComputed(_.name, _ => dataset.name)
-      .withFieldComputed(_.tags, _ => dataset.tags.toIndexedSeq)
+      .withFieldComputed(_.tags, _ => dataset.tags.toVector)
       .transform
   }
 }

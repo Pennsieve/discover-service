@@ -56,10 +56,10 @@ class PublishHandler(
 
   implicit val config: Config = ports.config
 
-  type PublishResponse = GuardrailResource.publishResponse
+  type PublishResponse = GuardrailResource.PublishResponse
 
   override def publish(
-    respond: GuardrailResource.publishResponse.type
+    respond: GuardrailResource.PublishResponse.type
   )(
     organizationId: Int,
     datasetId: Int,
@@ -283,10 +283,10 @@ class PublishHandler(
     }
   }
 
-  type ReviseResponse = GuardrailResource.reviseResponse
+  type ReviseResponse = GuardrailResource.ReviseResponse
 
   override def revise(
-    respond: GuardrailResource.reviseResponse.type
+    respond: GuardrailResource.ReviseResponse.type
   )(
     organizationId: Int,
     datasetId: Int,
@@ -519,17 +519,17 @@ class PublishHandler(
   }
 
   override def release(
-    respond: GuardrailResource.releaseResponse.type
+    respond: GuardrailResource.ReleaseResponse.type
   )(
     organizationId: Int,
     datasetId: Int,
     body: definitions.ReleaseRequest
-  ): Future[GuardrailResource.releaseResponse] = {
+  ): Future[GuardrailResource.ReleaseResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(organizationId),
       datasetId = Some(datasetId)
     )
-    withServiceOwnerAuthorization[GuardrailResource.releaseResponse](
+    withServiceOwnerAuthorization[GuardrailResource.ReleaseResponse](
       claim,
       organizationId,
       datasetId
@@ -603,16 +603,16 @@ class PublishHandler(
   }
 
   override def unpublish(
-    respond: GuardrailResource.unpublishResponse.type
+    respond: GuardrailResource.UnpublishResponse.type
   )(
     organizationId: Int,
     datasetId: Int
-  ): Future[GuardrailResource.unpublishResponse] = {
+  ): Future[GuardrailResource.UnpublishResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(organizationId),
       datasetId = Some(datasetId)
     )
-    withServiceOwnerAuthorization[GuardrailResource.unpublishResponse](
+    withServiceOwnerAuthorization[GuardrailResource.UnpublishResponse](
       claim,
       organizationId,
       datasetId
@@ -692,16 +692,16 @@ class PublishHandler(
   }
 
   override def getStatus(
-    respond: GuardrailResource.getStatusResponse.type
+    respond: GuardrailResource.GetStatusResponse.type
   )(
     organizationId: Int,
     datasetId: Int
-  ): Future[GuardrailResource.getStatusResponse] = {
+  ): Future[GuardrailResource.GetStatusResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(organizationId),
       datasetId = Some(datasetId)
     )
-    withAuthorization[GuardrailResource.getStatusResponse](
+    withAuthorization[GuardrailResource.GetStatusResponse](
       claim,
       organizationId,
       datasetId
@@ -713,7 +713,7 @@ class PublishHandler(
             .transactionally
         )
         .map { status =>
-          GuardrailResource.getStatusResponse
+          GuardrailResource.GetStatusResponse
             .OK(status)
         }
     }.recover {
@@ -724,17 +724,17 @@ class PublishHandler(
   }
 
   override def getStatuses(
-    respond: GuardrailResource.getStatusesResponse.type
+    respond: GuardrailResource.GetStatusesResponse.type
   )(
     organizationId: Int
-  ): Future[GuardrailResource.getStatusesResponse] = {
+  ): Future[GuardrailResource.GetStatusesResponse] = {
     implicit val logContext: DiscoverLogContext =
       DiscoverLogContext(
         organizationId = Some(organizationId),
         datasetId = None
       )
 
-    withOrganizationAccess[GuardrailResource.getStatusesResponse](
+    withOrganizationAccess[GuardrailResource.GetStatusesResponse](
       claim,
       organizationId
     ) { _ =>
@@ -744,8 +744,8 @@ class PublishHandler(
             .getDatasetStatuses(organizationId)
         )
         .map { statuses =>
-          GuardrailResource.getStatusesResponse
-            .OK(statuses.toIndexedSeq)
+          GuardrailResource.GetStatusesResponse
+            .OK(statuses.toVector)
         }
     }.recover {
       case UnauthorizedException => respond.Unauthorized
@@ -755,19 +755,19 @@ class PublishHandler(
   }
 
   override def sponsorDataset(
-    respond: GuardrailResource.sponsorDatasetResponse.type
+    respond: GuardrailResource.SponsorDatasetResponse.type
   )(
     sourceOrganizationId: Int,
     sourceDatasetId: Int,
     body: SponsorshipRequest
-  ): Future[GuardrailResource.sponsorDatasetResponse] = {
+  ): Future[GuardrailResource.SponsorDatasetResponse] = {
 
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(sourceOrganizationId),
       datasetId = Some(sourceDatasetId)
     )
 
-    withAuthorization[GuardrailResource.sponsorDatasetResponse](
+    withAuthorization[GuardrailResource.SponsorDatasetResponse](
       claim,
       sourceOrganizationId,
       sourceDatasetId
@@ -850,17 +850,17 @@ class PublishHandler(
   }
 
   override def removeDatasetSponsor(
-    respond: GuardrailResource.removeDatasetSponsorResponse.type
+    respond: GuardrailResource.RemoveDatasetSponsorResponse.type
   )(
     sourceOrganizationId: Int,
     sourceDatasetId: Int
-  ): Future[GuardrailResource.removeDatasetSponsorResponse] = {
+  ): Future[GuardrailResource.RemoveDatasetSponsorResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(sourceOrganizationId),
       datasetId = Some(sourceDatasetId)
     )
 
-    withAuthorization[GuardrailResource.removeDatasetSponsorResponse](
+    withAuthorization[GuardrailResource.RemoveDatasetSponsorResponse](
       claim,
       sourceOrganizationId,
       sourceDatasetId

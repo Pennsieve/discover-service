@@ -10,7 +10,7 @@ import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 
 final case class FileDocument(
   file: FileManifest,
-  dataset: definitions.PublicDatasetDTO,
+  dataset: definitions.PublicDatasetDto,
   name: String,
   uri: String
 )
@@ -27,7 +27,7 @@ object FileDocument {
 
   def apply(
     fileManifest: FileManifest,
-    datasetDto: definitions.PublicDatasetDTO
+    datasetDto: definitions.PublicDatasetDto
   ): FileDocument =
     FileDocument(
       fileManifest,

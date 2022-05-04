@@ -9,16 +9,9 @@ import com.pennsieve.discover.{
   NoDatasetForSourcesException
 }
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.models.{
-  DatasetMetrics,
-  PublicDataset,
-  PublicDatasetVersion,
-  Sponsorship
-}
-import com.pennsieve.discover.server.definitions.{
-  DatasetPublishStatus,
-  DatasetTag
-}
+import com.pennsieve.discover.models.PublicDataset
+
+import com.pennsieve.discover.server.definitions.{ DatasetMetrics, DatasetTag }
 import com.pennsieve.models.License
 import com.pennsieve.models.PublishStatus.PublishSucceeded
 import slick.dbio.{ DBIOAction, Effect }

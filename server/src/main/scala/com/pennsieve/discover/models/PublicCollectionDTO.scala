@@ -9,10 +9,10 @@ import io.scalaland.chimney.dsl._
 
 object PublicCollectionDTO {
 
-  def apply(collection: PublicCollection): definitions.PublicCollectionDTO = {
+  def apply(collection: PublicCollection): definitions.PublicCollectionDto = {
 
     collection
-      .into[definitions.PublicCollectionDTO]
+      .into[definitions.PublicCollectionDto]
       .transform
   }
 

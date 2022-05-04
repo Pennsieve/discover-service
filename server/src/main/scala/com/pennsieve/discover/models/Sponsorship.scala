@@ -1,7 +1,7 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
 package com.pennsieve.discover.models
-import com.pennsieve.discover.server.definitions.SponsorshipDTO
+import com.pennsieve.discover.server.definitions.SponsorshipDto
 import io.circe.{ Decoder, Encoder }
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 
@@ -12,7 +12,7 @@ final case class Sponsorship(
   markup: Option[String],
   id: Int = 0
 ) {
-  def toDTO: SponsorshipDTO = SponsorshipDTO(title, imageUrl, markup)
+  def toDTO: SponsorshipDto = SponsorshipDto(title, imageUrl, markup)
 }
 
 object Sponsorship {
