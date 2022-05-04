@@ -7,7 +7,6 @@ import akka.{ Done, NotUsed }
 import akka.stream._
 import akka.stream.scaladsl._
 import com.pennsieve.discover.Config
-import com.pennsieve.discover.server.definitions.PublicContributorDTO
 import com.pennsieve.discover.models._
 import com.pennsieve.models.FileManifest
 import com.sksamuel.elastic4s.http.search.SearchResponse

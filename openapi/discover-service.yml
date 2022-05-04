@@ -327,7 +327,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FileTreeNodeDTO"
+                $ref: "#/components/schemas/FileTreeNodeDto"
         "401":
           description: dataset is under embargo
           content:
@@ -1331,7 +1331,7 @@ components:
             files:
               type: array
               items:
-                $ref: "#/components/schemas/FileTreeNodeDTO"
+                $ref: "#/components/schemas/FileTreeNodeDto"
 
     FileTreeWithOrgPage:
       type: object
@@ -1345,12 +1345,12 @@ components:
             files:
               type: array
               items:
-                $ref: "#/components/schemas/FileTreeNodeDTO"
+                $ref: "#/components/schemas/FileTreeNodeDto"
             organizationId:
               type: integer
 
 
-    FileTreeNodeDTO:
+    FileTreeNodeDto:
       description: >
         Abstract object representing a node in the file tree. Concrete instances
         will either be a `File` or a `Directory`.
@@ -1376,7 +1376,7 @@ components:
     File:
       description: A file in the dataset
       allOf:
-        - $ref: "#/components/schemas/FileTreeNodeDTO"
+        - $ref: "#/components/schemas/FileTreeNodeDto"
         - type: object
           required:
             - fileType
@@ -1404,7 +1404,7 @@ components:
     Directory:
       description: A directory containing files in the dataset
       allOf:
-        - $ref: "#/components/schemas/FileTreeNodeDTO"
+        - $ref: "#/components/schemas/FileTreeNodeDto"
 
     GenericResponsePage:
       description: >

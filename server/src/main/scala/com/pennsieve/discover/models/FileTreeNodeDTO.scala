@@ -13,7 +13,7 @@ object FileTreeNodeDTO {
     node: FileTreeNode
   )(implicit
     config: Config
-  ): definitions.FileTreeNodeDTO =
+  ): definitions.FileTreeNodeDto =
     node match {
       case f: FileTreeNode.File =>
         f.into[definitions.File]

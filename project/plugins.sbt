@@ -20,7 +20,7 @@ credentials += Credentials(
 // Until https://github.com/coursier/coursier/issues/1815 is fixed
 useCoursier := false
 
-addSbtPlugin("com.twilio" % "sbt-guardrail" % "0.52.1")
+addSbtPlugin("dev.guardrail" % "sbt-guardrail" % "0.70.0.2")
 
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.9.1")
 
