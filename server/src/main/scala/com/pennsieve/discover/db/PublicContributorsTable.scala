@@ -143,9 +143,11 @@ object PublicContributorsMapper
         _.groupBy {
           case ((dataset, version), _) =>
             (dataset, version)
-        }.mapValues(_.map {
-          case ((_, _), contributor) => contributor
-        })
+        }.view
+          .mapValues(_.map {
+            case ((_, _), contributor) => contributor
+          })
+          .toMap
       }
   }
 }

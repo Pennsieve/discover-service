@@ -30,8 +30,8 @@ trait PostgresProfile
     implicit val countHashMapMapper
       : JdbcType[Map[String, Long]] with BaseTypedType[Map[String, Long]] =
       MappedColumnType.base[Map[String, Long], Map[String, String]](
-        counts => counts.mapValues(_.toString),
-        hstore => hstore.mapValues(_.toLong)
+        counts => counts.view.mapValues(_.toString).toMap,
+        hstore => hstore.view.mapValues(_.toLong).toMap
       )
 
     implicit val publishStatusMapper

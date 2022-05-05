@@ -3,7 +3,6 @@
 package com.pennsieve.discover.integration
 
 import java.time._
-
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
@@ -13,13 +12,14 @@ import com.pennsieve.discover.client.sync.{
 }
 import com.pennsieve.discover.client.metrics.MetricsClient
 import com.pennsieve.discover.clients.{ AthenaClient, AthenaClientImpl }
-import org.scalatest.{ Matchers, WordSpec }
 import com.pennsieve.discover.handlers.SyncHandler
 import com.pennsieve.discover.models.DatasetDownload
 import com.pennsieve.discover.models.DownloadOrigin.AWSRequesterPayer
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class AthenaClientIntegrationSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ScalatestRouteTest
     with ServiceSpecHarness {

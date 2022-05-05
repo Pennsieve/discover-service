@@ -5,9 +5,11 @@ package com.pennsieve.discover.notifications
 import com.pennsieve.discover.models.S3Bucket
 import com.pennsieve.models.PublishStatus
 import io.circe.parser.decode
-import org.scalatest.{ Matchers, Suite, WordSpec }
+import org.scalatest.Suite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class SQSNotificationSpec extends WordSpec with Suite with Matchers {
+class SQSNotificationSpec extends AnyWordSpec with Suite with Matchers {
 
   "PublishNotification" should {
     "decode strings as integers in a message from SQS" in {

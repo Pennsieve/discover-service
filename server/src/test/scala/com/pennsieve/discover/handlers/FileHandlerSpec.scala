@@ -7,7 +7,6 @@ import com.pennsieve.discover.client.file.{
   GetFileFromSourcePackageIdResponse
 }
 import com.pennsieve.models.{ FileType, Icon, PackageType }
-import org.scalatest.{ Matchers, WordSpec }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.{ RouteTestTimeout, ScalatestRouteTest }
@@ -18,9 +17,11 @@ import com.pennsieve.models.PublishStatus.{
   PublishSucceeded
 }
 import com.pennsieve.models.PublishStatus
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class FileHandlerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ScalatestRouteTest
     with ServiceSpecHarness

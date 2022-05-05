@@ -59,7 +59,7 @@ class AthenaClientImpl() extends AthenaClient {
               rs.offsetDateTime("dl_date")
             )
         )
-        .list
+        .list()
         .apply()
     }
   }

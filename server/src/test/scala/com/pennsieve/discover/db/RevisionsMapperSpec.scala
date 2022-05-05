@@ -6,14 +6,15 @@ import com.pennsieve.discover.server.definitions.DatasetPublishStatus
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.models._
-
 import com.pennsieve.test.AwaitableImplicits
 import io.circe.syntax._
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+
 import scala.concurrent.duration._
 
 class RevisionsMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with ServiceSpecHarness
     with AwaitableImplicits
     with Matchers {

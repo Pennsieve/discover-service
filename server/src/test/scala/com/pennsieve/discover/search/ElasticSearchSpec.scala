@@ -10,23 +10,23 @@ import com.pennsieve.discover.TestUtilities._
 import com.pennsieve.discover.clients.AwsElasticSearchClient
 import com.pennsieve.discover.models._
 import com.pennsieve.discover.server.definitions
-import org.scalatest.{ Matchers, WordSpec }
 import com.sksamuel.elastic4s.http.search.SearchResponse
 import com.sksamuel.elastic4s.http.ElasticDsl._
 import com.sksamuel.elastic4s.http.Response
 import io.circe.generic.auto._
 import com.sksamuel.elastic4s.circe._
 import com.sksamuel.elastic4s.RefreshPolicy
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.compat.java8.DurationConverters._
 import java.time.OffsetDateTime
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Random
 
 class ElasticSearchSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ServiceSpecHarness
     with DockerElasticSearchService {
@@ -210,7 +210,7 @@ class ElasticSearchSpec
         .searchDatasets(Some("ppmi"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2)
+        .to(Set) shouldBe Set(dataset2)
     }
 
     "handle typos" in {
@@ -220,7 +220,7 @@ class ElasticSearchSpec
         .searchDatasets(Some("brian~"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2, dataset3)
+        .to(Set) shouldBe Set(dataset2, dataset3)
     }
 
     "search datasets by the contents of the dataset readme" in {
@@ -230,7 +230,7 @@ class ElasticSearchSpec
         .searchDatasets(query = Some("readme"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset1, dataset3)
+        .to(Set) shouldBe Set(dataset1, dataset3)
     }
 
     "search datasets by organization" in {
@@ -240,7 +240,7 @@ class ElasticSearchSpec
         .searchDatasets(organization = Some("SPARC"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2, dataset3)
+        .to(Set) shouldBe Set(dataset2, dataset3)
     }
 
     "search datasets by organization id" in {
@@ -250,7 +250,7 @@ class ElasticSearchSpec
         .searchDatasets(organizationId = Some(10))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2, dataset3)
+        .to(Set) shouldBe Set(dataset2, dataset3)
     }
 
     "search datasets for common stems" in {
@@ -260,13 +260,13 @@ class ElasticSearchSpec
         .searchDatasets(query = Some("researching"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset1, dataset2)
+        .to(Set) shouldBe Set(dataset1, dataset2)
 
       searchClient
         .searchDatasets(query = Some("ganglia~"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset1, dataset2)
+        .to(Set) shouldBe Set(dataset1, dataset2)
     }
 
     "search datasets by name" in {
@@ -276,7 +276,7 @@ class ElasticSearchSpec
         .searchDatasets(query = Some("color"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset1)
+        .to(Set) shouldBe Set(dataset1)
     }
 
     "search datasets by tag" in {
@@ -286,34 +286,34 @@ class ElasticSearchSpec
         .searchDatasets(tags = Some(List("research")))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset1, dataset2)
+        .to(Set) shouldBe Set(dataset1, dataset2)
 
       searchClient
         .searchDatasets(tags = Some(List("seizure")))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2, dataset3)
+        .to(Set) shouldBe Set(dataset2, dataset3)
 
       // AND multiple tags
       searchClient
         .searchDatasets(tags = Some(List("seizure", "research")))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2)
+        .to(Set) shouldBe Set(dataset2)
 
       // normalize letter case
       searchClient
         .searchDatasets(tags = Some(List("SEIZURE")))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2, dataset3)
+        .to(Set) shouldBe Set(dataset2, dataset3)
 
       // strict match
       searchClient
         .searchDatasets(tags = Some(List("seize")))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe empty
+        .to(Set) shouldBe empty
     }
 
     "search datasets by contributor" in {
@@ -323,25 +323,25 @@ class ElasticSearchSpec
         .searchDatasets(query = Some("Sally"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset1)
+        .to(Set) shouldBe Set(dataset1)
 
       searchClient
         .searchDatasets(query = Some("Ardell"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2)
+        .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some("Jeffrey Laurance Ardell"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2)
+        .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some("Gump 9999"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset3)
+        .to(Set) shouldBe Set(dataset3)
     }
 
     "search datasets with structured query" in {
@@ -351,43 +351,43 @@ class ElasticSearchSpec
         .searchDatasets(query = Some("seizure | colors"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset1, dataset2, dataset3)
+        .to(Set) shouldBe Set(dataset1, dataset2, dataset3)
 
       searchClient
         .searchDatasets(query = Some("seizure & colors"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe empty
+        .to(Set) shouldBe empty
 
       searchClient
         .searchDatasets(query = Some("seizure & PPMI"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2)
+        .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some("(colors | PPMI) & neuro"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2)
+        .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some("research +readme"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset1)
+        .to(Set) shouldBe Set(dataset1)
 
       searchClient
         .searchDatasets(query = Some("research -readme"))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe Set(dataset2)
+        .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some(""" "red blue" """))
         .awaitFinite()
         .datasets
-        .to[Set] shouldBe empty
+        .to(Set) shouldBe empty
     }
 
     "handle limit and offset for datasets" in {
@@ -538,7 +538,7 @@ class ElasticSearchSpec
         .awaitFinite()
         .result
 
-      aliases1.map(_.alias).to[List].sorted shouldBe List(
+      aliases1.map(_.alias).to(List).sorted shouldBe List(
         "dataset",
         "file",
         "record"
@@ -584,15 +584,15 @@ class ElasticSearchSpec
         .awaitFinite()
         .result
 
-      aliases2.map(_.alias).to[List].sorted shouldBe List(
+      aliases2.map(_.alias).to(List).sorted shouldBe List(
         "dataset",
         "file",
         "record"
       )
       aliases2
         .map(_.index)
-        .to[List]
-        .sorted !== (aliases1.map(_.index).to[List].sorted)
+        .to(List)
+        .sorted !== (aliases1.map(_.index).to(List).sorted)
 
       searchClient
         .searchDatasets(Some("bytes"))
@@ -760,7 +760,7 @@ class ElasticSearchSpec
         .searchFiles(query = Some("result"))
         .awaitFinite()
         .files
-        .to[Set] shouldEqual Set(file3)
+        .to(Set) shouldEqual Set(file3)
     }
 
     "handle file typos" in {
@@ -770,7 +770,7 @@ class ElasticSearchSpec
         .searchFiles(query = Some("zipyp"))
         .awaitFinite()
         .files
-        .to[Set] shouldBe Set(file4)
+        .to(Set) shouldBe Set(file4)
     }
 
     "search files by file type" in {
@@ -780,7 +780,7 @@ class ElasticSearchSpec
         .searchFiles(fileType = Some("zip"))
         .awaitFinite()
         .files
-        .to[Set] shouldEqual Set(file1, file3)
+        .to(Set) shouldEqual Set(file1, file3)
     }
 
     "search files by file type fuzzily" in {
@@ -790,7 +790,7 @@ class ElasticSearchSpec
         .searchFiles(fileType = Some("jpg"))
         .awaitFinite()
         .files
-        .to[Set] shouldEqual Set(file4)
+        .to(Set) shouldEqual Set(file4)
     }
 
     "search files by organization" in {
@@ -800,7 +800,7 @@ class ElasticSearchSpec
         .searchFiles(organization = Some("SPARC"))
         .awaitFinite()
         .files
-        .to[Set] shouldBe Set(file2, file3)
+        .to(Set) shouldBe Set(file2, file3)
     }
 
     "search files by organization id" in {
@@ -810,7 +810,7 @@ class ElasticSearchSpec
         .searchFiles(organizationId = Some(10))
         .awaitFinite()
         .files
-        .to[Set] shouldBe Set(file2, file3)
+        .to(Set) shouldBe Set(file2, file3)
     }
 
     "search files by dataset" in {
@@ -820,7 +820,7 @@ class ElasticSearchSpec
         .searchFiles(datasetId = Some(dataset1.dataset.id))
         .awaitFinite()
         .files
-        .to[Set] shouldBe Set(file1, file4)
+        .to(Set) shouldBe Set(file1, file4)
     }
 
     "replace existing file entries when re-indexing a dataset" in {
@@ -904,7 +904,7 @@ class ElasticSearchSpec
         .awaitFinite()
         .records
         .map(_.record)
-        .to[Set] shouldBe records.to[Set]
+        .to(Set) shouldBe records.to(Set)
     }
 
     "search records by organization" in {

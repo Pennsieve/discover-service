@@ -10,14 +10,15 @@ import com.pennsieve.discover.Authenticator.{
 }
 import com.pennsieve.models.Role
 import com.pennsieve.test.AwaitableImplicits
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.{ ExecutionContext, Future }
 import ExecutionContext.Implicits.global
 
 class AuthenticatorSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with AwaitableImplicits
     with ScalaFutures {

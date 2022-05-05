@@ -13,10 +13,11 @@ import com.pennsieve.models.PublishStatus.{
 }
 import com.pennsieve.test.AwaitableImplicits
 import io.circe.syntax._
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class PublicDatasetsMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with ServiceSpecHarness
     with AwaitableImplicits
     with Matchers {
@@ -73,12 +74,12 @@ class PublicDatasetsMapperSpec
         .awaitFinite()
 
       updatedDataset should have(
-        'name ("A different name"),
-        'tags (List("red", "blue")),
-        'ownerId (227),
-        'ownerFirstName ("Some"),
-        'ownerLastName ("Owner"),
-        'createdAt (publicDataset1.createdAt)
+        Symbol("name")("A different name"),
+        Symbol("tags")(List("red", "blue")),
+        Symbol("ownerId")(227),
+        Symbol("ownerFirstName")("Some"),
+        Symbol("ownerLastName")("Owner"),
+        Symbol("createdAt")(publicDataset1.createdAt)
       )
 
       // Postgres trigger updates timestamp

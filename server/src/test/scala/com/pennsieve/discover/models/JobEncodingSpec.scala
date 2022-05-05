@@ -3,12 +3,14 @@
 package com.pennsieve.discover.models
 
 import io.circe.syntax._
-import org.scalatest.{ Matchers, Suite, WordSpec }
+import org.scalatest.Suite
+
 import java.time.{ OffsetDateTime, ZoneOffset }
-
 import com.pennsieve.models.{ Degree, RelationshipType }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class JobEncodingSpec extends WordSpec with Suite with Matchers {
+class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
 
   "PublishJob" should {
     "encode integers as strings" in {

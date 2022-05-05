@@ -10,10 +10,11 @@ import com.pennsieve.discover.client.definitions.DatasetTag
 import com.pennsieve.discover.client.tag.{ GetTagsResponse, TagClient }
 import com.pennsieve.models.PublishStatus
 import com.pennsieve.test.EitherValue._
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class TagHandlerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ScalatestRouteTest
     with ServiceSpecHarness

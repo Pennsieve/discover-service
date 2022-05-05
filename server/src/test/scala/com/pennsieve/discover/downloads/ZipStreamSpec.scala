@@ -7,20 +7,19 @@ import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
-
 import com.pennsieve.test.AwaitableImplicits
 import com.pennsieve.discover.TestUtilities._
 import com.pennsieve.discover.clients.{ MockS3StreamClient, TestFile }
-import org.scalatest.{ Matchers, WordSpec }
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.DurationInt
-
 import java.nio.file.{ Files, Path, Paths }
 
 class ZipStreamSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with AwaitableImplicits
     with ScalaFutures

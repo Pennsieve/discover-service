@@ -20,7 +20,7 @@ case class FileDownloadDTO(
       name,
       rootPath
         .map(rp => {
-          truncatePath(rp.split("/"), path)
+          truncatePath(rp.split("/").toIndexedSeq, path)
         })
         .getOrElse(path)
         .toVector,
@@ -72,6 +72,6 @@ case object FileDownloadDTO {
     version: PublicDatasetVersion,
     file: S3Key.File
   ): Seq[String] = {
-    file.removeVersionPrefix(version.s3Key).split("/").dropRight(1)
+    file.removeVersionPrefix(version.s3Key).split("/").dropRight(1).toIndexedSeq
   }
 }

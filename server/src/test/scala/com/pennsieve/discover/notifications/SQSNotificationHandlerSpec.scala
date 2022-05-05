@@ -38,7 +38,9 @@ import com.sksamuel.elastic4s.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
 import software.amazon.awssdk.services.sqs.model.Message
-import org.scalatest.{ Inside, Matchers, WordSpec }
+import org.scalatest.Inside
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import java.time.LocalDate
 import java.util.Calendar
@@ -46,7 +48,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class vSQSNotificationHandlerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with Inside
     with ServiceSpecHarness {

@@ -116,23 +116,23 @@ class SQSNotificationHandler(
           version <- PublicDatasetVersionsMapper.setStatus(
             id = publicDataset.id,
             version = version.version,
-            status = (version.underEmbargo, message) match {
-              case (false, m: PublishNotification) if m.success =>
+            status = (version.underEmbargo, message, message.success) match {
+              case (false, m: PublishNotification, true) =>
                 PublishStatus.PublishSucceeded
 
-              case (false, m: PublishNotification) if !m.success =>
+              case (false, m: PublishNotification, false) =>
                 PublishStatus.PublishFailed
 
-              case (true, m: PublishNotification) if m.success =>
+              case (true, m: PublishNotification, true) =>
                 PublishStatus.EmbargoSucceeded
 
-              case (true, m: PublishNotification) if !m.success =>
+              case (true, m: PublishNotification, false) =>
                 PublishStatus.EmbargoFailed
 
-              case (_, m: ReleaseNotification) if m.success =>
+              case (_, m: ReleaseNotification, true) =>
                 PublishStatus.PublishSucceeded
 
-              case (_, m: ReleaseNotification) if !m.success =>
+              case (_, m: ReleaseNotification, false) =>
                 PublishStatus.ReleaseFailed
             }
           )

@@ -105,9 +105,11 @@ object PublicExternalPublicationsMapper
         _.groupBy {
           case ((dataset, version), _) =>
             (dataset, version)
-        }.mapValues(_.map {
-          case ((_, _), collection) => collection
-        })
+        }.view
+          .mapValues(_.map {
+            case ((_, _), collection) => collection
+          })
+          .toMap
       }
   }
 }

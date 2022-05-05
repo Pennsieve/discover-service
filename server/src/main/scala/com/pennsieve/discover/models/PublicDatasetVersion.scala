@@ -5,9 +5,6 @@ package com.pennsieve.discover.models
 import java.time.{ LocalDate, OffsetDateTime, ZoneOffset }
 
 import com.pennsieve.models.PublishStatus
-import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
-import io.circe.{ Decoder, Encoder }
-import io.circe.java8.time._
 
 final case class PublicDatasetVersion(
   datasetId: Int,

@@ -4,7 +4,6 @@ package com.pennsieve.discover.handlers
 
 import java.nio.file.Path
 import java.time.LocalDate
-
 import akka.http.scaladsl.model.{
   ContentTypes,
   HttpEntity,
@@ -67,21 +66,22 @@ import com.pennsieve.test.EitherValue._
 import io.circe._
 import io.circe.syntax._
 import io.scalaland.chimney.dsl._
-import org.scalatest.{ Matchers, WordSpec }
 import squants.information.Megabytes
-import java.time.LocalDate
 
+import java.time.LocalDate
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.{
   generateServiceClaim,
   generateServiceToken,
   generateUserToken
 }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration._
 
 class DatasetHandlerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ScalatestRouteTest
     with ServiceSpecHarness
@@ -125,7 +125,7 @@ class DatasetHandlerSpec
     */
   def AccessIsRestrictedForEmbargoedData(
     request: PublicDatasetVersion => HttpRequest
-  ) {
+  ): Unit = {
 
     "optionally validate a JWT" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(

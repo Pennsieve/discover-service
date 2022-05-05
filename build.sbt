@@ -10,7 +10,7 @@ lazy val scala212 = "2.12.11"
 lazy val scala213 = "2.13.8"
 lazy val supportedScalaVersions = List(scala212, scala213)
 
-ThisBuild / scalaVersion := scala212
+ThisBuild / scalaVersion := scala213
 
 // Run tests in a separate JVM to prevent resource leaks.
 ThisBuild / Test / fork := true
@@ -59,13 +59,13 @@ lazy val authMiddlewareVersion = "5.1.3"
 lazy val serviceUtilitiesVersion = "8-9751ee3"
 lazy val utilitiesVersion = "4-55953e4"
 lazy val doiServiceClientVersion = "12-756107b"
-lazy val slickVersion = "3.2.3"
-lazy val slickPgVersion = "0.16.3"
-lazy val dockerItVersion = "0.9.7"
+lazy val slickVersion = "3.3.3"
+lazy val slickPgVersion = "0.20.3"
+lazy val dockerItVersion = "0.9.9"
 lazy val logbackVersion = "1.2.3"
 lazy val awsSdkVersion = "2.10.56"
-lazy val pureConfigVersion = "0.10.2"
-lazy val elastic4sVersion = "6.5.1"
+lazy val pureConfigVersion = "0.17.1"
+lazy val elastic4sVersion = "6.7.8"
 lazy val catsVersion = "2.0.0"
 lazy val jacksonVersion = "2.9.6"
 
@@ -98,11 +98,11 @@ lazy val server = project
       circe212Version,
       circe213Version
     ),
-    dependencyOverrides ++= Seq(
+    /*dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-    ),
+    ),*/
     libraryDependencies ++= Seq(
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion,
       "com.pennsieve" %% "utilities" % utilitiesVersion,
@@ -135,7 +135,7 @@ lazy val server = project
       "com.github.tminglei" %% "slick-pg_circe-json" % slickPgVersion,
       "org.postgresql" % "postgresql" % "42.2.4",
       "com.zaxxer" % "HikariCP" % "3.3.1",
-      "io.scalaland" %% "chimney" % "0.2.1",
+      "io.scalaland" %% "chimney" % "0.6.1",
       "ch.qos.logback" % "logback-classic" % logbackVersion,
       "ch.qos.logback" % "logback-core" % logbackVersion,
       "net.logstash.logback" % "logstash-logback-encoder" % "5.2",
@@ -147,7 +147,7 @@ lazy val server = project
       "org.scalikejdbc" %% "scalikejdbc" % "3.4.0",
       "com.zaneli" %% "scalikejdbc-athena" % "0.2.4",
       // Test dependencies
-      "org.scalatest" %% "scalatest" % "3.0.5" % Test,
+      "org.scalatest" %% "scalatest" % "3.2.12" % Test,
       "com.whisk" %% "docker-testkit-scalatest" % dockerItVersion % Test,
       "com.whisk" %% "docker-testkit-impl-spotify" % dockerItVersion % Test,
       "com.pennsieve" %% "utilities" % utilitiesVersion % "test" classifier "tests",
@@ -163,12 +163,10 @@ lazy val server = project
       ScalaServer(
         file("openapi/discover-service.yml"),
         pkg = "com.pennsieve.discover.server",
-        modules = List("akka-http", "circe-0.11")
       ),
       ScalaServer(
         file("openapi/discover-service-internal.yml"),
         pkg = "com.pennsieve.discover.server",
-        modules = List("akka-http", "circe-0.11")
       )
     ),
     docker / dockerfile := {
@@ -262,11 +260,11 @@ lazy val syncElasticSearch = project
     scalacOptions ++= getScalacOptions(scalaVersion.value),
     scalafmtOnCompile := true,
     trapExit := false,
-    dependencyOverrides ++= Seq(
+    /*dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-    ),
+    ),*/
     docker / dockerfile := {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
@@ -391,13 +389,13 @@ lazy val client = project
 
 lazy val scripts = project
   .enablePlugins(AutomateHeaderPlugin)
+  .disablePlugins(ScoverageSbtPlugin)
   .dependsOn(server)
   .settings(
     name := "discover-service-scripts",
     headerLicense := headerLicenseValue,
     headerMappings := headerMappings.value + headerMappingsValue,
     scalacOptions ++= getScalacOptions(scalaVersion.value),
-    //crossScalaVersions := supportedScalaVersions,
     circeVersion := getVersion(
       scalaVersion.value,
       circe212Version,

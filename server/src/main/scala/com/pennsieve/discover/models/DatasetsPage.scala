@@ -49,6 +49,6 @@ object DatasetsPage {
   def apply(searchResult: DatasetSearchResponse): definitions.DatasetsPage =
     searchResult
       .into[definitions.DatasetsPage]
-      .withFieldComputed(_.datasets, _.datasets.map(_.dataset).to[Vector])
+      .withFieldComputed(_.datasets, _.datasets.map(_.dataset).to(Vector))
       .transform
 }

@@ -5,9 +5,6 @@ package com.pennsieve.discover.models
 import java.time.{ OffsetDateTime, ZoneOffset }
 
 import com.pennsieve.models.{ Degree, PublishStatus }
-import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
-import io.circe.{ Decoder, Encoder, HCursor }
-import io.circe.java8.time._
 
 final case class PublicContributor(
   firstName: String,

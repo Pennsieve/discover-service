@@ -29,6 +29,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 import java.time.OffsetDateTime
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ ExecutionContext, Future }
 
 class MockSearchClient extends SearchClient with AwaitableImplicits {
@@ -142,8 +143,8 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     Future.successful(Done)
   }
 
-  val datasetSearchResults: mutable.ArrayBuffer[DatasetDocument] =
-    mutable.ArrayBuffer.empty
+  val datasetSearchResults: ArrayBuffer[DatasetDocument] =
+    ArrayBuffer.empty
 
   def searchDatasets(
     query: Option[String] = None,
@@ -159,7 +160,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     Future.successful(
       DatasetSearchResponse(
         totalCount = datasetSearchResults.length,
-        datasets = datasetSearchResults,
+        datasets = datasetSearchResults.toSeq,
         limit = limit,
         offset = offset
       )
@@ -178,7 +179,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
   ): Future[RecordSearchResponse] = Future.successful(
     RecordSearchResponse(
       totalCount = recordSearchResults.length,
-      records = recordSearchResults,
+      records = recordSearchResults.toSeq,
       limit = limit,
       offset = offset
     )
@@ -199,7 +200,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     Future.successful(
       FileSearchResponse(
         totalCount = fileSearchResults.length,
-        files = fileSearchResults,
+        files = fileSearchResults.toSeq,
         limit = limit,
         offset = offset
       )

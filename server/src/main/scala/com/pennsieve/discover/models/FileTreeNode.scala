@@ -34,9 +34,9 @@ object FileTreeNode {
 
     val path =
       if (file.s3Key.toString
-          .startsWith(file.datasetId + "/" + file.version)) {
+          .startsWith(s"${file.datasetId}/${file.version}")) {
         file.s3Key.toString
-          .replace(file.datasetId + "/" + file.version + "/", "")
+          .replace(s"${file.datasetId}/${file.version}/", "")
       } else {
         file.s3Key.toString
       }

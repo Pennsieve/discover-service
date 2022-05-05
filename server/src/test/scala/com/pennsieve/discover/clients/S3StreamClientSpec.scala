@@ -25,8 +25,9 @@ import io.circe.syntax._
 import io.circe._
 import io.circe.parser._
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
-import org.scalatest.{ Matchers, WordSpec }
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.model.{
@@ -41,11 +42,11 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import squants.information.Information
 import squants.information.InformationConversions._
+
 import java.net.URI
 import java.util.UUID
 import java.nio.file.{ Path, Paths }
 import java.time.OffsetDateTime
-
 import scala.compat.java8.DurationConverters._
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
@@ -53,7 +54,7 @@ import scala.util.Random
 import software.amazon.awssdk.core.sync.ResponseTransformer
 
 class S3StreamClientSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with AwaitableImplicits
     with ScalaFutures

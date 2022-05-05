@@ -273,9 +273,9 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
 
     implicit val fileDownloadGetter: GetResult[FileDownloadDTO] = GetResult(
       r => {
-        val name = r.nextString
-        val s3Key = S3Key.File(r.nextString)
-        val size = r.nextLong
+        val name = r.nextString()
+        val s3Key = S3Key.File(r.nextString())
+        val size = r.nextLong()
         FileDownloadDTO(version, name, s3Key, size)
       }
     )
@@ -405,29 +405,29 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     bucket: S3Bucket
   ): GetResult[Either[TotalCount, FileTreeNode]] =
     GetResult(r => {
-      val nodeType = r.nextString
+      val nodeType = r.nextString()
 
       nodeType match {
-        case "count" => Left(TotalCount(r.skip.skip.skip.nextLong))
+        case "count" => Left(TotalCount(r.skip.skip.skip.nextLong()))
         case "file" =>
-          val name = r.nextString
+          val name = r.nextString()
           Right(
             FileTreeNode
               .File(
                 name = name,
                 path = buildPath(basePath, name),
-                fileType = getFileType(r.nextString),
-                s3Key = S3Key.File(r.nextString),
+                fileType = getFileType(r.nextString()),
+                s3Key = S3Key.File(r.nextString()),
                 s3Bucket = bucket,
-                size = r.nextLong,
-                sourcePackageId = r.nextStringOption
+                size = r.nextLong(),
+                sourcePackageId = r.nextStringOption()
               )
           )
         case "directory" =>
-          val name = r.nextString
+          val name = r.nextString()
           r.skip
           r.skip
-          val size = r.nextLong
+          val size = r.nextLong()
           Right(
             FileTreeNode
               .Directory(name = name, path = buildPath(basePath, name), size)

@@ -35,7 +35,7 @@ case class Config(
 object Config {
   implicit val awsRegionReader = ConfigReader[String].map(Region.of(_))
 
-  def load: Config = pureconfig.loadConfigOrThrow[Config]
+  def load: Config = ConfigSource.default.loadOrThrow[Config]
 }
 
 case class JwtConfig(key: String, duration: FiniteDuration = 5.minutes)

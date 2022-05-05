@@ -27,10 +27,11 @@ import com.pennsieve.models.FileManifest
 import com.pennsieve.models.FileType
 import com.pennsieve.test.EitherValue._
 import io.scalaland.chimney.dsl._
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class SearchHandlerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ScalatestRouteTest
     with ServiceSpecHarness {

@@ -39,14 +39,16 @@ import com.pennsieve.models.PublishStatus.{
 import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
 import com.pennsieve.test.EitherValue._
 import io.circe.syntax._
-import org.scalatest.{ Inside, Matchers, WordSpec }
+import org.scalatest.Inside
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import software.amazon.awssdk.services.sqs.model.Message
-import java.time.LocalDate
 
+import java.time.LocalDate
 import scala.concurrent.duration._
 
 class PublishHandlerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with Inside
     with ScalatestRouteTest

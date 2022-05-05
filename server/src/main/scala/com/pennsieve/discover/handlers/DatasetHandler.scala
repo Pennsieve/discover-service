@@ -502,8 +502,8 @@ class DatasetHandler(
       } else {
         pathNoSchemeNoBucket
       }
-      path = if (!noSlashPath.startsWith(datasetId + "/" + versionId)) {
-        datasetId + "/" + versionId + "/" + noSlashPath
+      path = if (!noSlashPath.startsWith(s"$datasetId/$versionId")) {
+        s"$datasetId/$versionId/$noSlashPath"
       } else {
         noSlashPath
       }
@@ -764,7 +764,7 @@ class DatasetHandler(
               totalCount = totalCount.value,
               limit = limit.getOrElse(defaultFileLimit),
               offset = offset.getOrElse(defaultFileOffset),
-              files = files.map(FileTreeNodeDTO.apply).to[Vector]
+              files = files.map(FileTreeNodeDTO.apply).to(Vector)
             )
           )
       }

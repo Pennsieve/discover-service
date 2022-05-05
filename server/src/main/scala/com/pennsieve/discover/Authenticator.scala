@@ -113,7 +113,7 @@ object Authenticator {
         claim,
         DatasetId(datasetId),
         DatasetPermission.ViewFiles
-      )) f(Unit)
+      )) f(())
     else
       Future.failed(ForbiddenException(s"Not allowed for dataset $datasetId"))
 
@@ -129,7 +129,7 @@ object Authenticator {
         claim,
         DatasetId(datasetId),
         DatasetPermission.RequestCancelPublishRevise
-      )) f(Unit)
+      )) f(())
     else
       Future.failed(ForbiddenException(s"Not allowed for dataset $datasetId"))
 
@@ -144,7 +144,7 @@ object Authenticator {
   )(implicit
     executionContext: ExecutionContext
   ): Future[T] =
-    if (hasOrganizationAccess(claim, OrganizationId(organizationId))) f(Unit)
+    if (hasOrganizationAccess(claim, OrganizationId(organizationId))) f(())
     else
       Future.failed(
         ForbiddenException(s"Not allowed for organization $organizationId")
@@ -164,7 +164,7 @@ object Authenticator {
   ): Future[T] =
     withOrganizationAccess(claim, organizationId) { _ =>
       withDatasetAccess(claim, datasetId) { _ =>
-        f(Unit)
+        f(())
       }
     }
 
@@ -180,7 +180,7 @@ object Authenticator {
     withOrganizationAccess(claim, organizationId) { _ =>
       withDatasetOwnerAccess(claim, datasetId) { _ =>
         if (isServiceClaim(claim)) {
-          f(Unit)
+          f(())
         } else
           Future.failed(
             ForbiddenException(s"Only allowed for service level requests")

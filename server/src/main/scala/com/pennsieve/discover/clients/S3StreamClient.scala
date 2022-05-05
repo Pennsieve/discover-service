@@ -341,7 +341,7 @@ class AlpakkaS3StreamClient(
 
     // Remove null fields when printing
     val bytes = ByteString(
-      Printer.spaces2.copy(dropNullValues = true).pretty(metadata.asJson)
+      Printer.spaces2.copy(dropNullValues = true).print(metadata.asJson)
     )
 
     for {

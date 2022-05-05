@@ -4,16 +4,16 @@ package com.pennsieve.discover.handlers
 
 import java.time._
 import java.time.temporal.ChronoUnit
-
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.pennsieve.discover.{ utils, ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.client.sync.SyncClient
-import org.scalatest.{ Matchers, WordSpec }
 import com.pennsieve.discover.models.{ DatasetDownload, DownloadOrigin }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class SyncHandlerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ScalatestRouteTest
     with ServiceSpecHarness {

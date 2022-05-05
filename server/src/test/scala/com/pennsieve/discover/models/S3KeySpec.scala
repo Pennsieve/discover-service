@@ -4,11 +4,11 @@ package com.pennsieve.discover.models
 
 import io.circe.syntax._
 import io.circe.parser.decode
-import io.circe.{ Decoder, Encoder, HCursor, Json }
+import io.circe.Json
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-import org.scalatest.{ Matchers, WordSpec }
-
-class S3KeySpec extends WordSpec with Matchers {
+class S3KeySpec extends AnyWordSpec with Matchers {
 
   "S3 version key" should {
 

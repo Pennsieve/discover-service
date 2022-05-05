@@ -3,7 +3,6 @@
 package com.pennsieve.discover.handlers
 
 import java.time._
-
 import com.pennsieve.test.EitherValue._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -12,12 +11,13 @@ import com.pennsieve.discover.client.metrics.{
   GetDatasetDownloadsSummaryResponse,
   MetricsClient
 }
-import org.scalatest.{ Matchers, WordSpec }
 import com.pennsieve.discover.models.DownloadOrigin
 import com.pennsieve.discover.client.definitions.DatasetDownloadSummaryRow
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class MetricsHandlerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ScalatestRouteTest
     with ServiceSpecHarness {

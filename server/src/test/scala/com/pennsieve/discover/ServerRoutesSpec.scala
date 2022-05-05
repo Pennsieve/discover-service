@@ -8,12 +8,14 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.pennsieve.discover.client.AkkaHttpImplicits._
 import com.pennsieve.discover.server.definitions.{ File, FileTreeWithOrgPage }
 import com.pennsieve.models.{ FileType, PackageType, PublishStatus }
-import org.scalatest.{ Inspectors, Matchers, WordSpec }
+import org.scalatest.Inspectors
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.ExecutionContextExecutor
 
 class ServerRoutesSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with Inspectors
     with ScalatestRouteTest

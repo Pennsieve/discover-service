@@ -28,10 +28,11 @@ import com.pennsieve.models.PublishStatus.{
 }
 import com.pennsieve.test.AwaitableImplicits
 import org.postgresql.util.PSQLException
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class PublicDatasetVersionsMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with ServiceSpecHarness
     with AwaitableImplicits
     with Matchers {

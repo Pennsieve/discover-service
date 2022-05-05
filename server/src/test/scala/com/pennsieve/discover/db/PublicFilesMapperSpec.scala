@@ -13,12 +13,13 @@ import com.pennsieve.discover.models.{
 }
 import com.pennsieve.models.{ FileManifest, FileType }
 import com.pennsieve.test.AwaitableImplicits
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration._
 
 class PublicFilesMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with ServiceSpecHarness
     with AwaitableImplicits
     with Matchers {

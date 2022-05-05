@@ -136,6 +136,7 @@ object PublicDatasetsMapper extends TableQuery(new PublicDatasetsTable(_)) {
       .map { tags =>
         tags
           .groupBy(identity)
+          .view
           .mapValues(_.size)
           .toList
           .sortBy(_._1)

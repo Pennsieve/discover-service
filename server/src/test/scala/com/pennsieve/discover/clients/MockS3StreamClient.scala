@@ -15,7 +15,6 @@ import akka.util.ByteString
 import com.pennsieve.models.{ FileManifest, FileType }
 import com.pennsieve.discover.models._
 import com.pennsieve.test.AwaitableImplicits
-import org.scalatest.{ Matchers, WordSpec }
 import org.scalatest.concurrent.ScalaFutures
 
 import java.nio.file.{ Files, Path, Paths }
