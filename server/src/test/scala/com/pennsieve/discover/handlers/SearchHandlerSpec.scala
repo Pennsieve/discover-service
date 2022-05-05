@@ -20,7 +20,7 @@ import com.pennsieve.discover.client.search.{
   SearchRecordsResponse
 }
 import com.pennsieve.discover.models._
-import com.pennsieve.discover.server.definitions.SponsorshipDTO
+import com.pennsieve.discover.server.definitions.SponsorshipDto
 import com.pennsieve.models.PublishStatus.{ EmbargoSucceeded, PublishSucceeded }
 import com.pennsieve.models.DatasetMetadata._
 import com.pennsieve.models.FileManifest
@@ -44,10 +44,10 @@ class SearchHandlerSpec
   val searchClient: SearchClient = createClient(createRoutes())
 
   def toClientDefinition(
-    dto: server.definitions.PublicDatasetDTO
-  ): client.definitions.PublicDatasetDTO =
+    dto: server.definitions.PublicDatasetDto
+  ): client.definitions.PublicDatasetDto =
     dto
-      .into[client.definitions.PublicDatasetDTO]
+      .into[client.definitions.PublicDatasetDto]
       .transform
 
   "GET /search/datasets" should {
@@ -146,16 +146,16 @@ class SearchHandlerSpec
         10,
         0,
         2L,
-        IndexedSeq(
+        Vector(
           toClientDefinition(
             PublicDatasetDTO(
               publicDataset1,
               publicDataset1_V1,
-              IndexedSeq(PublicContributorDTO.apply(contributor)),
+              Vector(PublicContributorDTO.apply(contributor)),
               None,
               None,
-              Some(IndexedSeq(PublicCollectionDTO.apply(collection))),
-              Some(IndexedSeq.empty),
+              Some(Vector(PublicCollectionDTO.apply(collection))),
+              Some(Vector.empty),
               None
             )
           ),
@@ -163,11 +163,11 @@ class SearchHandlerSpec
             PublicDatasetDTO(
               publicDataset3,
               publicDataset3_V1,
-              IndexedSeq(),
-              None: Option[SponsorshipDTO],
+              Vector(),
+              None: Option[SponsorshipDto],
               None,
-              Some(IndexedSeq.empty),
-              Some(IndexedSeq.empty),
+              Some(Vector.empty),
+              Some(Vector.empty),
               None
             )
           )

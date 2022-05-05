@@ -46,7 +46,7 @@ class ServerRoutesSpec
         limit = 100,
         offset = 0,
         organizationId = expectedOrgId,
-        files = IndexedSeq(
+        files = Vector(
           File(
             name = f1.name,
             path = "A/file1.txt",

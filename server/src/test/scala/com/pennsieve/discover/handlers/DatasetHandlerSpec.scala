@@ -48,7 +48,7 @@ import com.pennsieve.discover.db.{
   SponsorshipsMapper
 }
 import com.pennsieve.discover.models._
-import com.pennsieve.discover.server.definitions.SponsorshipDTO
+import com.pennsieve.discover.server.definitions.SponsorshipDto
 import com.pennsieve.models.PublishStatus.{
   EmbargoSucceeded,
   NotPublished,
@@ -108,10 +108,10 @@ class DatasetHandlerSpec
     DatasetClient.httpClient(Route.asyncHandler(routes))
 
   def toClientDefinition(
-    dto: server.definitions.PublicDatasetDTO
-  ): client.definitions.PublicDatasetDTO =
+    dto: server.definitions.PublicDatasetDto
+  ): client.definitions.PublicDatasetDto =
     dto
-      .into[client.definitions.PublicDatasetDTO]
+      .into[client.definitions.PublicDatasetDto]
       .transform
 
   val datasetClient: DatasetClient = createClient(createRoutes())
@@ -321,7 +321,7 @@ class DatasetHandlerSpec
         dataset,
         publicDatasetV1,
         IndexedSeq(PublicContributorDTO.apply(contributor)),
-        Some(SponsorshipDTO(Some("foo"), Some("bar"), Some("baz"))),
+        Some(SponsorshipDto(Some("foo"), Some("bar"), Some("baz"))),
         None,
         Some(IndexedSeq(PublicCollectionDTO.apply(collection))),
         Some(IndexedSeq.empty),
@@ -348,7 +348,7 @@ class DatasetHandlerSpec
         dataset,
         publicDatasetV1,
         IndexedSeq(PublicContributorDTO.apply(contributor)),
-        Some(SponsorshipDTO(Some("foo"), Some("bar"), Some("baz"))),
+        Some(SponsorshipDto(Some("foo"), Some("bar"), Some("baz"))),
         None,
         Some(IndexedSeq(PublicCollectionDTO.apply(collection))),
         Some(IndexedSeq.empty),
@@ -388,11 +388,11 @@ class DatasetHandlerSpec
         .value
 
       response shouldBe GetDatasetResponse.Gone(
-        client.definitions.TombstoneDTO(
+        client.definitions.TombstoneDto(
           id = dataset.id,
           version = version.version,
           name = dataset.name,
-          tags = dataset.tags.toIndexedSeq,
+          tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
           doi = version.doi
         )
@@ -449,11 +449,11 @@ class DatasetHandlerSpec
         .value
 
       response shouldBe GetDatasetByDoiResponse.Gone(
-        client.definitions.TombstoneDTO(
+        client.definitions.TombstoneDto(
           id = dataset.id,
           version = version.version,
           name = dataset.name,
-          tags = dataset.tags.toIndexedSeq,
+          tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
           doi = "10.12345/abcd-efgh"
         )
@@ -573,7 +573,7 @@ class DatasetHandlerSpec
         .value
 
       response shouldBe GetDatasetVersionsResponse.OK(
-        IndexedSeq(
+        Vector(
           PublicDatasetDTO.apply(
             publicDataset,
             version4,
@@ -709,11 +709,11 @@ class DatasetHandlerSpec
         .value
 
       response shouldBe GetDatasetVersionResponse.Gone(
-        client.definitions.TombstoneDTO(
+        client.definitions.TombstoneDto(
           id = dataset.id,
           version = version.version,
           name = dataset.name,
-          tags = dataset.tags.toIndexedSeq,
+          tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
           doi = version.doi
         )
@@ -849,7 +849,7 @@ class DatasetHandlerSpec
             publicDataset3,
             publicDataset3_V1,
             IndexedSeq(),
-            None: Option[SponsorshipDTO],
+            None: Option[SponsorshipDto],
             None,
             Some(IndexedSeq(PublicCollectionDTO(collection3))),
             Some(IndexedSeq.empty),
@@ -864,7 +864,7 @@ class DatasetHandlerSpec
             publicDataset2,
             publicDataset2_V1,
             IndexedSeq(PublicContributorDTO.apply(contributor5)),
-            Some(SponsorshipDTO(Some("foo"), Some("bar"), Some("baz"))),
+            Some(SponsorshipDto(Some("foo"), Some("bar"), Some("baz"))),
             None,
             Some(IndexedSeq(PublicCollectionDTO(collection2))),
             Some(IndexedSeq.empty),
@@ -897,7 +897,7 @@ class DatasetHandlerSpec
           DatasetsPage(
             limit = 10,
             offset = 0,
-            datasets = allDatasets,
+            datasets = allDatasets.toVector,
             totalCount = allDatasets.size.toLong
           )
         )
@@ -911,7 +911,7 @@ class DatasetHandlerSpec
           DatasetsPage(
             limit = 10,
             offset = 0,
-            datasets = embargoedDatasets,
+            datasets = embargoedDatasets.toVector,
             totalCount = embargoedDatasets.size.toLong
           )
         )
@@ -925,7 +925,7 @@ class DatasetHandlerSpec
           DatasetsPage(
             limit = 10,
             offset = 0,
-            datasets = nonEmbargoedDatasets,
+            datasets = nonEmbargoedDatasets.toVector,
             totalCount = nonEmbargoedDatasets.size.toLong
           )
         )
@@ -974,7 +974,7 @@ class DatasetHandlerSpec
       val expected = DatasetsPage(
         limit = 10,
         offset = 0,
-        datasets = IndexedSeq(
+        datasets = Vector(
           toClientDefinition(
             PublicDatasetDTO.apply(
               publicDataset2,
@@ -1063,7 +1063,7 @@ class DatasetHandlerSpec
       val expected = DatasetsPage(
         limit = 10,
         offset = 0,
-        datasets = IndexedSeq(
+        datasets = Vector(
           toClientDefinition(
             PublicDatasetDTO.apply(
               publicDataset2,
@@ -1155,7 +1155,7 @@ class DatasetHandlerSpec
         DatasetsPage(
           limit = 10,
           offset = 0,
-          datasets = IndexedSeq(
+          datasets = Vector(
             toClientDefinition(
               PublicDatasetDTO
                 .apply(
@@ -1560,11 +1560,11 @@ class DatasetHandlerSpec
         .value
 
       response shouldBe GetFileResponse.Gone(
-        client.definitions.TombstoneDTO(
+        client.definitions.TombstoneDto(
           id = dataset.id,
           version = v.version,
           name = dataset.name,
-          tags = dataset.tags.toIndexedSeq,
+          tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
           doi = v.doi
         )
@@ -1611,17 +1611,17 @@ class DatasetHandlerSpec
           totalCount = 2,
           limit = 100,
           offset = 0,
-          files = IndexedSeq(
+          files = Vector(
             client.definitions.Directory("A", "A", 200),
             client.definitions
               .File(
                 "file3.txt",
                 "file3.txt",
                 100,
-                Icon.Text,
-                s"s3://bucket/${f3.s3Key}",
                 FileType.Text,
+                s"s3://bucket/${f3.s3Key}",
                 PackageType.Text,
+                Icon.Text,
                 Some("N:package:2")
               )
           )
@@ -1664,16 +1664,16 @@ class DatasetHandlerSpec
           totalCount = 2,
           limit = 100,
           offset = 0,
-          files = IndexedSeq(
+          files = Vector(
             client.definitions
               .File(
                 "file1.txt",
                 "A/file1.txt",
                 100,
-                Icon.Text,
-                s"s3://bucket/${f1.s3Key}",
                 FileType.Text,
+                s"s3://bucket/${f1.s3Key}",
                 PackageType.Text,
+                Icon.Text,
                 Some("N:package:1")
               ),
             client.definitions
@@ -1681,10 +1681,10 @@ class DatasetHandlerSpec
                 "file2.txt",
                 "A/file2.txt",
                 100,
-                Icon.Text,
-                s"s3://bucket/${f2.s3Key}",
                 FileType.Text,
+                s"s3://bucket/${f2.s3Key}",
                 PackageType.Text,
+                Icon.Text,
                 Some("N:package:1")
               )
           )
@@ -1701,7 +1701,7 @@ class DatasetHandlerSpec
           s"/datasets/${v.datasetId}/versions/${v.version}/files/download-manifest",
           HttpEntity.Strict(
             ContentTypes.`application/json`,
-            ByteString(DownloadRequest(IndexedSeq("")).asJson.toString)
+            ByteString(DownloadRequest(Vector("")).asJson.toString)
           )
         )
     )
@@ -1741,7 +1741,7 @@ class DatasetHandlerSpec
           .downloadManifest(
             v1.datasetId,
             v1.version,
-            DownloadRequest(IndexedSeq(""))
+            DownloadRequest(Vector(""))
           )
           .awaitFinite()
           .value
@@ -1750,28 +1750,28 @@ class DatasetHandlerSpec
         client.definitions.DownloadResponse(
           client.definitions
             .DownloadResponseHeader(4, f1.size + f2.size + f3.size + f4.size),
-          IndexedSeq(
+          Vector(
             client.definitions.DownloadResponseItem(
               f1.name,
-              IndexedSeq("A"),
+              Vector("A"),
               s"https://bucket.s3.amazonaws.com/${f1.s3Key}",
               f1.size
             ),
             client.definitions.DownloadResponseItem(
               f2.name,
-              IndexedSeq("A"),
+              Vector("A"),
               s"https://bucket.s3.amazonaws.com/${f2.s3Key}",
               f2.size
             ),
             client.definitions.DownloadResponseItem(
               f3.name,
-              IndexedSeq.empty,
+              Vector.empty,
               s"https://bucket.s3.amazonaws.com/${f3.s3Key}",
               f3.size
             ),
             client.definitions.DownloadResponseItem(
               f4.name,
-              IndexedSeq("A", "B"),
+              Vector("A", "B"),
               s"https://bucket.s3.amazonaws.com/${f4.s3Key}",
               f4.size
             )
@@ -1825,7 +1825,7 @@ class DatasetHandlerSpec
           .downloadManifest(
             v1.datasetId,
             v1.version,
-            DownloadRequest(IndexedSeq("A"))
+            DownloadRequest(Vector("A"))
           )
           .awaitFinite()
           .value
@@ -1834,22 +1834,22 @@ class DatasetHandlerSpec
         client.definitions.DownloadResponse(
           client.definitions
             .DownloadResponseHeader(3, f1.size + f2.size + f4.size),
-          IndexedSeq(
+          Vector(
             client.definitions.DownloadResponseItem(
               f1.name,
-              IndexedSeq("A"),
+              Vector("A"),
               s"https://bucket.s3.amazonaws.com/${f1.s3Key}",
               f1.size
             ),
             client.definitions.DownloadResponseItem(
               f2.name,
-              IndexedSeq("A"),
+              Vector("A"),
               s"https://bucket.s3.amazonaws.com/${f2.s3Key}",
               f2.size
             ),
             client.definitions.DownloadResponseItem(
               f4.name,
-              IndexedSeq("A", "B"),
+              Vector("A", "B"),
               s"https://bucket.s3.amazonaws.com/${f4.s3Key}",
               f4.size
             )
@@ -1887,7 +1887,7 @@ class DatasetHandlerSpec
           .downloadManifest(
             v1.datasetId,
             v1.version,
-            DownloadRequest(IndexedSeq("file3.txt"))
+            DownloadRequest(Vector("file3.txt"))
           )
           .awaitFinite()
           .value
@@ -1896,10 +1896,10 @@ class DatasetHandlerSpec
         client.definitions.DownloadResponse(
           client.definitions
             .DownloadResponseHeader(1, f3.size),
-          IndexedSeq(
+          Vector(
             client.definitions.DownloadResponseItem(
               f3.name,
-              IndexedSeq.empty,
+              Vector.empty,
               s"https://bucket.s3.amazonaws.com/${f3.s3Key}",
               f3.size
             )
@@ -1943,7 +1943,7 @@ class DatasetHandlerSpec
           .downloadManifest(
             v1.datasetId,
             v1.version,
-            DownloadRequest(IndexedSeq("A"), Some("A"))
+            DownloadRequest(Vector("A"), Some("A"))
           )
           .awaitFinite()
           .value
@@ -1952,22 +1952,22 @@ class DatasetHandlerSpec
         client.definitions.DownloadResponse(
           client.definitions
             .DownloadResponseHeader(3, f1.size + f2.size + f4.size),
-          IndexedSeq(
+          Vector(
             client.definitions.DownloadResponseItem(
               f1.name,
-              IndexedSeq.empty,
+              Vector.empty,
               s"https://bucket.s3.amazonaws.com/${f1.s3Key}",
               f1.size
             ),
             client.definitions.DownloadResponseItem(
               f2.name,
-              IndexedSeq.empty,
+              Vector.empty,
               s"https://bucket.s3.amazonaws.com/${f2.s3Key}",
               f2.size
             ),
             client.definitions.DownloadResponseItem(
               f4.name,
-              IndexedSeq("B"),
+              Vector("B"),
               s"https://bucket.s3.amazonaws.com/${f4.s3Key}",
               f4.size
             )
@@ -1980,7 +1980,7 @@ class DatasetHandlerSpec
           .downloadManifest(
             v1.datasetId,
             v1.version,
-            DownloadRequest(IndexedSeq("A/B"), Some("A/B"))
+            DownloadRequest(Vector("A/B"), Some("A/B"))
           )
           .awaitFinite()
           .value
@@ -1989,10 +1989,10 @@ class DatasetHandlerSpec
         client.definitions.DownloadResponse(
           client.definitions
             .DownloadResponseHeader(1, f4.size),
-          IndexedSeq(
+          Vector(
             client.definitions.DownloadResponseItem(
               f4.name,
-              IndexedSeq.empty,
+              Vector.empty,
               s"https://bucket.s3.amazonaws.com/${f4.s3Key}",
               f4.size
             )
@@ -2011,7 +2011,7 @@ class DatasetHandlerSpec
           .downloadManifest(
             v1.datasetId,
             v1.version,
-            DownloadRequest(IndexedSeq("A", "B", "A/B"), Some("A/B"))
+            DownloadRequest(Vector("A", "B", "A/B"), Some("A/B"))
           )
           .awaitFinite()
           .value
@@ -2046,7 +2046,7 @@ class DatasetHandlerSpec
           .downloadManifest(
             v1.datasetId,
             v1.version,
-            DownloadRequest(IndexedSeq(""))
+            DownloadRequest(Vector(""))
           )
           .awaitFinite()
           .value
@@ -2081,7 +2081,7 @@ class DatasetHandlerSpec
 
       response shouldBe GetDataUseAgreementResponse.OK(
         client.definitions
-          .DataUseAgreementDTO(
+          .DataUseAgreementDto(
             id = 12,
             name = "Agreement #1",
             body = "Legal Text",

@@ -115,14 +115,14 @@ class PublishHandlerSpec
     name = datasetName,
     description = "A very very long description...",
     ownerId = 1,
-    modelCount = IndexedSeq(definitions.ModelCount("myConcept", 100L)),
+    modelCount = Vector(definitions.ModelCount("myConcept", 100L)),
     recordCount = 100L,
     fileCount = 100L,
     size = 5555555L,
     license = License.`Apache 2.0`,
-    contributors = IndexedSeq(internalContributor),
-    externalPublications = Some(IndexedSeq(internalExternalPublication)),
-    tags = IndexedSeq[String]("tag1", "tag2"),
+    contributors = Vector(internalContributor),
+    externalPublications = Some(Vector(internalExternalPublication)),
+    tags = Vector[String]("tag1", "tag2"),
     ownerNodeId = ownerNodeId,
     ownerFirstName = ownerFirstName,
     ownerLastName = ownerLastName,
@@ -136,7 +136,7 @@ class PublishHandlerSpec
     name = "A different name",
     description = "Brief and succint.",
     license = License.MIT,
-    contributors = IndexedSeq(
+    contributors = Vector(
       new InternalContributor(
         1,
         "Sally",
@@ -155,7 +155,7 @@ class PublishHandlerSpec
       new InternalContributor(782, "Ada", "Lovelace")
     ),
     externalPublications = Some(
-      IndexedSeq(
+      Vector(
         internalExternalPublication,
         new definitions.InternalExternalPublication(
           "10.26275/v62f-qd4v",
@@ -163,7 +163,7 @@ class PublishHandlerSpec
         )
       )
     ),
-    tags = IndexedSeq[String]("red", "green", "blue"),
+    tags = Vector[String]("red", "green", "blue"),
     ownerId = 99999,
     ownerFirstName = "Haskell",
     ownerLastName = "Curry",
@@ -173,7 +173,7 @@ class PublishHandlerSpec
     readmePresignedUrl =
       "https://s3.amazonaws.localhost/dev-dataset-assets-use1/readme.md",
     collections = Some(
-      IndexedSeq[InternalCollection](
+      Vector[InternalCollection](
         new InternalCollection(id = 1, name = "An Amazing Collection")
       )
     )
@@ -1466,7 +1466,7 @@ class PublishHandlerSpec
           .awaitFinite()
           .value
 
-      val expected = IndexedSeq(
+      val expected = Vector(
         DatasetPublishStatus(
           publicDataset1.name,
           publicDataset1.sourceOrganizationId,

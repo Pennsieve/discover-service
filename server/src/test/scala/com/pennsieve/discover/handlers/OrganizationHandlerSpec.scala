@@ -9,7 +9,7 @@ import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.generateUserToken
 import com.pennsieve.discover.client.definitions.{
   DatasetMetrics,
-  DatasetMetricsDTO
+  DatasetMetricsDto
 }
 import com.pennsieve.discover.client.organization.{
   GetOrganizationDatasetMetricsResponse,
@@ -71,14 +71,14 @@ class OrganizationHandlerSpec
           .awaitFinite()
           .value
 
-      val expected = IndexedSeq(
+      val expected = Vector(
         DatasetMetrics(3, "Dataset 3", 9000),
         DatasetMetrics(2, "Dataset 2", 6000),
         DatasetMetrics(1, "Dataset 1", 3000)
       )
 
       response shouldBe GetOrganizationDatasetMetricsResponse.OK(
-        DatasetMetricsDTO(expected)
+        DatasetMetricsDto(expected)
       )
     }
   }

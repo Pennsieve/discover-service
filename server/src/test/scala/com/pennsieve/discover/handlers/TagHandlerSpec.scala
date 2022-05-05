@@ -53,7 +53,7 @@ class TagHandlerSpec
         )
       }
 
-      val expected = IndexedSeq(
+      val expected = Vector(
         DatasetTag("tag1", 5),
         DatasetTag("tag2", 3),
         DatasetTag("tag3", 3),

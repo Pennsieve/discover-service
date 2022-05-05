@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
-package com.pennsieve.discover.metrics
+package com.pennsieve.discover.handlers
 
 import java.time._
 
@@ -13,13 +13,8 @@ import com.pennsieve.discover.client.metrics.{
   MetricsClient
 }
 import org.scalatest.{ Matchers, WordSpec }
-import com.pennsieve.discover.handlers.MetricsHandler
 import com.pennsieve.discover.models.DownloadOrigin
 import com.pennsieve.discover.client.definitions.DatasetDownloadSummaryRow
-import com.pennsieve.discover.server.metrics.MetricsResource.{
-  getDatasetDownloadsSummaryResponse,
-  getDatasetDownloadsSummaryResponseOK
-}
 
 class MetricsHandlerSpec
     extends WordSpec
@@ -75,7 +70,7 @@ class MetricsHandlerSpec
 
       response shouldBe
         GetDatasetDownloadsSummaryResponse.OK(
-          IndexedSeq(
+          Vector(
             DatasetDownloadSummaryRow(
               1,
               1,

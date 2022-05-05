@@ -83,9 +83,9 @@ class ElasticSearchSpec
     license: License = License.MIT,
     size: Long = 12345L,
     doi: String = "10.21397/abcd-1234",
-    tags: IndexedSeq[String] = IndexedSeq("research"),
-    modelCount: IndexedSeq[definitions.ModelCount] =
-      IndexedSeq.empty[definitions.ModelCount],
+    tags: Vector[String] = Vector("research"),
+    modelCount: Vector[definitions.ModelCount] =
+      Vector.empty[definitions.ModelCount],
     fileCount: Int = 10,
     recordCount: Int = 0,
     status: PublishStatus = PublishStatus.PublishSucceeded,
@@ -94,9 +94,9 @@ class ElasticSearchSpec
     createdAt: OffsetDateTime = OffsetDateTime.now(),
     updatedAt: OffsetDateTime = OffsetDateTime.now(),
     readmeContents: Readme = Readme("readme"),
-    contributors: Seq[definitions.PublicContributorDTO] = Seq.empty
+    contributors: Seq[definitions.PublicContributorDto] = Seq.empty
   ): DatasetDocument = DatasetDocument(
-    definitions.PublicDatasetDTO(
+    definitions.PublicDatasetDto(
       id = id,
       sourceDatasetId = Some(sourceDatasetId),
       version = version,
@@ -122,7 +122,7 @@ class ElasticSearchSpec
       banner = banner,
       createdAt = createdAt,
       updatedAt = updatedAt,
-      contributors = contributors.toIndexedSeq
+      contributors = contributors.toVector
     ),
     readmeContents
   )
@@ -136,13 +136,13 @@ class ElasticSearchSpec
     organizationName = "University of Pennsylvania",
     doi = "10.21397/abcd-1234",
     size = 100L,
-    tags = IndexedSeq("research"),
+    tags = Vector("research"),
     createdAt = OffsetDateTime.now(),
     updatedAt = OffsetDateTime.now(),
     readmeContents = Readme("readme for dataset 1"),
     contributors = Seq(
       definitions
-        .PublicContributorDTO(
+        .PublicContributorDto(
           firstName = "Sally",
           lastName = "Field",
           middleInitial = Some("M")
@@ -160,13 +160,13 @@ class ElasticSearchSpec
     organizationId = 10,
     doi = "10.21397/wxyz-9876",
     size = 200L,
-    tags = IndexedSeq("research", "seizure"),
+    tags = Vector("research", "seizure"),
     createdAt = OffsetDateTime.now().plus(1.day.toJava),
     updatedAt = OffsetDateTime.now().plus(1.day.toJava),
     readmeContents = Readme("something else for dataset 2"),
     contributors = Seq(
       definitions
-        .PublicContributorDTO(
+        .PublicContributorDto(
           firstName = "Jeffrey",
           lastName = "Laurance Ardell",
           degree = Some(Degree.MD)
@@ -184,13 +184,13 @@ class ElasticSearchSpec
     organizationId = 10,
     doi = "10.21397/mmmm-1243",
     size = 300L,
-    tags = IndexedSeq("eeg", "brain", "seizure"),
+    tags = Vector("eeg", "brain", "seizure"),
     createdAt = OffsetDateTime.now().plus(2.day.toJava),
     updatedAt = OffsetDateTime.now().plus(2.day.toJava),
     readmeContents = Readme("readme for dataset 3"),
     contributors = Seq(
       definitions
-        .PublicContributorDTO(
+        .PublicContributorDto(
           firstName = "Colleen",
           lastName = "Clancy",
           middleInitial = Some("E"),

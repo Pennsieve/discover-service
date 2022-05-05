@@ -78,7 +78,7 @@ class FileHandlerSpec
         limit = 100,
         offset = 0,
         organizationId = expectedOrgId,
-        files = IndexedSeq(
+        files = Vector(
           client.definitions.File(
             name = f1.name,
             path = "A/file1.txt",
@@ -148,7 +148,7 @@ class FileHandlerSpec
         limit = 2,
         offset = 1,
         organizationId = expectedOrgId,
-        files = IndexedSeq(
+        files = Vector(
           client.definitions.File(
             name = f2.name,
             path = "A/file2.txt",

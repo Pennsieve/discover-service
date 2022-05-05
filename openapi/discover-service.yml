@@ -390,13 +390,13 @@ paths:
         "403":
           description: dataset is under embargo or dataset is too large to download
           content:
-            application/zip:
+            application/json:
               schema:
                 type: string
         "404":
           description: resource not found
           content:
-            application/zip:
+            application/json:
               schema:
                 type: string
         "410":
