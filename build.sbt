@@ -72,6 +72,7 @@ lazy val jacksonVersion = "2.9.6"
 lazy val Integration = config("integration") extend (Test)
 
 lazy val server = project
+  .dependsOn(client % "test")
   .enablePlugins(AutomateHeaderPlugin)
   .enablePlugins(DockerPlugin)
   .configs(Integration)
@@ -245,10 +246,9 @@ lazy val server = project
        | com.pennsieve.discover.server\..*;
        | com.pennsieve.discover.Server;
       """.stripMargin.replace("\n", ""),
-    coverageMinimum := 70,
+    coverageMinimumStmtTotal := 70,
     coverageFailOnMinimum := true
   )
-  .dependsOn(client % "test->compile")
 
 lazy val syncElasticSearch = project
   .enablePlugins(AutomateHeaderPlugin)
