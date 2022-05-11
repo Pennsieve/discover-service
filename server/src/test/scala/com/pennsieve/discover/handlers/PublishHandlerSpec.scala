@@ -12,6 +12,10 @@ import com.pennsieve.discover.Authenticator.{
   generateServiceToken,
   generateUserToken
 }
+import com.pennsieve.discover.CustomMatchers.{
+  PublicDatasetMatchers,
+  PublicDatasetVersionMatchers
+}
 import com.pennsieve.discover._
 import com.pennsieve.discover.client.definitions
 import com.pennsieve.discover.client.definitions.{
@@ -52,7 +56,9 @@ class PublishHandlerSpec
     with Matchers
     with Inside
     with ScalatestRouteTest
-    with ServiceSpecHarness {
+    with ServiceSpecHarness
+    with PublicDatasetMatchers
+    with PublicDatasetVersionMatchers {
 
   def createRoutes(): Route =
     Route.seal(PublishHandler.routes(ports))
@@ -300,13 +306,13 @@ class PublishHandlerSpec
         .awaitFinite()
 
       publicDataset should have(
-        'name (requestBody.name),
-        'sourceOrganizationId (organizationId),
-        'sourceDatasetId (datasetId),
-        'ownerId (requestBody.ownerId),
-        'ownerFirstName (requestBody.ownerFirstName),
-        'ownerLastName (requestBody.ownerLastName),
-        'ownerOrcid (requestBody.ownerOrcid)
+        name(requestBody.name),
+        sourceOrganizationId(organizationId),
+        sourceDatasetId(datasetId),
+        ownerId(requestBody.ownerId),
+        ownerFirstName(requestBody.ownerFirstName),
+        ownerLastName(requestBody.ownerLastName),
+        ownerOrcid(requestBody.ownerOrcid)
       )
 
       val publicVersion = ports.db
@@ -317,22 +323,22 @@ class PublishHandlerSpec
         .awaitFinite()
         .get
 
-      val doi = ports.doiClient
+      val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .getMockDoi(organizationId, datasetId)
         .get
 
       publicVersion should have(
-        'version (1),
-        'modelCount (Map[String, Long]("myConcept" -> 100L)),
-        'recordCount (requestBody.recordCount),
-        'fileCount (requestBody.fileCount),
-        'size (requestBody.size),
-        'description (requestBody.description),
-        'status (PublishStatus.PublishInProgress),
-        's3Bucket ("bucket"),
-        's3Key (s"${publicDataset.id}/${publicVersion.version}/"),
-        'doi (doi.doi)
+        version(1),
+        modelCount(Map[String, Long]("myConcept" -> 100L)),
+        recordCount(requestBody.recordCount),
+        fileCount(requestBody.fileCount),
+        size(requestBody.size),
+        description(requestBody.description),
+        status(PublishStatus.PublishInProgress),
+        s3Bucket(S3Bucket("bucket")),
+        s3Key(S3Key.Version(s"${publicDataset.id}/${publicVersion.version}/")),
+        doi(doiDto.doi)
       )
 
       val externalPublications = run(
@@ -371,7 +377,7 @@ class PublishHandlerSpec
               S3Key.Version(publicDataset.id, publicVersion.version) toString
             ),
             'version (publicVersion.version),
-            'doi (doi.doi)
+            'doi (doiDto.doi)
           )
           inside(job.contributors) {
             case contributor :: Nil =>
@@ -399,14 +405,14 @@ class PublishHandlerSpec
     }
 
     "publish to an embargo bucket" in {
-      val embargoReleaseDate = LocalDate.of(2025, 6, 1)
+      val expectedEmbargoReleaseDate = LocalDate.of(2025, 6, 1)
 
       val response = client
         .publish(
           organizationId,
           datasetId,
           Some(true),
-          Some(embargoReleaseDate),
+          Some(expectedEmbargoReleaseDate),
           requestBody,
           authToken
         )
@@ -433,13 +439,13 @@ class PublishHandlerSpec
         .awaitFinite()
 
       publicDataset should have(
-        'name (requestBody.name),
-        'sourceOrganizationId (organizationId),
-        'sourceDatasetId (datasetId),
-        'ownerId (requestBody.ownerId),
-        'ownerFirstName (requestBody.ownerFirstName),
-        'ownerLastName (requestBody.ownerLastName),
-        'ownerOrcid (requestBody.ownerOrcid)
+        name(requestBody.name),
+        sourceOrganizationId(organizationId),
+        sourceDatasetId(datasetId),
+        ownerId(requestBody.ownerId),
+        ownerFirstName(requestBody.ownerFirstName),
+        ownerLastName(requestBody.ownerLastName),
+        ownerOrcid(requestBody.ownerOrcid)
       )
 
       val publicVersion = ports.db
@@ -450,23 +456,23 @@ class PublishHandlerSpec
         .awaitFinite()
         .get
 
-      val doi = ports.doiClient
+      val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .getMockDoi(organizationId, datasetId)
         .get
 
       publicVersion should have(
-        'version (1),
-        'modelCount (Map[String, Long]("myConcept" -> 100L)),
-        'recordCount (requestBody.recordCount),
-        'fileCount (requestBody.fileCount),
-        'size (requestBody.size),
-        'description (requestBody.description),
-        'status (PublishStatus.EmbargoInProgress),
-        's3Bucket ("embargo-bucket"),
-        's3Key (s"${publicDataset.id}/${publicVersion.version}/"),
-        'doi (doi.doi),
-        'embargoReleaseDate (Some(embargoReleaseDate))
+        version(1),
+        modelCount(Map[String, Long]("myConcept" -> 100L)),
+        recordCount(requestBody.recordCount),
+        fileCount(requestBody.fileCount),
+        size(requestBody.size),
+        description(requestBody.description),
+        status(PublishStatus.EmbargoInProgress),
+        s3Bucket(S3Bucket("embargo-bucket")),
+        s3Key(S3Key.Version(s"${publicDataset.id}/${publicVersion.version}/")),
+        doi(doiDto.doi),
+        embargoReleaseDate(Some(expectedEmbargoReleaseDate))
       )
 
       val publishedJobs = ports.stepFunctionsClient
@@ -514,21 +520,21 @@ class PublishHandlerSpec
         Some(publicDataset1_V1.createdAt)
       )
 
-      val doi = ports.doiClient
+      val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .getMockDoi(organizationId, datasetId)
         .get
 
       publicVersion should have(
-        'version (2),
-        'modelCount (Map[String, Long]("myConcept" -> 100L)),
-        'recordCount (requestBody.recordCount),
-        'fileCount (requestBody.fileCount),
-        'size (requestBody.size),
-        'status (PublishStatus.PublishInProgress),
-        's3Bucket ("bucket"),
-        's3Key (s"${publicDataset.id}/${publicVersion.version}/"),
-        'doi (doi.doi)
+        version(2),
+        modelCount(Map[String, Long]("myConcept" -> 100L)),
+        recordCount(requestBody.recordCount),
+        fileCount(requestBody.fileCount),
+        size(requestBody.size),
+        status(PublishStatus.PublishInProgress),
+        s3Bucket(S3Bucket("bucket")),
+        s3Key(S3Key.Version(s"${publicDataset.id}/${publicVersion.version}/")),
+        doi(doiDto.doi)
       )
     }
 
@@ -568,21 +574,21 @@ class PublishHandlerSpec
         None
       )
 
-      val doi = ports.doiClient
+      val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .getMockDoi(organizationId, datasetId)
         .get
 
       latestVersion should have(
-        'version (1),
-        'modelCount (Map[String, Long]("myConcept" -> 100L)),
-        'recordCount (requestBody.recordCount),
-        'fileCount (requestBody.fileCount),
-        'size (requestBody.size),
-        'status (PublishStatus.PublishInProgress),
-        's3Bucket ("bucket"),
-        's3Key (s"${publicDataset.id}/${latestVersion.version}/"),
-        'doi (doi.doi)
+        version(1),
+        modelCount(Map[String, Long]("myConcept" -> 100L)),
+        recordCount(requestBody.recordCount),
+        fileCount(requestBody.fileCount),
+        size(requestBody.size),
+        status(PublishStatus.PublishInProgress),
+        s3Bucket(S3Bucket("bucket")),
+        s3Key(S3Key.Version(s"${publicDataset.id}/${latestVersion.version}/")),
+        doi(doiDto.doi)
       )
     }
 
@@ -622,21 +628,21 @@ class PublishHandlerSpec
         None
       )
 
-      val doi = ports.doiClient
+      val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .getMockDoi(organizationId, datasetId)
         .get
 
       latestVersion should have(
-        'version (1),
-        'modelCount (Map[String, Long]("myConcept" -> 100L)),
-        'recordCount (requestBody.recordCount),
-        'fileCount (requestBody.fileCount),
-        'size (requestBody.size),
-        'status (PublishStatus.PublishInProgress),
-        's3Bucket ("bucket"),
-        's3Key (s"${publicDataset.id}/${latestVersion.version}/"),
-        'doi (doi.doi)
+        version(1),
+        modelCount(Map[String, Long]("myConcept" -> 100L)),
+        recordCount(requestBody.recordCount),
+        fileCount(requestBody.fileCount),
+        size(requestBody.size),
+        status(PublishStatus.PublishInProgress),
+        s3Bucket(S3Bucket("bucket")),
+        s3Key(S3Key.Version(s"${publicDataset.id}/${latestVersion.version}/")),
+        doi(doiDto.doi)
       )
     }
 
