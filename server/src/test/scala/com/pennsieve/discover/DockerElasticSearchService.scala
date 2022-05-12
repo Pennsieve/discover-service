@@ -9,7 +9,7 @@ import scala.concurrent.duration._
 
 trait DockerElasticSearchService extends DockerKit with AwaitableImplicits {
 
-  val elasticSearchVersion = "6.7.2"
+  val elasticSearchVersion = "7.10.1"
   val advertisedPort: Int = 9200
 
   lazy val elasticSearchConfiguration: ElasticSearchConfiguration =

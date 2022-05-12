@@ -65,7 +65,7 @@ lazy val dockerItVersion = "0.9.9"
 lazy val logbackVersion = "1.2.3"
 lazy val awsSdkVersion = "2.10.56"
 lazy val pureConfigVersion = "0.17.1"
-lazy val elastic4sVersion = "6.7.8"
+lazy val elastic4sVersion = "7.10.9"//"6.7.8"
 lazy val catsVersion = "2.0.0"
 lazy val jacksonVersion = "2.9.6"
 
@@ -141,8 +141,8 @@ lazy val server = project
       "ch.qos.logback" % "logback-core" % logbackVersion,
       "net.logstash.logback" % "logstash-logback-encoder" % "5.2",
       "com.sksamuel.elastic4s" %% "elastic4s-core" % elastic4sVersion,
-      "com.sksamuel.elastic4s" %% "elastic4s-http" % elastic4sVersion,
-      "com.sksamuel.elastic4s" %% "elastic4s-circe" % elastic4sVersion,
+      "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion,
+      "com.sksamuel.elastic4s" %% "elastic4s-json-circe" % elastic4sVersion,
       "org.apache.commons" % "commons-lang3" % "3.9",
       "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.0",
       "org.scalikejdbc" %% "scalikejdbc" % "3.4.0",
