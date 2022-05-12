@@ -3,19 +3,16 @@
 package com.pennsieve.discover.search
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.pennsieve.models._
 import com.pennsieve.discover._
 import com.pennsieve.discover.TestUtilities._
 import com.pennsieve.discover.clients.AwsElasticSearchClient
 import com.pennsieve.discover.models._
 import com.pennsieve.discover.server.definitions
-import com.sksamuel.elastic4s.http.search.SearchResponse
-import com.sksamuel.elastic4s.http.ElasticDsl._
-import com.sksamuel.elastic4s.http.Response
+import com.sksamuel.elastic4s.ElasticDsl._
 import io.circe.generic.auto._
 import com.sksamuel.elastic4s.circe._
-import com.sksamuel.elastic4s.RefreshPolicy
+import com.sksamuel.elastic4s.requests.common.RefreshPolicy
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

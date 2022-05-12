@@ -9,35 +9,28 @@ import akka.stream.scaladsl._
 import com.pennsieve.discover.Config
 import com.pennsieve.discover.models._
 import com.pennsieve.models.FileManifest
-import com.sksamuel.elastic4s.http.search.SearchResponse
 import com.sksamuel.elastic4s.ElasticDsl._
-import com.sksamuel.elastic4s.http.{
+import com.sksamuel.elastic4s.analysis.LanguageAnalyzers
+import com.sksamuel.elastic4s.{
   ElasticClient,
   ElasticProperties,
-  Response
+  Handler,
+  Index
 }
-import com.sksamuel.elastic4s.{ Index, IndexAndType }
 import com.sksamuel.elastic4s.circe._
-import com.sksamuel.elastic4s.analyzers._
-import com.sksamuel.elastic4s.http.{ Functor, Handler }
-import com.sksamuel.elastic4s.http.bulk.BulkResponse
-import com.sksamuel.elastic4s.http.delete.DeleteByQueryResponse
-import com.sksamuel.elastic4s.http.index.IndexResponse
-import com.sksamuel.elastic4s.http.index.admin.AliasActionResponse
-import com.sksamuel.elastic4s.mappings.MappingDefinition
-import com.sksamuel.elastic4s.mappings.FieldType._
-import com.sksamuel.elastic4s.RefreshPolicy
-import com.sksamuel.elastic4s.searches.sort.SortOrder
-import com.sksamuel.elastic4s.searches.queries.{
+import com.sksamuel.elastic4s.http.JavaClient
+import com.sksamuel.elastic4s.requests.common.RefreshPolicy
+import com.sksamuel.elastic4s.requests.delete.DeleteByQueryResponse
+import com.sksamuel.elastic4s.requests.mappings.MappingDefinition
+import com.sksamuel.elastic4s.requests.searches.queries.{
   Query,
-  SimpleQueryStringFlag,
-  SimpleStringQuery
+  SimpleQueryStringFlag
 }
+import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.OffsetDateTime
 import scala.concurrent.{ ExecutionContext, Future }
-import scala.language.higherKinds
 
 trait SearchClient {
 
@@ -53,33 +46,26 @@ trait SearchClient {
   val recordAlias: Index = Index("record")
 
   /**
-    * Elastic4s requires a 'type` along with an index when inserting documents.
-    * This is a deprecated feature in Elastic, so the type is not used anywhere else.
-    */
-  val defaultType: String = "document"
-  def indexAndType(index: Index): IndexAndType = index.name / defaultType
-
-  /**
     * Index mapping for datasets
     */
   val datasetMapping: MappingDefinition =
-    MappingDefinition(defaultType) as (
+    MappingDefinition() as (
       textField("dataset.name").fields(
-        textField("english").analyzer(EnglishLanguageAnalyzer)
+        textField("english").analyzer(LanguageAnalyzers.english)
       ),
       textField("dataset.description").fields(
-        textField("english").analyzer(EnglishLanguageAnalyzer)
+        textField("english").analyzer(LanguageAnalyzers.english)
       ),
       booleanField("dataset.embargo").nullable(true),
       textField("dataset.tags").fields(
-        textField("english").analyzer(EnglishLanguageAnalyzer),
+        textField("english").analyzer(LanguageAnalyzers.english),
         keywordField("raw")
       ),
       textField("readme").fields(
-        textField("english").analyzer(EnglishLanguageAnalyzer)
+        textField("english").analyzer(LanguageAnalyzers.english)
       ),
       textField("contributors").fields(
-        textField("english").analyzer(EnglishLanguageAnalyzer),
+        textField("english").analyzer(LanguageAnalyzers.english),
         keywordField("raw")
       ),
       dateField("dataset.createdAt"),
@@ -109,18 +95,18 @@ trait SearchClient {
     * Index mapping for files
     */
   val fileMapping: MappingDefinition =
-    MappingDefinition(defaultType) as (
+    MappingDefinition() as (
       textField("name")
         .fields(
-          textField("english").analyzer(EnglishLanguageAnalyzer),
+          textField("english").analyzer(LanguageAnalyzers.english),
           // Split field on non-letter characters so that "results.zip"
           // can be found by querying "result".
-          textField("tokens").analyzer(SimpleAnalyzer)
+          textField("tokens").analyzer("simple")
         )
       )
 
   val recordMapping: MappingDefinition =
-    MappingDefinition(defaultType) as (
+    MappingDefinition() as (
       textField("record.model").fields(keywordField("raw")),
       // Don't index these metadata fields
       objectField("record.properties").enabled(false)
@@ -270,7 +256,7 @@ class AwsElasticSearchClient(
     with StrictLogging {
 
   val elasticClient: ElasticClient = ElasticClient(
-    ElasticProperties(elasticUri)
+    JavaClient(ElasticProperties(elasticUri))
   )
 
   /**
@@ -415,7 +401,7 @@ class AwsElasticSearchClient(
       bulk(
         datasets.map(
           dataset =>
-            indexInto(indexAndType(index.getOrElse(datasetAlias)))
+            indexInto(index.getOrElse(datasetAlias))
               .doc(dataset)
               .id(dataset.id)
         ): _*
@@ -440,7 +426,7 @@ class AwsElasticSearchClient(
           files
             .map(
               file =>
-                indexInto(indexAndType(index.getOrElse(fileAlias)))
+                indexInto(index.getOrElse(fileAlias))
                   .doc(file)
             )
             .grouped(1000)
@@ -469,7 +455,7 @@ class AwsElasticSearchClient(
           records
             .map(
               record =>
-                indexInto(indexAndType(index.getOrElse(recordAlias)))
+                indexInto(index.getOrElse(recordAlias))
                   .doc(record)
             )
         ).refresh(refreshPolicy)
@@ -491,13 +477,8 @@ class AwsElasticSearchClient(
     * Delete all documents for this dataset from the index.
     */
   def deleteDataset(datasetId: Int): Future[Done] =
-    execute(
-      deleteByQuery(
-        datasetAlias,
-        defaultType,
-        termQuery("dataset.id", datasetId)
-      )
-    ).map(_ => Done)
+    execute(deleteByQuery(datasetAlias, termQuery("dataset.id", datasetId)))
+      .map(_ => Done)
 
   /**
     * Delete all file entries for this dataset from the index, *excluding* those
@@ -519,7 +500,7 @@ class AwsElasticSearchClient(
           .must(termQuery("dataset.id", datasetId))
     }
 
-    execute(deleteByQuery(index.getOrElse(fileAlias), defaultType, query))
+    execute(deleteByQuery(index.getOrElse(fileAlias), query))
       .map(_ => Done)
   }
 
@@ -543,7 +524,7 @@ class AwsElasticSearchClient(
           .must(termQuery("record.datasetId", datasetId))
     }
 
-    execute(deleteByQuery(index.getOrElse(recordAlias), defaultType, query))
+    execute(deleteByQuery(index.getOrElse(recordAlias), query))
   }
 
   /**
@@ -576,7 +557,7 @@ class AwsElasticSearchClient(
           simpleStringQuery(_)
             .flags(SimpleQueryStringFlag.ALL)
             .defaultOperator("AND")
-            .analyzer(EnglishLanguageAnalyzer)
+            .analyzer(LanguageAnalyzers.english)
         )
 
     val filters = List(
@@ -611,7 +592,7 @@ class AwsElasticSearchClient(
     ).map(
       result =>
         DatasetSearchResponse(
-          totalCount = result.hits.total,
+          totalCount = result.hits.total.value,
           datasets = result.to[DatasetDocument],
           limit = limit,
           offset = offset
@@ -669,7 +650,7 @@ class AwsElasticSearchClient(
     ).map(
       result =>
         FileSearchResponse(
-          totalCount = result.hits.total,
+          totalCount = result.hits.total.value,
           files = result.to[FileDocument],
           limit = limit,
           offset = offset
@@ -700,7 +681,7 @@ class AwsElasticSearchClient(
     ).map(
       result =>
         RecordSearchResponse(
-          totalCount = result.hits.total,
+          totalCount = result.hits.total.value,
           records = result.to[RecordDocument],
           limit = limit,
           offset = offset
@@ -732,17 +713,17 @@ class AwsElasticSearchClient(
         // It also complains if "include_type_name" is not set explicitly, but elastic4s does not
         // provide a way to set this query parameter.
           .shards(5)
-          .mappings(mapping)
+          .mapping(mapping)
       )
 
       _ <- execute(refreshIndex(newIndex.name))
       result <- buildIndex(newIndex)
 
       removeAliases = aliasedIndices
-        .map(alias => removeAlias(alias.alias).on(alias.index))
+        .map(alias => removeAlias(alias.alias, alias.index))
 
       _ <- execute(
-        aliases(addAlias(alias.name).on(newIndex.name), removeAliases: _*)
+        aliases(addAlias(alias.name, newIndex.name), removeAliases: _*)
       )
 
       // Now that the new index has been promoted, it's safe to delete the old index

@@ -10,24 +10,11 @@ import com.pennsieve.discover.Config
 import com.pennsieve.discover.models._
 import com.pennsieve.models.FileManifest
 import com.pennsieve.test.AwaitableImplicits
-import com.sksamuel.elastic4s.http.search.SearchResponse
-import com.sksamuel.elastic4s.http.ElasticDsl._
-import com.sksamuel.elastic4s.http.{
-  ElasticClient,
-  ElasticProperties,
-  Response
-}
-import com.sksamuel.elastic4s.{ Index, IndexAndType }
+import com.sksamuel.elastic4s.ElasticDsl._
+import com.sksamuel.elastic4s.Index
 import com.sksamuel.elastic4s.circe._
-import com.sksamuel.elastic4s.http.bulk.BulkResponse
-import com.sksamuel.elastic4s.http.delete.DeleteByQueryResponse
-import com.sksamuel.elastic4s.http.index.IndexResponse
-import com.sksamuel.elastic4s.http.index.admin.AliasActionResponse
-import com.sksamuel.elastic4s.mappings.MappingDefinition
-import com.sksamuel.elastic4s.RefreshPolicy
-import com.typesafe.scalalogging.StrictLogging
+import com.sksamuel.elastic4s.requests.mappings.MappingDefinition
 
-import java.time.OffsetDateTime
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ ExecutionContext, Future }
