@@ -2,20 +2,18 @@
 
 package com.pennsieve.discover.clients
 
-import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.Uri
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.stream.testkit.scaladsl.TestSink
-import akka.stream.alpakka.s3.{ S3Attributes, S3Ext }
 import akka.util.ByteString
 import com.pennsieve.discover.S3Exception
 import com.pennsieve.discover.DockerS3Service
 import com.pennsieve.discover.models._
 import com.pennsieve.models._
 import com.pennsieve.test.AwaitableImplicits
-import com.typesafe.config.{ Config, ConfigFactory, ConfigValueFactory }
+import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
 import com.whisk.docker.scalatest.DockerTestKit
 import com.whisk.docker.DockerFactory
 import com.whisk.docker.impl.spotify.SpotifyDockerFactory
@@ -24,10 +22,11 @@ import com.spotify.docker.client.DefaultDockerClient
 import io.circe.syntax._
 import io.circe._
 import io.circe.parser._
-import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
+import io.circe.generic.semiauto.deriveDecoder
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.EitherValues._
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.model.{
@@ -48,10 +47,9 @@ import java.util.UUID
 import java.nio.file.{ Path, Paths }
 import java.time.OffsetDateTime
 import scala.compat.java8.DurationConverters._
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Random
-import software.amazon.awssdk.core.sync.ResponseTransformer
 
 class S3StreamClientSpec
     extends AnyWordSpec
@@ -465,7 +463,7 @@ class S3StreamClientSpec
       val manifest = getObject(publishBucket, "3/4/revisions/5/manifest.json")
 
       // Should drop the empty "files" key.
-      parse(manifest).right.get.hcursor.keys.get should not contain "files"
+      parse(manifest).value.hcursor.keys.get should not contain "files"
 
       // However, not having "files" makes decoding the dataset metadata a little painful.
       // TODO: make "files" optional in the root case class and remove this.
@@ -474,7 +472,7 @@ class S3StreamClientSpec
           _.withFocus(_.mapObject(_.add("files", List.empty[String].asJson)))
         )
 
-      decode[DatasetMetadataV4_0](manifest).right.get shouldBe DatasetMetadataV4_0(
+      decode[DatasetMetadataV4_0](manifest).value shouldBe DatasetMetadataV4_0(
         pennsieveDatasetId = 3,
         version = 4,
         revision = Some(5),

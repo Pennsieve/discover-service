@@ -12,10 +12,6 @@ import com.pennsieve.discover.Authenticator.{
   generateServiceToken,
   generateUserToken
 }
-import com.pennsieve.discover.CustomMatchers.{
-  PublicDatasetMatchers,
-  PublicDatasetVersionMatchers
-}
 import com.pennsieve.discover._
 import com.pennsieve.discover.client.definitions
 import com.pennsieve.discover.client.definitions.{
@@ -56,9 +52,7 @@ class PublishHandlerSpec
     with Matchers
     with Inside
     with ScalatestRouteTest
-    with ServiceSpecHarness
-    with PublicDatasetMatchers
-    with PublicDatasetVersionMatchers {
+    with ServiceSpecHarness {
 
   def createRoutes(): Route =
     Route.seal(PublishHandler.routes(ports))
@@ -305,15 +299,13 @@ class PublishHandlerSpec
         )
         .awaitFinite()
 
-      publicDataset should have(
-        name(requestBody.name),
-        sourceOrganizationId(organizationId),
-        sourceDatasetId(datasetId),
-        ownerId(requestBody.ownerId),
-        ownerFirstName(requestBody.ownerFirstName),
-        ownerLastName(requestBody.ownerLastName),
-        ownerOrcid(requestBody.ownerOrcid)
-      )
+      publicDataset.name shouldBe requestBody.name
+      publicDataset.sourceOrganizationId shouldBe organizationId
+      publicDataset.sourceDatasetId shouldBe datasetId
+      publicDataset.ownerId shouldBe requestBody.ownerId
+      publicDataset.ownerFirstName shouldBe requestBody.ownerFirstName
+      publicDataset.ownerLastName shouldBe requestBody.ownerLastName
+      publicDataset.ownerOrcid shouldBe requestBody.ownerOrcid
 
       val publicVersion = ports.db
         .run(
@@ -328,18 +320,18 @@ class PublishHandlerSpec
         .getMockDoi(organizationId, datasetId)
         .get
 
-      publicVersion should have(
-        version(1),
-        modelCount(Map[String, Long]("myConcept" -> 100L)),
-        recordCount(requestBody.recordCount),
-        fileCount(requestBody.fileCount),
-        size(requestBody.size),
-        description(requestBody.description),
-        status(PublishStatus.PublishInProgress),
-        s3Bucket(S3Bucket("bucket")),
-        s3Key(S3Key.Version(s"${publicDataset.id}/${publicVersion.version}/")),
-        doi(doiDto.doi)
+      publicVersion.version shouldBe 1
+      publicVersion.modelCount shouldBe Map[String, Long]("myConcept" -> 100L)
+      publicVersion.recordCount shouldBe requestBody.recordCount
+      publicVersion.fileCount shouldBe requestBody.fileCount
+      publicVersion.size shouldBe requestBody.size
+      publicVersion.description shouldBe requestBody.description
+      publicVersion.status shouldBe PublishStatus.PublishInProgress
+      publicVersion.s3Bucket shouldBe S3Bucket("bucket")
+      publicVersion.s3Key shouldBe S3Key.Version(
+        s"${publicDataset.id}/${publicVersion.version}/"
       )
+      publicVersion.doi shouldBe doiDto.doi
 
       val externalPublications = run(
         PublicExternalPublicationsMapper
@@ -357,50 +349,55 @@ class PublishHandlerSpec
 
       inside(publishedJobs.toList) {
         case job :: Nil =>
-          job should have(
-            'organizationId (organizationId),
-            'organizationNodeId (organizationNodeId),
-            'organizationName (organizationName),
-            'datasetId (datasetId),
-            'datasetNodeId (datasetNodeId),
-            'publishedDatasetId (publicDataset.id),
-            'userId (requestBody.ownerId),
-            'userNodeId (requestBody.ownerNodeId),
-            'userFirstName (requestBody.ownerFirstName),
-            'userLastName (requestBody.ownerLastName),
-            'userOrcid (requestBody.ownerOrcid),
-            's3PgdumpKey (
-              S3Key
-                .Version(publicDataset.id, publicVersion.version) / "dump.sql" toString
-            ),
-            's3PublishKey (
-              S3Key.Version(publicDataset.id, publicVersion.version) toString
-            ),
-            'version (publicVersion.version),
-            'doi (doiDto.doi)
-          )
           inside(job.contributors) {
             case contributor :: Nil =>
-              contributor should have(
-                'datasetId (publicDataset.id),
-                'versionId (publicVersion.version),
-                'firstName ("Sally"),
-                'lastName ("Field"),
-                'middleInitial (Some("M")),
-                'degree (Some(Degree.BS)),
-                'orcid (None),
-                'sourceContributorId (1),
-                'sourceUserId (None)
-              )
+              contributor.datasetId shouldBe publicDataset.id
+              contributor.versionId shouldBe publicVersion.version
+              contributor.firstName shouldBe "Sally"
+              contributor.lastName shouldBe "Field"
+              contributor.middleInitial shouldBe Some("M")
+              contributor.degree shouldBe Some(Degree.BS)
+              contributor.orcid shouldBe None
+              contributor.sourceContributorId shouldBe 1
+              contributor.sourceUserId shouldBe None
           }
 
           inside(job.externalPublications) {
             case externalPublication :: Nil =>
-              externalPublication should have(
-                'doi ("10.26275/t6j6-77pu"),
-                'relationshipType (RelationshipType.Describes)
-              )
+              externalPublication should matchPattern {
+                case PublicExternalPublication(
+                    "10.26275/t6j6-77pu",
+                    RelationshipType.Describes,
+                    _,
+                    _,
+                    _,
+                    _
+                    ) =>
+              }
           }
+
+          job.organizationId shouldBe organizationId
+          job.organizationNodeId shouldBe organizationNodeId
+          job.organizationName shouldBe organizationName
+          job.datasetId shouldBe datasetId
+          job.datasetNodeId shouldBe datasetNodeId
+          job.publishedDatasetId shouldBe publicDataset.id
+          job.userId shouldBe requestBody.ownerId
+          job.userNodeId shouldBe requestBody.ownerNodeId
+          job.userFirstName shouldBe requestBody.ownerFirstName
+          job.userLastName shouldBe requestBody.ownerLastName
+          job.userOrcid shouldBe requestBody.ownerOrcid
+          job.s3PgdumpKey shouldBe (
+            S3Key
+              .Version(publicDataset.id, publicVersion.version) / "dump.sql"
+          )
+          job.s3PublishKey shouldBe S3Key.Version(
+            publicDataset.id,
+            publicVersion.version
+          )
+          job.version shouldBe publicVersion.version
+          job.doi shouldBe doiDto.doi
+
       }
     }
 
@@ -438,15 +435,13 @@ class PublishHandlerSpec
         )
         .awaitFinite()
 
-      publicDataset should have(
-        name(requestBody.name),
-        sourceOrganizationId(organizationId),
-        sourceDatasetId(datasetId),
-        ownerId(requestBody.ownerId),
-        ownerFirstName(requestBody.ownerFirstName),
-        ownerLastName(requestBody.ownerLastName),
-        ownerOrcid(requestBody.ownerOrcid)
-      )
+      publicDataset.name shouldBe requestBody.name
+      publicDataset.sourceOrganizationId shouldBe organizationId
+      publicDataset.sourceDatasetId shouldBe datasetId
+      publicDataset.ownerId shouldBe requestBody.ownerId
+      publicDataset.ownerFirstName shouldBe requestBody.ownerFirstName
+      publicDataset.ownerLastName shouldBe requestBody.ownerLastName
+      publicDataset.ownerOrcid shouldBe requestBody.ownerOrcid
 
       val publicVersion = ports.db
         .run(
@@ -461,26 +456,26 @@ class PublishHandlerSpec
         .getMockDoi(organizationId, datasetId)
         .get
 
-      publicVersion should have(
-        version(1),
-        modelCount(Map[String, Long]("myConcept" -> 100L)),
-        recordCount(requestBody.recordCount),
-        fileCount(requestBody.fileCount),
-        size(requestBody.size),
-        description(requestBody.description),
-        status(PublishStatus.EmbargoInProgress),
-        s3Bucket(S3Bucket("embargo-bucket")),
-        s3Key(S3Key.Version(s"${publicDataset.id}/${publicVersion.version}/")),
-        doi(doiDto.doi),
-        embargoReleaseDate(Some(expectedEmbargoReleaseDate))
+      publicVersion.version shouldBe 1
+      publicVersion.modelCount shouldBe Map[String, Long]("myConcept" -> 100L)
+      publicVersion.recordCount shouldBe requestBody.recordCount
+      publicVersion.fileCount shouldBe requestBody.fileCount
+      publicVersion.size shouldBe requestBody.size
+      publicVersion.description shouldBe requestBody.description
+      publicVersion.status shouldBe PublishStatus.EmbargoInProgress
+      publicVersion.s3Bucket shouldBe S3Bucket("embargo-bucket")
+      publicVersion.s3Key shouldBe S3Key.Version(
+        s"${publicDataset.id}/${publicVersion.version}/"
       )
+      publicVersion.doi shouldBe doiDto.doi
+      publicVersion.embargoReleaseDate shouldBe Some(expectedEmbargoReleaseDate)
 
       val publishedJobs = ports.stepFunctionsClient
         .asInstanceOf[MockStepFunctionsClient]
         .startedJobs
 
-      publishedJobs.length shouldBe (1)
-      publishedJobs.head.s3Bucket shouldBe (S3Bucket("embargo-bucket"))
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.s3Bucket shouldBe S3Bucket("embargo-bucket")
     }
 
     "return the publishing status of the dataset" in {
@@ -525,17 +520,18 @@ class PublishHandlerSpec
         .getMockDoi(organizationId, datasetId)
         .get
 
-      publicVersion should have(
-        version(2),
-        modelCount(Map[String, Long]("myConcept" -> 100L)),
-        recordCount(requestBody.recordCount),
-        fileCount(requestBody.fileCount),
-        size(requestBody.size),
-        status(PublishStatus.PublishInProgress),
-        s3Bucket(S3Bucket("bucket")),
-        s3Key(S3Key.Version(s"${publicDataset.id}/${publicVersion.version}/")),
-        doi(doiDto.doi)
+      publicVersion.version shouldBe 2
+      publicVersion.modelCount shouldBe Map[String, Long]("myConcept" -> 100L)
+      publicVersion.recordCount shouldBe requestBody.recordCount
+      publicVersion.fileCount shouldBe requestBody.fileCount
+      publicVersion.size shouldBe requestBody.size
+      publicVersion.status shouldBe PublishStatus.PublishInProgress
+      publicVersion.s3Bucket shouldBe S3Bucket("bucket")
+      publicVersion.s3Key shouldBe S3Key.Version(
+        s"${publicDataset.id}/${publicVersion.version}/"
       )
+      publicVersion.doi shouldBe doiDto.doi
+
     }
 
     "delete a previously failed version before creating a new one" in {
@@ -579,17 +575,18 @@ class PublishHandlerSpec
         .getMockDoi(organizationId, datasetId)
         .get
 
-      latestVersion should have(
-        version(1),
-        modelCount(Map[String, Long]("myConcept" -> 100L)),
-        recordCount(requestBody.recordCount),
-        fileCount(requestBody.fileCount),
-        size(requestBody.size),
-        status(PublishStatus.PublishInProgress),
-        s3Bucket(S3Bucket("bucket")),
-        s3Key(S3Key.Version(s"${publicDataset.id}/${latestVersion.version}/")),
-        doi(doiDto.doi)
+      latestVersion.version shouldBe 1
+      latestVersion.modelCount shouldBe Map[String, Long]("myConcept" -> 100L)
+      latestVersion.recordCount shouldBe requestBody.recordCount
+      latestVersion.fileCount shouldBe requestBody.fileCount
+      latestVersion.size shouldBe requestBody.size
+      latestVersion.status shouldBe PublishStatus.PublishInProgress
+      latestVersion.s3Bucket shouldBe S3Bucket("bucket")
+      latestVersion.s3Key shouldBe S3Key.Version(
+        s"${publicDataset.id}/${latestVersion.version}/"
       )
+      latestVersion.doi shouldBe doiDto.doi
+
     }
 
     "delete an embargoed dataset version before publishing a new version" in {
@@ -633,17 +630,18 @@ class PublishHandlerSpec
         .getMockDoi(organizationId, datasetId)
         .get
 
-      latestVersion should have(
-        version(1),
-        modelCount(Map[String, Long]("myConcept" -> 100L)),
-        recordCount(requestBody.recordCount),
-        fileCount(requestBody.fileCount),
-        size(requestBody.size),
-        status(PublishStatus.PublishInProgress),
-        s3Bucket(S3Bucket("bucket")),
-        s3Key(S3Key.Version(s"${publicDataset.id}/${latestVersion.version}/")),
-        doi(doiDto.doi)
+      latestVersion.version shouldBe 1
+      latestVersion.modelCount shouldBe Map[String, Long]("myConcept" -> 100L)
+      latestVersion.recordCount shouldBe requestBody.recordCount
+      latestVersion.fileCount shouldBe requestBody.fileCount
+      latestVersion.size shouldBe requestBody.size
+      latestVersion.status shouldBe PublishStatus.PublishInProgress
+      latestVersion.s3Bucket shouldBe S3Bucket("bucket")
+      latestVersion.s3Key shouldBe S3Key.Version(
+        s"${publicDataset.id}/${latestVersion.version}/"
       )
+      latestVersion.doi shouldBe doiDto.doi
+
     }
 
     "fail to embargo a dataset that is already published" in {
@@ -789,29 +787,22 @@ class PublishHandlerSpec
       revision.revision shouldBe 1
 
       // Updates dataset and version tables
-      revisedDataset should have(
-        'name ("A different name"),
-        'license (License.MIT),
-        'tags (List("red", "green", "blue")),
-        'ownerId (99999),
-        'ownerFirstName ("Haskell"),
-        'ownerLastName ("Curry"),
-        'ownerOrcid ("0000-1111-1111-1111")
+      revisedDataset.name shouldBe "A different name"
+      revisedDataset.license shouldBe License.MIT
+      revisedDataset.tags shouldBe List("red", "green", "blue")
+      revisedDataset.ownerId shouldBe 99999
+      revisedDataset.ownerFirstName shouldBe "Haskell"
+      revisedDataset.ownerLastName shouldBe "Curry"
+      revisedDataset.ownerOrcid shouldBe "0000-1111-1111-1111"
+
+      revisedVersion.status shouldBe PublishSucceeded
+      revisedVersion.description shouldBe "Brief and succint."
+      revisedVersion.size shouldBe (76543 + 300) // From publish notification + new files
+      revisedVersion.banner shouldBe Some(
+        revisedVersion.s3Key / s"revisions/${revision.revision}/banner.jpg"
       )
-      revisedVersion should have(
-        'status (PublishSucceeded),
-        'description ("Brief and succint."),
-        'size (76543 + 300), // From publish notification + new files
-        'banner (
-          Some(
-            revisedVersion.s3Key / s"revisions/${revision.revision}/banner.jpg"
-          )
-        ),
-        'readme (
-          Some(
-            revisedVersion.s3Key / s"revisions/${revision.revision}/readme.md"
-          )
-        )
+      revisedVersion.readme shouldBe Some(
+        revisedVersion.s3Key / s"revisions/${revision.revision}/readme.md"
       )
 
       // Updates contributors table
@@ -896,9 +887,7 @@ class PublishHandlerSpec
       // Reindexes the dataset with the revision
       val (indexedVersion, indexedRevision, _, _, _) = ports.searchClient
         .asInstanceOf[MockSearchClient]
-        .indexedDatasets
-        .get(revisedDataset.id)
-        .get
+        .indexedDatasets(revisedDataset.id)
       indexedVersion.version shouldBe revisedVersion.version
       indexedRevision.get.revision shouldBe revision.revision
     }
@@ -963,9 +952,8 @@ class PublishHandlerSpec
       // Reindexes the dataset with the revision
       val (indexedVersion, indexedRevision, _, _, _) = ports.searchClient
         .asInstanceOf[MockSearchClient]
-        .indexedDatasets
-        .get(revisedDataset.id)
-        .get
+        .indexedDatasets(revisedDataset.id)
+
       indexedVersion.version shouldBe revisedVersion.version
       indexedRevision.get.revision shouldBe revision.revision
     }
@@ -1558,9 +1546,7 @@ class PublishHandlerSpec
 
       val (_, _, indexedSponsorship, _, _) = ports.searchClient
         .asInstanceOf[MockSearchClient]
-        .indexedDatasets
-        .get(dataset.id)
-        .get
+        .indexedDatasets(dataset.id)
 
       indexedSponsorship shouldBe Some(savedSponsorship)
 
@@ -1592,9 +1578,7 @@ class PublishHandlerSpec
 
       val (_, _, indexedUpdatedSponsorship, _, _) = ports.searchClient
         .asInstanceOf[MockSearchClient]
-        .indexedDatasets
-        .get(dataset.id)
-        .get
+        .indexedDatasets(dataset.id)
 
       indexedUpdatedSponsorship shouldBe Some(updatedSavedSponsorship)
     }
@@ -1661,9 +1645,7 @@ class PublishHandlerSpec
 
       val (_, _, indexedUpdatedSponsorship, _, _) = ports.searchClient
         .asInstanceOf[MockSearchClient]
-        .indexedDatasets
-        .get(dataset.id)
-        .get
+        .indexedDatasets(dataset.id)
 
       indexedUpdatedSponsorship shouldBe None
 

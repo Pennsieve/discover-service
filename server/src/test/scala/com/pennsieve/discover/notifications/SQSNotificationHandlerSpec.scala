@@ -3,7 +3,6 @@
 package com.pennsieve.discover.notifications
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.stream.alpakka.sqs.MessageAction
 import com.pennsieve.discover.ServiceSpecHarness
@@ -18,13 +17,10 @@ import com.pennsieve.discover.clients.{
   MockVictorOpsClient
 }
 import com.pennsieve.discover.models.{
-  DatasetDocument,
-  FileDocument,
   PublicDatasetVersion,
   PublicFile,
   PublishJobOutput,
-  S3Bucket,
-  S3Key
+  S3Bucket
 }
 import com.pennsieve.discover.db.{
   PublicDatasetVersionsMapper,
@@ -47,7 +43,7 @@ import java.util.Calendar
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class vSQSNotificationHandlerSpec
+class SQSNotificationHandlerSpec
     extends AnyWordSpec
     with Matchers
     with Inside
@@ -184,19 +180,14 @@ class vSQSNotificationHandlerSpec
         )
       )
 
-      ports.doiClient
+      val actualDoi: DoiDTO = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .dois
-        .get(doi.doi)
-        .get should have(
-        'title (Some(publicDataset.name)),
-        'creators (Some(List())),
-        'publicationYear (Some(futureYear)),
-        'url (
-          Some(
-            s"https://discover.pennsieve.org/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
-          )
-        )
+        .dois(doi.doi)
+      actualDoi.title shouldBe Some(publicDataset.name)
+      actualDoi.creators shouldBe Some(List())
+      actualDoi.publicationYear shouldBe Some(futureYear)
+      actualDoi.url shouldBe Some(
+        s"https://discover.pennsieve.org/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
       )
 
       val (
@@ -208,9 +199,7 @@ class vSQSNotificationHandlerSpec
       ) =
         ports.searchClient
           .asInstanceOf[MockSearchClient]
-          .indexedDatasets
-          .get(publicDataset.id)
-          .get
+          .indexedDatasets(publicDataset.id)
 
       indexedVersion.version shouldBe publicDatasetV1.version
       indexedRevision shouldBe None
@@ -285,9 +274,7 @@ class vSQSNotificationHandlerSpec
 
       ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .dois
-        .get(doi.doi)
-        .get
+        .dois(doi.doi)
         .state shouldBe Some(DoiState.Draft)
 
       val alert = ports.victorOpsClient
@@ -360,9 +347,7 @@ class vSQSNotificationHandlerSpec
       ) =
         ports.searchClient
           .asInstanceOf[MockSearchClient]
-          .indexedDatasets
-          .get(publicDataset.id)
-          .get
+          .indexedDatasets(publicDataset.id)
 
       indexedVersion.version shouldBe publicDatasetV1.version
       indexedRevision shouldBe None
@@ -435,9 +420,7 @@ class vSQSNotificationHandlerSpec
 
       ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .dois
-        .get(doi.doi)
-        .get
+        .dois(doi.doi)
         .state shouldBe Some(DoiState.Draft)
 
       val alert = ports.victorOpsClient
@@ -582,9 +565,7 @@ class vSQSNotificationHandlerSpec
     ) =
       ports.searchClient
         .asInstanceOf[MockSearchClient]
-        .indexedDatasets
-        .get(publicDataset.id)
-        .get
+        .indexedDatasets(publicDataset.id)
 
     indexedVersion.version shouldBe publicDatasetV1.version
     indexedRevision shouldBe None
