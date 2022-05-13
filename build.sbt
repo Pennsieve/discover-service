@@ -65,7 +65,7 @@ lazy val dockerItVersion = "0.9.9"
 lazy val logbackVersion = "1.2.3"
 lazy val awsSdkVersion = "2.10.56"
 lazy val pureConfigVersion = "0.17.1"
-lazy val elastic4sVersion = "7.10.9"//"6.7.8"
+lazy val elastic4sVersion = "7.12.3"//"6.7.8"
 lazy val catsVersion = "2.0.0"
 lazy val jacksonVersion = "2.9.6"
 

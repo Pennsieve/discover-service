@@ -3,7 +3,7 @@
 package com.pennsieve.discover.clients
 
 import akka.actor.ActorSystem
-import akka.{ Done, NotUsed }
+import akka.{Done, NotUsed}
 import akka.stream._
 import akka.stream.scaladsl._
 import com.pennsieve.discover.Config
@@ -11,26 +11,19 @@ import com.pennsieve.discover.models._
 import com.pennsieve.models.FileManifest
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.analysis.LanguageAnalyzers
-import com.sksamuel.elastic4s.{
-  ElasticClient,
-  ElasticProperties,
-  Handler,
-  Index
-}
+import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties, Handler, Index}
 import com.sksamuel.elastic4s.circe._
+import com.sksamuel.elastic4s.fields.ObjectField
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.requests.common.RefreshPolicy
 import com.sksamuel.elastic4s.requests.delete.DeleteByQueryResponse
 import com.sksamuel.elastic4s.requests.mappings.MappingDefinition
-import com.sksamuel.elastic4s.requests.searches.queries.{
-  Query,
-  SimpleQueryStringFlag
-}
+import com.sksamuel.elastic4s.requests.searches.queries.{Query, SimpleQueryStringFlag}
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.OffsetDateTime
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 trait SearchClient {
 
@@ -70,14 +63,14 @@ trait SearchClient {
       ),
       dateField("dataset.createdAt"),
       // Don't index these metadata fields
-      objectField("dataset.readme").enabled(false),
-      objectField("dataset.contributors").enabled(false),
-      objectField("dataset.banner").enabled(false),
-      objectField("dataset.updatedAt").enabled(false),
-      objectField("dataset.uri").enabled(false),
-      objectField("dataset.arn").enabled(false),
-      objectField("dataset.revision").enabled(false),
-      objectField("dataset.revisedAt").enabled(false),
+      ObjectField("dataset.readme", enabled= Some(false)),
+      ObjectField("dataset.contributors", enabled = Some(false)),
+      ObjectField("dataset.banner", enabled= Some(false)),
+      ObjectField("dataset.updatedAt", enabled = Some(false)),
+      ObjectField("dataset.uri", enabled = Some(false)),
+      ObjectField("dataset.arn", enabled = Some(false)),
+      ObjectField("dataset.revision", enabled = Some(false)),
+      ObjectField("dataset.revisedAt", enabled = Some(false)),
       // This is a hack to get ordering by dataset name to work. ElasticSearch
       // lets you set "normalizers" on keyword fields that automatically perform
       // transformations at index and query time, by Elastic4s is failing with a
@@ -109,7 +102,7 @@ trait SearchClient {
     MappingDefinition() as (
       textField("record.model").fields(keywordField("raw")),
       // Don't index these metadata fields
-      objectField("record.properties").enabled(false)
+      ObjectField("record.properties", enabled = Some(false))
   )
 
   def indexDataset(
