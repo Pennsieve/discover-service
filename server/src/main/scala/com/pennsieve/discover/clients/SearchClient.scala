@@ -3,7 +3,7 @@
 package com.pennsieve.discover.clients
 
 import akka.actor.ActorSystem
-import akka.{Done, NotUsed}
+import akka.{ Done, NotUsed }
 import akka.stream._
 import akka.stream.scaladsl._
 import com.pennsieve.discover.Config
@@ -11,19 +11,27 @@ import com.pennsieve.discover.models._
 import com.pennsieve.models.FileManifest
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.analysis.LanguageAnalyzers
-import com.sksamuel.elastic4s.{ElasticClient, ElasticProperties, Handler, Index}
+import com.sksamuel.elastic4s.{
+  ElasticClient,
+  ElasticProperties,
+  Handler,
+  Index
+}
 import com.sksamuel.elastic4s.circe._
-import com.sksamuel.elastic4s.fields.ObjectField
+import com.sksamuel.elastic4s.fields.{ BooleanField, ObjectField }
 import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.requests.common.RefreshPolicy
 import com.sksamuel.elastic4s.requests.delete.DeleteByQueryResponse
 import com.sksamuel.elastic4s.requests.mappings.MappingDefinition
-import com.sksamuel.elastic4s.requests.searches.queries.{Query, SimpleQueryStringFlag}
+import com.sksamuel.elastic4s.requests.searches.queries.{
+  Query,
+  SimpleQueryStringFlag
+}
 import com.sksamuel.elastic4s.requests.searches.sort.SortOrder
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.OffsetDateTime
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 trait SearchClient {
 
@@ -49,7 +57,7 @@ trait SearchClient {
       textField("dataset.description").fields(
         textField("english").analyzer(LanguageAnalyzers.english)
       ),
-      booleanField("dataset.embargo").nullable(true),
+      BooleanField("dataset.embargo", nullValue = Some(false)),
       textField("dataset.tags").fields(
         textField("english").analyzer(LanguageAnalyzers.english),
         keywordField("raw")
@@ -63,9 +71,9 @@ trait SearchClient {
       ),
       dateField("dataset.createdAt"),
       // Don't index these metadata fields
-      ObjectField("dataset.readme", enabled= Some(false)),
+      ObjectField("dataset.readme", enabled = Some(false)),
       ObjectField("dataset.contributors", enabled = Some(false)),
-      ObjectField("dataset.banner", enabled= Some(false)),
+      ObjectField("dataset.banner", enabled = Some(false)),
       ObjectField("dataset.updatedAt", enabled = Some(false)),
       ObjectField("dataset.uri", enabled = Some(false)),
       ObjectField("dataset.arn", enabled = Some(false)),
@@ -251,6 +259,13 @@ class AwsElasticSearchClient(
   val elasticClient: ElasticClient = ElasticClient(
     JavaClient(ElasticProperties(elasticUri))
   )
+
+  // It looks like refreshPolicy is only set for testing and is set to WaitFor.
+  // But delete_by_query cannot accept wait_for as a refresh value and does need to be
+  // refreshed for test to pass.
+  val deleteByQueryRefreshPolicy =
+    if (refreshPolicy == RefreshPolicy.WaitFor) RefreshPolicy.IMMEDIATE
+    else refreshPolicy
 
   /**
     * Wrapper around Elastic client that always maps the result in order to
@@ -493,8 +508,10 @@ class AwsElasticSearchClient(
           .must(termQuery("dataset.id", datasetId))
     }
 
-    execute(deleteByQuery(index.getOrElse(fileAlias), query))
-      .map(_ => Done)
+    execute(
+      deleteByQuery(index.getOrElse(fileAlias), query)
+        .refresh(deleteByQueryRefreshPolicy)
+    ).map(_ => Done)
   }
 
   /**
@@ -729,4 +746,5 @@ class AwsElasticSearchClient(
 
     } yield result
   }
+
 }
