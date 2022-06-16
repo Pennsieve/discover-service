@@ -8,11 +8,6 @@ resolvers ++= Seq(
       "[organization]/[module]/(scala_[scalaVersion]/)(sbt_[sbtVersion]/)[revision]/[type]s/[artifact](-[classifier]).[ext]"
     )
   ),
-  // Hotfix for https://github.com/lightbend/mima/issues/422
-  Resolver.url(
-    "typesafe sbt-plugins",
-    url("https://dl.bintray.com/typesafe/sbt-plugins")
-  )(Resolver.ivyStylePatterns)
 )
 
 credentials += Credentials(
@@ -25,7 +20,7 @@ credentials += Credentials(
 // Until https://github.com/coursier/coursier/issues/1815 is fixed
 useCoursier := false
 
-addSbtPlugin("com.twilio" % "sbt-guardrail" % "0.52.1")
+addSbtPlugin("dev.guardrail" % "sbt-guardrail" % "0.70.0.2")
 
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.9.1")
 
@@ -35,10 +30,10 @@ addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.6")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.1")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.9.3")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.0.0")
 
-addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.10.0-RC1")
+addDependencyTreePlugin
 
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")

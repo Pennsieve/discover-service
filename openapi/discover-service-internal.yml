@@ -531,7 +531,7 @@ components:
         modelCount:
           type: array
           items:
-            $ref: ./discover-service.yml#/definitions/ModelCount
+            $ref: ./discover-service.yml#/components/schemas/ModelCount
         recordCount:
           type: integer
           format: int64
