@@ -38,16 +38,6 @@ lazy val headerLicenseValue = Some(
 )
 lazy val headerMappingsValue = HeaderFileType.scala -> HeaderCommentStyle.cppStyleLineComment
 
-// Dependency hell is brewing here:
-//
-// Elastic4s cannot be upgraded because it will bump Circe to 12.0
-// Circe cannot be upgraded because pennsieve-api depends on the generated client, and is currently on 11.0
-// AWS SDK cannot be upgraded because it bumps Jackson > 10.0, which breaks Elastic4s
-//
-// ...help.
-//
-// The dependencyOverrides below fix issues with Jackson for AWS and Elastic4s
-
 lazy val akkaHttpVersion = "10.1.11"
 lazy val akkaVersion = "2.6.5"
 lazy val alpakkaVersion = "1.1.0"
@@ -65,7 +55,7 @@ lazy val dockerItVersion = "0.9.9"
 lazy val logbackVersion = "1.2.3"
 lazy val awsSdkVersion = "2.10.56"
 lazy val pureConfigVersion = "0.17.1"
-lazy val elastic4sVersion = "7.12.3"//"6.7.8"
+lazy val elastic4sVersion = "7.12.3"
 lazy val catsVersion = "2.0.0"
 lazy val jacksonVersion = "2.9.6"
 
@@ -163,11 +153,11 @@ lazy val server = project
     Compile / guardrailTasks := List(
       ScalaServer(
         file("openapi/discover-service.yml"),
-        pkg = "com.pennsieve.discover.server",
+        pkg = "com.pennsieve.discover.server"
       ),
       ScalaServer(
         file("openapi/discover-service-internal.yml"),
-        pkg = "com.pennsieve.discover.server",
+        pkg = "com.pennsieve.discover.server"
       )
     ),
     docker / dockerfile := {
@@ -235,7 +225,8 @@ lazy val server = project
         MergeStrategy.discard
       case PathList("codegen-resources", "waiters-2.json", _ @_*) =>
         MergeStrategy.discard
-
+      case PathList("module-info.class") => MergeStrategy.discard
+      case x if x.endsWith("/module-info.class") => MergeStrategy.discard
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
@@ -317,6 +308,8 @@ lazy val syncElasticSearch = project
         MergeStrategy.discard
       case PathList("codegen-resources", "waiters-2.json", _ @_*) =>
         MergeStrategy.discard
+      case PathList("module-info.class") => MergeStrategy.discard
+      case x if x.endsWith("/module-info.class") => MergeStrategy.discard
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
