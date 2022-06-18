@@ -61,6 +61,20 @@ lazy val jacksonVersion = "2.9.6"
 
 lazy val Integration = config("integration") extend (Test)
 
+lazy val serverTestDependencies = Seq(
+  "org.scalatest" %% "scalatest" % "3.2.12" % Test,
+  "com.whisk" %% "docker-testkit-scalatest" % dockerItVersion % Test,
+  "com.whisk" %% "docker-testkit-impl-spotify" % dockerItVersion % Test,
+  "com.pennsieve" %% "utilities" % utilitiesVersion % "test" classifier "tests",
+  "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion % "test" classifier "tests",
+  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
+  "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
+  "org.apache.httpcomponents" % "httpclient" % "4.5.8" % Test,
+  "software.amazon.awssdk" % "s3" % awsSdkVersion % Test,
+  "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test
+)
+
 lazy val server = project
   .dependsOn(client % "test")
   .enablePlugins(AutomateHeaderPlugin)
@@ -136,9 +150,9 @@ lazy val server = project
       "org.apache.commons" % "commons-lang3" % "3.9",
       "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.0",
       "org.scalikejdbc" %% "scalikejdbc" % "3.4.0",
-      "com.zaneli" %% "scalikejdbc-athena" % "0.2.4",
+      "com.zaneli" %% "scalikejdbc-athena" % "0.2.4"
       // Test dependencies
-      "org.scalatest" %% "scalatest" % "3.2.12" % Test,
+      /*"org.scalatest" %% "scalatest" % "3.2.12" % Test,
       "com.whisk" %% "docker-testkit-scalatest" % dockerItVersion % Test,
       "com.whisk" %% "docker-testkit-impl-spotify" % dockerItVersion % Test,
       "com.pennsieve" %% "utilities" % utilitiesVersion % "test" classifier "tests",
@@ -148,8 +162,8 @@ lazy val server = project
       "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
       "org.apache.httpcomponents" % "httpclient" % "4.5.8" % Test,
       "software.amazon.awssdk" % "s3" % awsSdkVersion % Test,
-      "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test
-    ),
+      "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test*/
+    ) ++ serverTestDependencies,
     Compile / guardrailTasks := List(
       ScalaServer(
         file("openapi/discover-service.yml"),
@@ -240,6 +254,36 @@ lazy val server = project
     coverageMinimumStmtTotal := 70,
     coverageFailOnMinimum := true
   )
+
+lazy val createFatJarTest =
+  taskKey[Unit]("Writes a bash script to run tests against fat jar")
+
+lazy val fatJarTest = project.settings(
+  name := "discover-service-fat-jar-test",
+  libraryDependencies ++= serverTestDependencies,
+  createFatJarTest := {
+    import java.io.File
+    val script: File = new File("target/fatJarTest.sh")
+    val fatJar: File = (server / assembly).value
+    val serverTestDependenciesJars: Seq[File] =
+      (Test / dependencyClasspath).value.map(_.data)
+    // server has a test-only dependency on client, so client is not in fat jar but we need them
+    val clientClassDirectory: File = (client / Compile / classDirectory).value
+    val classpath =
+      (Seq(fatJar, clientClassDirectory) ++ serverTestDependenciesJars)
+        .mkString(File.pathSeparator)
+    val testDirectory = (server / Test / classDirectory).value.toString
+      .replace(" ", "\\ ")
+    sbt.IO.writeLines(
+      script,
+      Seq(
+        s"""classpath="$classpath"""",
+        s"""scala -cp "$$classpath" org.scalatest.tools.Runner -R "$testDirectory" -oI"""
+      )
+    )
+
+  }
+)
 
 lazy val syncElasticSearch = project
   .enablePlugins(AutomateHeaderPlugin)
