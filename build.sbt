@@ -38,9 +38,9 @@ lazy val headerLicenseValue = Some(
 )
 lazy val headerMappingsValue = HeaderFileType.scala -> HeaderCommentStyle.cppStyleLineComment
 
-lazy val akkaHttpVersion = "10.1.11"
-lazy val akkaVersion = "2.6.5"
-lazy val alpakkaVersion = "1.1.0"
+lazy val akkaHttpVersion = "10.2.7"
+lazy val akkaVersion = "2.6.8"
+lazy val alpakkaVersion = "2.0.2"
 lazy val circeVersion = SettingKey[String]("circeVersion")
 lazy val circe212Version = "0.11.1"
 lazy val circe213Version = "0.14.1"
