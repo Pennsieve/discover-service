@@ -40,7 +40,7 @@ class SearchHandlerSpec
     Route.seal(SearchHandler.routes(ports))
 
   def createClient(routes: Route): SearchClient =
-    SearchClient.httpClient(Route.asyncHandler(routes))
+    SearchClient.httpClient(Route.toFunction(routes))
 
   val searchClient: SearchClient = createClient(createRoutes())
 

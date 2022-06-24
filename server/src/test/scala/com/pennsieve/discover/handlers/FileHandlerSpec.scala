@@ -31,7 +31,7 @@ class FileHandlerSpec
     Route.seal(FileHandler.routes(ports))
 
   def createClient(routes: Route): FileClient =
-    FileClient.httpClient(Route.asyncHandler(routes))
+    FileClient.httpClient(Route.toFunction(routes))
 
   val fileClient: FileClient = createClient(createRoutes())
 

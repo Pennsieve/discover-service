@@ -105,7 +105,7 @@ class DatasetHandlerSpec
     Route.seal(DatasetHandler.routes(ports))
 
   def createClient(routes: Route): DatasetClient =
-    DatasetClient.httpClient(Route.asyncHandler(routes))
+    DatasetClient.httpClient(Route.toFunction(routes))
 
   def toClientDefinition(
     dto: server.definitions.PublicDatasetDto
