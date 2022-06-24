@@ -38,12 +38,21 @@ lazy val headerLicenseValue = Some(
 )
 lazy val headerMappingsValue = HeaderFileType.scala -> HeaderCommentStyle.cppStyleLineComment
 
-lazy val akkaHttpVersion = "10.2.7"
-lazy val akkaVersion = "2.6.8"
-lazy val alpakkaVersion = "2.0.2"
+lazy val akkaHttpVersion = SettingKey[String]("akkaHttpVersion")
+lazy val akkaVersion = SettingKey[String]("akkaVersion")
+lazy val alpakkaVersion = SettingKey[String]("alpakkaVersion")
+
+lazy val akkaHttp213Version = "10.2.7"
+lazy val akka213Version = "2.6.8"
+lazy val alpakka213Version = "2.0.2"
+lazy val akkaHttp212Version = "10.1.11"
+lazy val akka212Version = "2.6.5"
+lazy val alpakka212Version = "1.1.0"
+
 lazy val circeVersion = SettingKey[String]("circeVersion")
 lazy val circe212Version = "0.11.1"
 lazy val circe213Version = "0.14.1"
+
 lazy val coreVersion = "166-27f7fae"
 lazy val authMiddlewareVersion = "5.1.3"
 lazy val serviceUtilitiesVersion = "8-9751ee3"
@@ -89,12 +98,27 @@ lazy val server = project
       circe212Version,
       circe213Version
     ),
+    akkaVersion := getVersion(
+      scalaVersion.value,
+      akka212Version,
+      akka213Version
+    ),
+    akkaHttpVersion := getVersion(
+      scalaVersion.value,
+      akkaHttp212Version,
+      akkaHttp213Version
+    ),
+    alpakkaVersion := getVersion(
+      scalaVersion.value,
+      alpakka212Version,
+      alpakka213Version
+    ),
     /*dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     ),*/
-    libraryDependencies ++= Seq(
+      libraryDependencies ++= Seq (
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion,
       "com.pennsieve" %% "utilities" % utilitiesVersion,
       "com.pennsieve" %% "auth-middleware" % authMiddlewareVersion,
@@ -104,15 +128,15 @@ lazy val server = project
       "io.circe" %% "circe-core" % circeVersion.value,
       "io.circe" %% "circe-generic" % circeVersion.value,
       "commons-io" % "commons-io" % "2.6",
-      "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-      "com.typesafe.akka" %% "akka-http-xml" % akkaHttpVersion,
-      "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-      "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % alpakkaVersion,
-      "com.lightbend.akka" %% "akka-stream-alpakka-s3" % alpakkaVersion,
-      "com.lightbend.akka" %% "akka-stream-alpakka-awslambda" % alpakkaVersion,
-      "com.lightbend.akka" %% "akka-stream-alpakka-csv" % alpakkaVersion,
+      "com.typesafe.akka" %% "akka-http" % akkaHttpVersion.value,
+      "com.typesafe.akka" %% "akka-http-xml" % akkaHttpVersion.value,
+      "com.typesafe.akka" %% "akka-stream" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
+      "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % alpakkaVersion.value,
+      "com.lightbend.akka" %% "akka-stream-alpakka-s3" % alpakkaVersion.value,
+      "com.lightbend.akka" %% "akka-stream-alpakka-awslambda" % alpakkaVersion.value,
+      "com.lightbend.akka" %% "akka-stream-alpakka-csv" % alpakkaVersion.value,
       "software.amazon.awssdk" % "lambda" % awsSdkVersion,
       "software.amazon.awssdk" % "sfn" % awsSdkVersion,
       "software.amazon.awssdk" % "sns" % awsSdkVersion,
@@ -143,9 +167,9 @@ lazy val server = project
       "com.whisk" %% "docker-testkit-impl-spotify" % dockerItVersion % Test,
       "com.pennsieve" %% "utilities" % utilitiesVersion % "test" classifier "tests",
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion % "test" classifier "tests",
-      "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-      "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
-      "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
+      "com.typesafe.akka" %% "akka-testkit" % akkaVersion.value % Test,
+      "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion.value % Test,
+      "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion.value % Test,
       "org.apache.httpcomponents" % "httpclient" % "4.5.8" % Test,
       "software.amazon.awssdk" % "s3" % awsSdkVersion % Test,
       "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test
@@ -330,15 +354,25 @@ lazy val client = project
       circe212Version,
       circe213Version
     ),
+    akkaVersion := getVersion(
+      scalaVersion.value,
+      akka212Version,
+      akka213Version
+    ),
+    akkaHttpVersion := getVersion(
+      scalaVersion.value,
+      akkaHttp212Version,
+      akkaHttp213Version
+    ),
     libraryDependencies ++= Seq(
       "com.pennsieve" %% "core-models" % coreVersion,
       "io.circe" %% "circe-core" % circeVersion.value,
       "io.circe" %% "circe-generic" % circeVersion.value,
       "io.circe" %% "circe-jawn" % circeVersion.value,
-      "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-      "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-      "com.typesafe.akka" %% "akka-slf4j" % akkaVersion
+      "com.typesafe.akka" %% "akka-http" % akkaHttpVersion.value,
+      "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-stream" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value
     ),
     libraryDependencies ++= handle212OnlyDependency(
       scalaVersion.value,
@@ -394,12 +428,22 @@ lazy val scripts = project
       circe212Version,
       circe213Version
     ),
+    akkaVersion := getVersion(
+      scalaVersion.value,
+      akka212Version,
+      akka213Version
+    ),
+    akkaHttpVersion := getVersion(
+      scalaVersion.value,
+      akkaHttp212Version,
+      akkaHttp213Version
+    ),
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-core" % circeVersion.value,
       "io.circe" %% "circe-generic" % circeVersion.value,
       "io.circe" %% "circe-jawn" % circeVersion.value,
-      "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-      "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+      "com.typesafe.akka" %% "akka-http" % akkaHttpVersion.value,
+      "com.typesafe.akka" %% "akka-stream" % akkaVersion.value,
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion
     )
   )
