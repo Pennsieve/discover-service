@@ -79,6 +79,7 @@ class S3StreamClientSpec
       "alpakka.s3.aws.credentials.secret-access-key",
       ConfigValueFactory.fromAnyRef(secretKey)
     )
+    .withValue("alpakka.s3.access-style", ConfigValueFactory.fromAnyRef("path"))
 
   implicit lazy private val system: ActorSystem =
     ActorSystem("discover-service", config)

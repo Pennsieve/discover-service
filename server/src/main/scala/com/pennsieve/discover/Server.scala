@@ -94,7 +94,7 @@ object Server extends App with StrictLogging {
 
   val routes: Route = Route.seal(createRoutes(ports))
 
-  Http().bindAndHandle(routes, config.host, config.port)
+  Http().newServerAt(config.host, config.port).bind(routes)
   logger.info(s"Server online at http://${config.host}:${config.port}")
 
   Await.result(system.whenTerminated, Duration.Inf)

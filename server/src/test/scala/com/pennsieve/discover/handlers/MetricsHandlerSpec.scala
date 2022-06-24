@@ -26,7 +26,7 @@ class MetricsHandlerSpec
     Route.seal(MetricsHandler.routes(ports))
 
   def createClient(routes: Route): MetricsClient =
-    MetricsClient.httpClient(Route.asyncHandler(routes))
+    MetricsClient.httpClient(Route.toFunction(routes))
 
   val metricsClient: MetricsClient = createClient(createRoutes())
 

@@ -33,7 +33,7 @@ class OrganizationHandlerSpec
     Route.seal(OrganizationHandler.routes(ports))
 
   def createClient(routes: Route): OrganizationClient =
-    OrganizationClient.httpClient(Route.asyncHandler(routes))
+    OrganizationClient.httpClient(Route.toFunction(routes))
 
   val organizationClient: OrganizationClient = createClient(createRoutes())
 

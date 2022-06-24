@@ -24,7 +24,7 @@ class TagHandlerSpec
     Route.seal(TagHandler.routes(ports))
 
   def createClient(routes: Route): TagClient =
-    TagClient.httpClient(Route.asyncHandler(routes))
+    TagClient.httpClient(Route.toFunction(routes))
 
   val tagClient: TagClient = createClient(createRoutes())
 

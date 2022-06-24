@@ -22,7 +22,7 @@ class SyncHandlerSpec
     Route.seal(SyncHandler.routes(ports))
 
   def createSyncClient(routes: Route): SyncClient =
-    SyncClient.httpClient(Route.asyncHandler(routes))
+    SyncClient.httpClient(Route.toFunction(routes))
 
   val syncClient: SyncClient = createSyncClient(createRoutes())
 

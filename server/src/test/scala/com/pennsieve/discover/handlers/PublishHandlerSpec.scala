@@ -58,7 +58,7 @@ class PublishHandlerSpec
     Route.seal(PublishHandler.routes(ports))
 
   def createClient(routes: Route): PublishClient =
-    PublishClient.httpClient(Route.asyncHandler(routes))
+    PublishClient.httpClient(Route.toFunction(routes))
 
   val organizationId = 1
   val organizationNodeId = "N:organization:abc123"
