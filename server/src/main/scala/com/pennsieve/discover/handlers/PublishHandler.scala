@@ -56,6 +56,8 @@ class PublishHandler(
 
   implicit val config: Config = ports.config
 
+  val defaultPublishBucket = ports.config.s3.publishBucket
+
   type PublishResponse = GuardrailResource.PublishResponse
 
   override def publish(
@@ -534,7 +536,8 @@ class PublishHandler(
       organizationId,
       datasetId
     ) { _ =>
-      val publishBucket = S3Bucket(body.publishBucket)
+      val publishBucket =
+        body.publishBucket.map(S3Bucket(_)).getOrElse(defaultPublishBucket)
 
       val query = for {
         dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(

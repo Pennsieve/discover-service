@@ -581,10 +581,9 @@ components:
 
     ReleaseRequest:
       type: object
-      required:
-        - publishBucket
       properties:
         publishBucket:
+          description: The owning organization's custom publish bucket. Omit if there is no such bucket.
           type: string
 
     ReviseRequest:
