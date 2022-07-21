@@ -1141,7 +1141,7 @@ class PublishHandlerSpec
       }
     }
 
-    "release an embargoed dataset using default publish bucket when no ReleaseRequest is provided" in {
+    "use the default publish bucket when no publishBucket is provided in the ReleaseRequest" in {
       TestUtilities.createDatasetV1(ports.db)(
         name = datasetName,
         sourceOrganizationId = organizationId,
