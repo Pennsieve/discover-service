@@ -110,8 +110,11 @@ class PublishHandlerSpec
       relationshipType = Some(RelationshipType.Describes)
     )
 
-  val releaseBody: definitions.ReleaseRequest =
-    definitions.ReleaseRequest(publishBucket = "bucket")
+  val customBucketReleaseBody: definitions.ReleaseRequest =
+    definitions.ReleaseRequest(publishBucket = Some("org-custom-bucket"))
+
+  val defaultBucketReleaseBody: definitions.ReleaseRequest =
+    definitions.ReleaseRequest()
 
   val requestBody: definitions.PublishRequest = definitions.PublishRequest(
     name = datasetName,
@@ -1028,7 +1031,7 @@ class PublishHandlerSpec
     "fail without a JWT" in {
 
       val response = client
-        .release(organizationId, datasetId, releaseBody)
+        .release(organizationId, datasetId, customBucketReleaseBody)
         .awaitFinite()
         .value
 
@@ -1037,7 +1040,12 @@ class PublishHandlerSpec
 
     "fail with a user JWT" in {
       val response = client
-        .release(organizationId, datasetId, releaseBody, userAuthToken)
+        .release(
+          organizationId,
+          datasetId,
+          customBucketReleaseBody,
+          userAuthToken
+        )
         .awaitFinite()
         .value
 
@@ -1054,7 +1062,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, releaseBody, authToken)
+        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1069,7 +1077,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, releaseBody, authToken)
+        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1079,7 +1087,7 @@ class PublishHandlerSpec
     "fail to release a dataset that does not exist" in {
 
       val response = client
-        .release(organizationId, datasetId, releaseBody, authToken)
+        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
         .awaitFinite()
         .value shouldBe ReleaseResponse.NotFound
     }
@@ -1093,7 +1101,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, releaseBody, authToken)
+        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
@@ -1127,7 +1135,56 @@ class PublishHandlerSpec
             organizationId = organizationId,
             datasetId = datasetId,
             version = version.version,
-            s3Bucket = S3Bucket("bucket"),
+            s3Bucket = S3Bucket(customBucketReleaseBody.publishBucket.get),
+            s3Key = version.s3Key
+          )
+      }
+    }
+
+    "use the default publish bucket when no publishBucket is provided in the ReleaseRequest" in {
+      TestUtilities.createDatasetV1(ports.db)(
+        name = datasetName,
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = PublishStatus.EmbargoSucceeded
+      )
+
+      val response = client
+        .release(organizationId, datasetId, defaultBucketReleaseBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[ReleaseResponse.Accepted]
+        .value
+
+      val (publicDataset, version) = run(for {
+        dataset <- PublicDatasetsMapper
+          .getDatasetFromSourceIds(organizationId, datasetId)
+
+        version <- PublicDatasetVersionsMapper
+          .getLatestVersion(dataset.id)
+      } yield (dataset, version.get))
+
+      response shouldBe DatasetPublishStatus(
+        datasetName,
+        organizationId,
+        datasetId,
+        Some(publicDataset.id),
+        0,
+        PublishStatus.ReleaseInProgress,
+        Some(version.createdAt)
+      )
+
+      val releaseJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedReleaseJobs
+
+      inside(releaseJobs.toList) {
+        case job :: Nil =>
+          job shouldBe EmbargoReleaseJob(
+            organizationId = organizationId,
+            datasetId = datasetId,
+            version = version.version,
+            s3Bucket = config.s3.publishBucket,
             s3Key = version.s3Key
           )
       }
@@ -1142,7 +1199,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, releaseBody, authToken)
+        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
