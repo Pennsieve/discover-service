@@ -50,8 +50,7 @@ trait S3StreamClient {
   ): Source[ZipSource, NotUsed]
 
   def datasetMetadataSource(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -79,16 +78,14 @@ trait S3StreamClient {
   ): Future[Readme]
 
   def readPublishJobOutput(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput]
 
   def deletePublishJobOutput(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -105,7 +102,7 @@ trait S3StreamClient {
     ec: ExecutionContext
   ): Future[DatasetMetadata] =
     for {
-      (source, _) <- datasetMetadataSource(version, isRequesterPays)
+      (source, _) <- datasetMetadataSource(version)
 
       content <- source
         .runWith(Sink.fold(ByteString.empty)(_ ++ _))
@@ -209,7 +206,11 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Source[ZipSource, NotUsed] = {
     logger.info(s"Listing s3://${version.s3Bucket}")
-    S3.listBucket(version.s3Bucket.value, Some(version.s3Key.value))
+    S3.listBucket(
+        version.s3Bucket.value,
+        Some(version.s3Key.value),
+        s3Headers(true)
+      )
       .map { s3Object: ListBucketResultContents =>
         logger.info(s"Downloading s3://${version.s3Bucket}/${s3Object.key}")
 
@@ -255,12 +256,26 @@ class AlpakkaS3StreamClient(
           InProgress(start + chunkSizeBytes)
         )
 
-    S3.download(s3Object.bucketName, s3Object.key, Some(byteRange))
-      .recoverWithRetries(attempts = 2, {
-        case e: TcpIdleTimeoutException =>
-          logger.error("TCP Idle Timeout", e)
-          S3.download(s3Object.bucketName, s3Object.key, Some(byteRange))
-      })
+    S3.download(
+        s3Object.bucketName,
+        s3Object.key,
+        Some(byteRange),
+        versionId = None,
+        s3Headers = s3Headers(true)
+      )
+      .recoverWithRetries(
+        attempts = 2, {
+          case e: TcpIdleTimeoutException =>
+            logger.error("TCP Idle Timeout", e)
+            S3.download(
+              s3Object.bucketName,
+              s3Object.key,
+              Some(byteRange),
+              versionId = None,
+              s3Headers = s3Headers(true)
+            )
+        }
+      )
       .runWith(Sink.head)
       .flatMap {
         case Some((source, metadata)) =>
@@ -276,17 +291,12 @@ class AlpakkaS3StreamClient(
     * Stream the metadata.json file from S3 for a dataset.
     */
   def datasetMetadataSource(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] =
-    s3FileSource(
-      version.s3Bucket,
-      metadataKey(version),
-      isRequesterPays = isRequesterPays
-    )
+    s3FileSource(version.s3Bucket, metadataKey(version), isRequesterPays = true)
 
   /**
     * Write all metadata files for a revision to S3.
@@ -368,9 +378,10 @@ class AlpakkaS3StreamClient(
       manifestManifest <- Source
         .single(bytes)
         .runWith(
-          S3.multipartUpload(
+          S3.multipartUploadWithHeaders(
             version.s3Bucket.value,
-            (key / MANIFEST_FILE).toString
+            (key / MANIFEST_FILE).toString,
+            s3Headers = s3Headers(true)
           )
         )
         .map(
@@ -422,10 +433,11 @@ class AlpakkaS3StreamClient(
       (contentType, source) <- streamPresignedUrl(presignedUrl)
 
       _ <- source.runWith(
-        S3.multipartUpload(
+        S3.multipartUploadWithHeaders(
           version.s3Bucket.value,
           key.toString,
-          contentType = contentType
+          contentType = contentType,
+          s3Headers = s3Headers(true)
         )
       )
       size <- getObjectSize(version.s3Bucket, key)
@@ -530,8 +542,7 @@ class AlpakkaS3StreamClient(
     * Read the outputs.json file from a successful publish job.
     */
   def readPublishJobOutput(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -540,7 +551,7 @@ class AlpakkaS3StreamClient(
       (source, _) <- s3FileSource(
         version.s3Bucket,
         outputKey(version),
-        isRequesterPays
+        isRequesterPays = true
       )
 
       content <- source
@@ -585,8 +596,7 @@ class AlpakkaS3StreamClient(
     * dataset.
     */
   def deletePublishJobOutput(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -595,7 +605,7 @@ class AlpakkaS3StreamClient(
         version.s3Bucket.value,
         outputKey(version).value,
         versionId = None,
-        s3Headers = s3Headers(isRequesterPays)
+        s3Headers = s3Headers(true)
       )
       .runWith(Sink.head)
       .map(_ => ())

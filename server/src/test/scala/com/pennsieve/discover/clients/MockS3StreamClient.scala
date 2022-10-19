@@ -93,8 +93,7 @@ class MockS3StreamClient extends S3StreamClient {
 ]}"""
 
   def datasetMetadataSource(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -167,16 +166,14 @@ class MockS3StreamClient extends S3StreamClient {
     publishResults += key -> result
 
   def readPublishJobOutput(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput] = Future(publishResults(version.s3Key))
 
   def deletePublishJobOutput(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
