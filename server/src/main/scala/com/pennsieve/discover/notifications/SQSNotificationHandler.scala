@@ -230,9 +230,10 @@ class SQSNotificationHandler(
   ): Future[Unit] =
     for {
       // Read the outputs.json file in S3
-      publishResult <- ports.s3StreamClient.readPublishJobOutput(version)
+      publishResult <- ports.s3StreamClient
+        .readPublishJobOutput(version, isRequesterPays = true)
       metadata <- ports.s3StreamClient
-        .readDatasetMetadata(version)
+        .readDatasetMetadata(version, isRequesterPays = true)
 
       // Update the dataset version with the information in outputs.json
       updatedVersion <- ports.db.run(
@@ -263,7 +264,8 @@ class SQSNotificationHandler(
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
 
-      _ <- ports.s3StreamClient.deletePublishJobOutput(updatedVersion)
+      _ <- ports.s3StreamClient
+        .deletePublishJobOutput(updatedVersion, isRequesterPays = true)
     } yield ()
 
   private def handleFailure(

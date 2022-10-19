@@ -9,7 +9,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.stream._
 import akka.stream.scaladsl._
-import akka.stream.alpakka.s3.ListBucketResultContents
+import akka.stream.alpakka.s3.{ ListBucketResultContents, S3Headers }
 import akka.stream.alpakka.s3.scaladsl.S3
 import akka.stream.alpakka.csv.scaladsl.{ CsvParsing, CsvToMap }
 import akka.util.ByteString
@@ -30,9 +30,9 @@ import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 import io.circe.{ Decoder, Encoder, Printer }
 import io.circe.parser.decode
 import io.scalaland.chimney.dsl._
+
 import java.nio.charset.StandardCharsets
 import java.time.Duration
-
 import com.pennsieve.discover.models.Revision
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
@@ -50,7 +50,8 @@ trait S3StreamClient {
   ): Source[ZipSource, NotUsed]
 
   def datasetMetadataSource(
-    version: PublicDatasetVersion
+    version: PublicDatasetVersion,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -78,14 +79,16 @@ trait S3StreamClient {
   ): Future[Readme]
 
   def readPublishJobOutput(
-    version: PublicDatasetVersion
+    version: PublicDatasetVersion,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput]
 
   def deletePublishJobOutput(
-    version: PublicDatasetVersion
+    version: PublicDatasetVersion,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -95,13 +98,14 @@ trait S3StreamClient {
     * Read the dataset metadata file from S3
     */
   def readDatasetMetadata(
-    version: PublicDatasetVersion
+    version: PublicDatasetVersion,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[DatasetMetadata] =
     for {
-      (source, _) <- datasetMetadataSource(version)
+      (source, _) <- datasetMetadataSource(version, isRequesterPays)
 
       content <- source
         .runWith(Sink.fold(ByteString.empty)(_ ++ _))
@@ -272,12 +276,17 @@ class AlpakkaS3StreamClient(
     * Stream the metadata.json file from S3 for a dataset.
     */
   def datasetMetadataSource(
-    version: PublicDatasetVersion
+    version: PublicDatasetVersion,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] =
-    s3FileSource(version.s3Bucket, metadataKey(version))
+    s3FileSource(
+      version.s3Bucket,
+      metadataKey(version),
+      isRequesterPays = isRequesterPays
+    )
 
   /**
     * Write all metadata files for a revision to S3.
@@ -521,13 +530,18 @@ class AlpakkaS3StreamClient(
     * Read the outputs.json file from a successful publish job.
     */
   def readPublishJobOutput(
-    version: PublicDatasetVersion
+    version: PublicDatasetVersion,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput] =
     for {
-      (source, _) <- s3FileSource(version.s3Bucket, outputKey(version))
+      (source, _) <- s3FileSource(
+        version.s3Bucket,
+        outputKey(version),
+        isRequesterPays
+      )
 
       content <- source
         .runWith(Sink.fold(ByteString.empty)(_ ++ _))
@@ -537,14 +551,26 @@ class AlpakkaS3StreamClient(
         .fold(Future.failed, Future.successful)
     } yield output
 
+  private def s3Headers(isRequesterPays: Boolean): S3Headers =
+    if (!isRequesterPays) S3Headers.empty
+    else
+      S3Headers().withCustomHeaders(Map("x-amz-request-payer" -> "requester"))
+
   def s3FileSource(
     bucket: S3Bucket,
-    fileKey: S3Key.File
+    fileKey: S3Key.File,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[(Source[ByteString, NotUsed], Long)] =
-    S3.download(bucket.value, fileKey.value)
+  ): Future[(Source[ByteString, NotUsed], Long)] = {
+    S3.download(
+        bucket.value,
+        fileKey.value,
+        range = None,
+        versionId = None,
+        s3Headers = s3Headers(isRequesterPays)
+      )
       .runWith(Sink.head)
       .flatMap {
         case Some((source, content)) =>
@@ -552,18 +578,25 @@ class AlpakkaS3StreamClient(
         case None =>
           Future.failed(S3Exception(bucket, fileKey))
       }
+  }
 
   /**
     * Delete the outputs.json file so that it does not appear in the published
     * dataset.
     */
   def deletePublishJobOutput(
-    version: PublicDatasetVersion
+    version: PublicDatasetVersion,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[Unit] =
-    S3.deleteObject(version.s3Bucket.value, outputKey(version).value)
+    S3.deleteObject(
+        version.s3Bucket.value,
+        outputKey(version).value,
+        versionId = None,
+        s3Headers = s3Headers(isRequesterPays)
+      )
       .runWith(Sink.head)
       .map(_ => ())
 

@@ -42,9 +42,9 @@ lazy val akkaHttpVersion = SettingKey[String]("akkaHttpVersion")
 lazy val akkaVersion = SettingKey[String]("akkaVersion")
 lazy val alpakkaVersion = SettingKey[String]("alpakkaVersion")
 
-lazy val akkaHttp213Version = "10.2.7"
-lazy val akka213Version = "2.6.8"
-lazy val alpakka213Version = "2.0.2"
+lazy val akkaHttp213Version = "10.2.9"
+lazy val akka213Version = "2.6.19"
+lazy val alpakka213Version = "4.0.0"
 lazy val akkaHttp212Version = "10.1.11"
 lazy val akka212Version = "2.6.5"
 lazy val alpakka212Version = "1.1.0"
@@ -158,7 +158,7 @@ lazy val server = project
       "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion,
       "com.sksamuel.elastic4s" %% "elastic4s-json-circe" % elastic4sVersion,
       "org.apache.commons" % "commons-lang3" % "3.9",
-      "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.0",
+      "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.0",
       "org.scalikejdbc" %% "scalikejdbc" % "3.4.0",
       "com.zaneli" %% "scalikejdbc-athena" % "0.2.4",
       // Test dependencies
