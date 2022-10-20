@@ -9,7 +9,12 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.stream._
 import akka.stream.scaladsl._
-import akka.stream.alpakka.s3.{ ListBucketResultContents, S3Headers }
+import akka.stream.alpakka.s3.{
+  ListBucketResultContents,
+  S3Attributes,
+  S3Ext,
+  S3Headers
+}
 import akka.stream.alpakka.s3.scaladsl.S3
 import akka.stream.alpakka.csv.scaladsl.{ CsvParsing, CsvToMap }
 import akka.util.ByteString
@@ -38,6 +43,9 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
+import software.amazon.awssdk.services.sts.StsClient
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
 
 trait S3StreamClient {
 
@@ -137,13 +145,38 @@ trait S3StreamClient {
   def getPresignedUrlForFile(s3Bucket: S3Bucket, key: S3Key.File): String
 }
 
+class StsClientSupplier(val region: Region) {
+  private lazy val stsClient = StsClient.builder.region(region).build
+
+  def get: StsClient = stsClient
+}
+
 class AlpakkaS3StreamClient(
-  region: Region,
+  s3Presigner: => S3Presigner,
+  stsClient: => StsClient,
   frontendBucket: S3Bucket,
   assetsKeyPrefix: String,
-  chunkSize: Information = 20.megabytes
+  chunkSize: Information,
+  externalPublishBucketToRole: Map[S3Bucket, String]
 ) extends S3StreamClient
     with StrictLogging {
+
+  def this(
+    region: Region,
+    frontendBucket: S3Bucket,
+    assetsKeyPrefix: String,
+    chunkSize: Information = 20.megabytes,
+    externalPublishBucketToRole: Map[S3Bucket, String] = Map.empty
+  ) = {
+    this(
+      s3Presigner = S3Presigner.builder.region(region).build,
+      StsClient.builder.region(region).build,
+      frontendBucket,
+      assetsKeyPrefix,
+      chunkSize,
+      externalPublishBucketToRole
+    )
+  }
 
   private val MANIFEST_FILE = "manifest.json"
   private val README_FILE = "readme.md"
@@ -151,8 +184,6 @@ class AlpakkaS3StreamClient(
   private val README = "readme"
 
   private val chunkSizeBytes: Long = chunkSize.toBytes.toLong
-
-  lazy val s3Presigner = S3Presigner.builder.region(region).build
 
   /**
     * Assumed locations of items in the publish bucket.
@@ -187,6 +218,37 @@ class AlpakkaS3StreamClient(
     }
   }
 
+  private def configuredSource[A, B](
+    publishBucket: S3Bucket,
+    source: Source[A, B]
+  )(implicit
+    system: ActorSystem
+  ): Source[A, B] =
+    externalPublishBucketToRole.get(publishBucket) match {
+      case None => source
+      case Some(roleArn) =>
+        val roleSessionName = s"discover-service-access"
+        logger.info(s"assuming external role for download from $publishBucket")
+        val assumeRoleRequest =
+          AssumeRoleRequest
+            .builder()
+            .roleArn(roleArn)
+            .roleSessionName(roleSessionName)
+            .build()
+        val useAssumeRoleCredentialsProvider = S3Ext(system).settings
+          .withCredentialsProvider(
+            StsAssumeRoleCredentialsProvider
+              .builder()
+              .stsClient(stsClient)
+              .refreshRequest(assumeRoleRequest)
+              .build()
+          )
+        source.withAttributes(
+          S3Attributes.settings(useAssumeRoleCredentialsProvider)
+        )
+
+    }
+
   /**
     * State machine used to unfold a download from S3.
     */
@@ -206,33 +268,31 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Source[ZipSource, NotUsed] = {
     logger.info(s"Listing s3://${version.s3Bucket}")
-    S3.listBucket(
-        version.s3Bucket.value,
-        Some(version.s3Key.value),
-        s3Headers(true)
-      )
-      .map { s3Object: ListBucketResultContents =>
-        logger.info(s"Downloading s3://${version.s3Bucket}/${s3Object.key}")
+    configuredSource(
+      version.s3Bucket,
+      S3.listBucket(version.s3Bucket.value, Some(version.s3Key.value))
+    ).map { s3Object: ListBucketResultContents =>
+      logger.info(s"Downloading s3://${version.s3Bucket}/${s3Object.key}")
 
-        val zipEntryName =
-          joinPath(zipPrefix, s3Object.key.stripPrefix(version.s3Key.value))
+      val zipEntryName =
+        joinPath(zipPrefix, s3Object.key.stripPrefix(version.s3Key.value))
 
-        // This is a convoluted way to build a source for each file without
-        // using mapAsync, which greedily starts to download files without
-        // waiting for a pull. This leads to "Substream source cannot be
-        // materialized more than once" errors when a large file is being
-        // downloaded and the next download times out waiting to be pulled
-        // downstream. unfoldAsync only evalates the source on pull.
-        val byteSource = Source
-          .unfoldAsync[DownloadState, Source[ByteString, NotUsed]](Starting) {
-            case Starting => downloadRange(s3Object, 0)
-            case InProgress(nextByte) =>
-              downloadRange(s3Object, nextByte)
-            case Finished => Future.successful(None)
-          }
-          .flatMapConcat(s => s)
-        (zipEntryName, byteSource)
-      }
+      // This is a convoluted way to build a source for each file without
+      // using mapAsync, which greedily starts to download files without
+      // waiting for a pull. This leads to "Substream source cannot be
+      // materialized more than once" errors when a large file is being
+      // downloaded and the next download times out waiting to be pulled
+      // downstream. unfoldAsync only evalates the source on pull.
+      val byteSource = Source
+        .unfoldAsync[DownloadState, Source[ByteString, NotUsed]](Starting) {
+          case Starting => downloadRange(s3Object, 0)
+          case InProgress(nextByte) =>
+            downloadRange(s3Object, nextByte)
+          case Finished => Future.successful(None)
+        }
+        .flatMapConcat(s => s)
+      (zipEntryName, byteSource)
+    }
   }
 
   /**

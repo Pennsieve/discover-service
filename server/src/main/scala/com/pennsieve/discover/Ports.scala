@@ -120,7 +120,8 @@ object Ports {
         region = config.s3.region,
         frontendBucket = config.s3.frontendBucket,
         assetsKeyPrefix = config.s3.assetsKeyPrefix,
-        chunkSize = config.s3.chunkSize
+        chunkSize = config.s3.chunkSize,
+        externalPublishBucketToRole = config.externalPublishBuckets
       )
 
     val searchClient: SearchClient =

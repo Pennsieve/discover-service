@@ -118,7 +118,7 @@ lazy val server = project
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
     ),*/
-      libraryDependencies ++= Seq (
+    libraryDependencies ++= Seq(
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion,
       "com.pennsieve" %% "utilities" % utilitiesVersion,
       "com.pennsieve" %% "auth-middleware" % authMiddlewareVersion,
@@ -141,6 +141,7 @@ lazy val server = project
       "software.amazon.awssdk" % "sfn" % awsSdkVersion,
       "software.amazon.awssdk" % "sns" % awsSdkVersion,
       "software.amazon.awssdk" % "s3" % awsSdkVersion,
+      "software.amazon.awssdk" % "sts" % awsSdkVersion,
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-squants" % pureConfigVersion,
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",

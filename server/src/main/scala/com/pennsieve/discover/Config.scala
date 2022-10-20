@@ -29,11 +29,16 @@ case class Config(
   sns: SNSConfiguration,
   pennsieveApi: PennsieveApiConfiguration,
   authorizationService: AuthorizationConfiguration,
-  download: DownloadConfiguration
+  download: DownloadConfiguration,
+  externalPublishBuckets: Map[S3Bucket, String] = Map.empty
 )
 
 object Config {
   implicit val awsRegionReader = ConfigReader[String].map(Region.of(_))
+  implicit val externalPublishBucketConfigurationReader
+    : ConfigReader[Map[S3Bucket, String]] =
+    ConfigReader[List[ExternalPublishBucketConfiguration]]
+      .map(_.map(c => c.bucket -> c.roleArn).toMap)
 
   def load: Config = ConfigSource.default.loadOrThrow[Config]
 }
@@ -103,3 +108,5 @@ case class ElasticSearchConfiguration(host: String, port: Int) {
 }
 
 case class SNSConfiguration(alertTopic: String, region: Region)
+
+case class ExternalPublishBucketConfiguration(bucket: S3Bucket, roleArn: String)
