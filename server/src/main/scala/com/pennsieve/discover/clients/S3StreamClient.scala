@@ -11,6 +11,7 @@ import akka.stream._
 import akka.stream.scaladsl._
 import akka.stream.alpakka.s3.{
   ListBucketResultContents,
+  ObjectMetadata,
   S3Attributes,
   S3Ext,
   S3Headers
@@ -38,7 +39,9 @@ import io.scalaland.chimney.dsl._
 
 import java.nio.charset.StandardCharsets
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import com.pennsieve.discover.models.Revision
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
@@ -46,6 +49,8 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import software.amazon.awssdk.services.sts.StsClient
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
+
+import scala.jdk.FunctionConverters._
 
 trait S3StreamClient {
 
@@ -103,8 +108,7 @@ trait S3StreamClient {
     * Read the dataset metadata file from S3
     */
   def readDatasetMetadata(
-    version: PublicDatasetVersion,
-    isRequesterPays: Boolean = false
+    version: PublicDatasetVersion
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -145,15 +149,10 @@ trait S3StreamClient {
   def getPresignedUrlForFile(s3Bucket: S3Bucket, key: S3Key.File): String
 }
 
-class StsClientSupplier(val region: Region) {
-  private lazy val stsClient = StsClient.builder.region(region).build
-
-  def get: StsClient = stsClient
-}
-
 class AlpakkaS3StreamClient(
   s3Presigner: => S3Presigner,
   stsClient: => StsClient,
+  region: Region,
   frontendBucket: S3Bucket,
   assetsKeyPrefix: String,
   chunkSize: Information,
@@ -169,8 +168,13 @@ class AlpakkaS3StreamClient(
     externalPublishBucketToRole: Map[S3Bucket, String] = Map.empty
   ) = {
     this(
-      s3Presigner = S3Presigner.builder.region(region).build,
-      StsClient.builder.region(region).build,
+      S3Presigner.builder
+        .region(region)
+        .build, // deliberately inlined to take advantage of call-by-name
+      StsClient.builder
+        .region(region)
+        .build, // deliberately inlined to take advantage of call-by-name
+      region,
       frontendBucket,
       assetsKeyPrefix,
       chunkSize,
@@ -184,6 +188,12 @@ class AlpakkaS3StreamClient(
   private val README = "readme"
 
   private val chunkSizeBytes: Long = chunkSize.toBytes.toLong
+
+  private val roleToPresigner =
+    new ConcurrentHashMap[String, S3Presigner]()
+
+  private val roleToCredentialsProvider =
+    new ConcurrentHashMap[String, StsAssumeRoleCredentialsProvider]()
 
   /**
     * Assumed locations of items in the publish bucket.
@@ -218,36 +228,77 @@ class AlpakkaS3StreamClient(
     }
   }
 
+  private def createAssumeRoleCredentialsProvider(
+    roleArn: String
+  ): StsAssumeRoleCredentialsProvider = {
+    val assumeRoleRequest =
+      AssumeRoleRequest
+        .builder()
+        .roleArn(roleArn)
+        .roleSessionName("discover-service-access-session")
+        .build()
+    StsAssumeRoleCredentialsProvider
+      .builder()
+      .stsClient(stsClient)
+      .refreshRequest(assumeRoleRequest)
+      .build()
+  }
+
+  // Returns None iff bucket is not external
+  private def getCachedAssumeRoleCredentialsProvider(
+    bucket: S3Bucket
+  ): Option[StsAssumeRoleCredentialsProvider] = {
+
+    externalPublishBucketToRole
+      .get(bucket)
+      .map(getCachedAssumeRoleCredentialsProvider)
+  }
+
+  private def getCachedAssumeRoleCredentialsProvider(
+    roleArn: String
+  ): StsAssumeRoleCredentialsProvider =
+    roleToCredentialsProvider.computeIfAbsent(
+      roleArn,
+      (r => createAssumeRoleCredentialsProvider(r)).asJava
+    )
+
+  private def getCachedPresigner(bucket: S3Bucket): S3Presigner = {
+
+    externalPublishBucketToRole
+      .get(bucket)
+      .map(
+        roleArn =>
+          roleToPresigner
+            .computeIfAbsent(
+              roleArn,
+              (
+                (r: String) =>
+                  S3Presigner.builder
+                    .region(region)
+                    .credentialsProvider(
+                      getCachedAssumeRoleCredentialsProvider(r)
+                    )
+                    .build()
+                ).asJava
+            )
+      )
+      .getOrElse(s3Presigner)
+  }
+
   private def configuredSource[A, B](
     publishBucket: S3Bucket,
     source: Source[A, B]
   )(implicit
     system: ActorSystem
   ): Source[A, B] =
-    externalPublishBucketToRole.get(publishBucket) match {
-      case None => source
-      case Some(roleArn) =>
-        val roleSessionName = s"discover-service-access"
-        logger.info(s"assuming external role for download from $publishBucket")
-        val assumeRoleRequest =
-          AssumeRoleRequest
-            .builder()
-            .roleArn(roleArn)
-            .roleSessionName(roleSessionName)
-            .build()
+    getCachedAssumeRoleCredentialsProvider(publishBucket)
+      .fold(source)(assumeRoleCredentialsProvider => {
         val useAssumeRoleCredentialsProvider = S3Ext(system).settings
-          .withCredentialsProvider(
-            StsAssumeRoleCredentialsProvider
-              .builder()
-              .stsClient(stsClient)
-              .refreshRequest(assumeRoleRequest)
-              .build()
-          )
+          .withCredentialsProvider(assumeRoleCredentialsProvider)
         source.withAttributes(
           S3Attributes.settings(useAssumeRoleCredentialsProvider)
         )
-
-    }
+      })
 
   /**
     * State machine used to unfold a download from S3.
@@ -307,6 +358,14 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[Option[(DownloadState, Source[ByteString, NotUsed])]] = {
 
+    def configuredDownloadSource(
+      byteRange: ByteRange.Slice
+    ): Source[Option[(Source[ByteString, NotUsed], ObjectMetadata)], NotUsed] =
+      configuredSource(
+        S3Bucket(s3Object.bucketName),
+        S3.download(s3Object.bucketName, s3Object.key, Some(byteRange))
+      )
+
     val (byteRange, nextState) =
       if ((start + chunkSizeBytes) >= s3Object.size)
         (ByteRange(start, s3Object.size), Finished)
@@ -316,29 +375,15 @@ class AlpakkaS3StreamClient(
           InProgress(start + chunkSizeBytes)
         )
 
-    S3.download(
-        s3Object.bucketName,
-        s3Object.key,
-        Some(byteRange),
-        versionId = None,
-        s3Headers = s3Headers(true)
-      )
-      .recoverWithRetries(
-        attempts = 2, {
-          case e: TcpIdleTimeoutException =>
-            logger.error("TCP Idle Timeout", e)
-            S3.download(
-              s3Object.bucketName,
-              s3Object.key,
-              Some(byteRange),
-              versionId = None,
-              s3Headers = s3Headers(true)
-            )
-        }
-      )
+    configuredDownloadSource(byteRange)
+      .recoverWithRetries(attempts = 2, {
+        case e: TcpIdleTimeoutException =>
+          logger.error("TCP Idle Timeout", e)
+          configuredDownloadSource(byteRange)
+      })
       .runWith(Sink.head)
       .flatMap {
-        case Some((source, metadata)) =>
+        case Some((source, _)) =>
           Future.successful(Some((nextState, source)))
         case None =>
           Future.failed(
@@ -699,6 +744,8 @@ class AlpakkaS3StreamClient(
       )
 
   def getPresignedUrlForFile(bucket: S3Bucket, key: S3Key.File): String = {
+    val presigner = getCachedPresigner(bucket)
+
     val objectRequest = GetObjectRequest.builder
       .bucket(bucket.value)
       .key(key.value)
@@ -707,7 +754,7 @@ class AlpakkaS3StreamClient(
       .signatureDuration(Duration.ofNanos(60.minutes.toNanos))
       .getObjectRequest(objectRequest)
       .build
-    s3Presigner.presignGetObject(presignedRequest).url.toString
+    presigner.presignGetObject(presignedRequest).url.toString
   }
 
   case class ModelSchema(name: String, file: String) {

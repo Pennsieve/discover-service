@@ -151,6 +151,7 @@ class S3StreamClientSpec
       new AlpakkaS3StreamClient(
         s3Presigner,
         stsClient,
+        Region.US_EAST_1,
         S3Bucket(frontendBucket),
         "dataset-assets",
         chunkSize,
