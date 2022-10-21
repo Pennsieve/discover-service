@@ -150,14 +150,6 @@ trait S3StreamClient {
 
 class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient) {
 
-  def this(region: Region) =
-    this(
-      region,
-      StsClient.builder
-        .region(region)
-        .build
-    )
-
   private val roleToCredentialsProvider =
     new ConcurrentHashMap[String, StsAssumeRoleCredentialsProvider]()
   private val roleToPresigner =
