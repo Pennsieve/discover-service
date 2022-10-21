@@ -2,7 +2,7 @@
 
 package com.pennsieve.discover.clients
 
-import akka.{ Done, NotUsed }
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.ByteRange
 import akka.http.scaladsl.Http
@@ -41,7 +41,6 @@ import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import com.pennsieve.discover.models.Revision
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
@@ -149,8 +148,62 @@ trait S3StreamClient {
   def getPresignedUrlForFile(s3Bucket: S3Bucket, key: S3Key.File): String
 }
 
+class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient) {
+
+  def this(region: Region) =
+    this(
+      region,
+      StsClient.builder
+        .region(region)
+        .build
+    )
+
+  private val roleToCredentialsProvider =
+    new ConcurrentHashMap[String, StsAssumeRoleCredentialsProvider]()
+  private val roleToPresigner =
+    new ConcurrentHashMap[String, S3Presigner]()
+
+  private def createAssumeRoleCredentialsProvider(
+    roleArn: String
+  ): StsAssumeRoleCredentialsProvider = {
+    val assumeRoleRequest =
+      AssumeRoleRequest
+        .builder()
+        .roleArn(roleArn)
+        .roleSessionName("discover-service-access-session")
+        .build()
+    StsAssumeRoleCredentialsProvider
+      .builder()
+      .stsClient(stsClient)
+      .refreshRequest(assumeRoleRequest)
+      .build()
+  }
+
+  def getCredentialsProvider(
+    roleArn: String
+  ): StsAssumeRoleCredentialsProvider =
+    roleToCredentialsProvider.computeIfAbsent(
+      roleArn,
+      (r => createAssumeRoleCredentialsProvider(r)).asJava
+    )
+
+  def getPresigner(roleArn: String): S3Presigner =
+    roleToPresigner
+      .computeIfAbsent(
+        roleArn,
+        (
+          (r: String) =>
+            S3Presigner.builder
+              .region(region)
+              .credentialsProvider(getCredentialsProvider(r))
+              .build()
+          ).asJava
+      )
+
+}
+
 class AlpakkaS3StreamClient(
-  s3Presigner: => S3Presigner,
+  defaultS3Presigner: => S3Presigner,
   stsClient: => StsClient,
   region: Region,
   frontendBucket: S3Bucket,
@@ -189,11 +242,7 @@ class AlpakkaS3StreamClient(
 
   private val chunkSizeBytes: Long = chunkSize.toBytes.toLong
 
-  private val roleToPresigner =
-    new ConcurrentHashMap[String, S3Presigner]()
-
-  private val roleToCredentialsProvider =
-    new ConcurrentHashMap[String, StsAssumeRoleCredentialsProvider]()
+  private val assumeRoleCache = new AssumeRoleResourceCache(region, stsClient)
 
   /**
     * Assumed locations of items in the publish bucket.
@@ -228,62 +277,19 @@ class AlpakkaS3StreamClient(
     }
   }
 
-  private def createAssumeRoleCredentialsProvider(
-    roleArn: String
-  ): StsAssumeRoleCredentialsProvider = {
-    val assumeRoleRequest =
-      AssumeRoleRequest
-        .builder()
-        .roleArn(roleArn)
-        .roleSessionName("discover-service-access-session")
-        .build()
-    StsAssumeRoleCredentialsProvider
-      .builder()
-      .stsClient(stsClient)
-      .refreshRequest(assumeRoleRequest)
-      .build()
-  }
-
   // Returns None iff bucket is not external
   private def getCachedAssumeRoleCredentialsProvider(
     bucket: S3Bucket
-  ): Option[StsAssumeRoleCredentialsProvider] = {
-
+  ): Option[StsAssumeRoleCredentialsProvider] =
     externalPublishBucketToRole
       .get(bucket)
-      .map(getCachedAssumeRoleCredentialsProvider)
-  }
+      .map(assumeRoleCache.getCredentialsProvider)
 
-  private def getCachedAssumeRoleCredentialsProvider(
-    roleArn: String
-  ): StsAssumeRoleCredentialsProvider =
-    roleToCredentialsProvider.computeIfAbsent(
-      roleArn,
-      (r => createAssumeRoleCredentialsProvider(r)).asJava
-    )
-
-  private def getCachedPresigner(bucket: S3Bucket): S3Presigner = {
-
+  private def getPresignerForBucket(bucket: S3Bucket): S3Presigner =
     externalPublishBucketToRole
       .get(bucket)
-      .map(
-        roleArn =>
-          roleToPresigner
-            .computeIfAbsent(
-              roleArn,
-              (
-                (r: String) =>
-                  S3Presigner.builder
-                    .region(region)
-                    .credentialsProvider(
-                      getCachedAssumeRoleCredentialsProvider(r)
-                    )
-                    .build()
-                ).asJava
-            )
-      )
-      .getOrElse(s3Presigner)
-  }
+      .map(assumeRoleCache.getPresigner)
+      .getOrElse(defaultS3Presigner)
 
   private def configuredSource[A, B](
     publishBucket: S3Bucket,
@@ -744,8 +750,6 @@ class AlpakkaS3StreamClient(
       )
 
   def getPresignedUrlForFile(bucket: S3Bucket, key: S3Key.File): String = {
-    val presigner = getCachedPresigner(bucket)
-
     val objectRequest = GetObjectRequest.builder
       .bucket(bucket.value)
       .key(key.value)
@@ -754,7 +758,10 @@ class AlpakkaS3StreamClient(
       .signatureDuration(Duration.ofNanos(60.minutes.toNanos))
       .getObjectRequest(objectRequest)
       .build
-    presigner.presignGetObject(presignedRequest).url.toString
+    getPresignerForBucket(bucket)
+      .presignGetObject(presignedRequest)
+      .url
+      .toString
   }
 
   case class ModelSchema(name: String, file: String) {
