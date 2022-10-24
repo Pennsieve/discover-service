@@ -176,7 +176,7 @@ class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient) {
   ): StsAssumeRoleCredentialsProvider =
     roleToCredentialsProvider.computeIfAbsent(
       roleArn,
-      (r => createAssumeRoleCredentialsProvider(r)).asJava
+      (createAssumeRoleCredentialsProvider(_)).asJava
     )
 
   def getPresigner(roleArn: String): S3Presigner =
