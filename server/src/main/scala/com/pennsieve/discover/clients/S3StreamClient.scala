@@ -2,14 +2,20 @@
 
 package com.pennsieve.discover.clients
 
-import akka.{ Done, NotUsed }
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.ByteRange
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.stream._
 import akka.stream.scaladsl._
-import akka.stream.alpakka.s3.ListBucketResultContents
+import akka.stream.alpakka.s3.{
+  ListBucketResultContents,
+  ObjectMetadata,
+  S3Attributes,
+  S3Ext,
+  S3Headers
+}
 import akka.stream.alpakka.s3.scaladsl.S3
 import akka.stream.alpakka.csv.scaladsl.{ CsvParsing, CsvToMap }
 import akka.util.ByteString
@@ -18,7 +24,7 @@ import com.pennsieve.discover.downloads.ZipStream._
 import com.pennsieve.discover.models._
 import com.pennsieve.models._
 import com.pennsieve.discover.utils.joinPath
-import com.typesafe.scalalogging.StrictLogging
+import com.typesafe.scalalogging.{ LazyLogging, StrictLogging }
 import org.apache.commons.io.FilenameUtils
 import squants.information.Information
 import squants.information.InformationConversions._
@@ -30,14 +36,21 @@ import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 import io.circe.{ Decoder, Encoder, Printer }
 import io.circe.parser.decode
 import io.scalaland.chimney.dsl._
+
 import java.nio.charset.StandardCharsets
 import java.time.Duration
-
+import java.util.concurrent.ConcurrentHashMap
 import com.pennsieve.discover.models.Revision
+import software.amazon.awssdk.arns.Arn
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
+import software.amazon.awssdk.services.sts.StsClient
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
+
+import scala.jdk.FunctionConverters._
 
 trait S3StreamClient {
 
@@ -136,13 +149,84 @@ trait S3StreamClient {
   def getPresignedUrlForFile(s3Bucket: S3Bucket, key: S3Key.File): String
 }
 
+class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
+    extends LazyLogging {
+
+  private val roleToCredentialsProvider =
+    new ConcurrentHashMap[Arn, StsAssumeRoleCredentialsProvider]()
+  private val roleToPresigner =
+    new ConcurrentHashMap[Arn, S3Presigner]()
+
+  private def createAssumeRoleCredentialsProvider(
+    roleArn: Arn
+  ): StsAssumeRoleCredentialsProvider = {
+    logger.info(s"creating StsAssumeRoleCredentialsProvider for $roleArn")
+    val assumeRoleRequest =
+      AssumeRoleRequest
+        .builder()
+        .roleArn(roleArn.toString)
+        .roleSessionName("discover-service-access-session")
+        .build()
+    StsAssumeRoleCredentialsProvider
+      .builder()
+      .stsClient(stsClient)
+      .refreshRequest(assumeRoleRequest)
+      .build()
+  }
+
+  def getCredentialsProvider(roleArn: Arn): StsAssumeRoleCredentialsProvider =
+    roleToCredentialsProvider.computeIfAbsent(
+      roleArn,
+      (createAssumeRoleCredentialsProvider(_)).asJava
+    )
+
+  def getPresigner(roleArn: Arn): S3Presigner =
+    roleToPresigner
+      .computeIfAbsent(
+        roleArn,
+        (
+          (r: Arn) =>
+            S3Presigner.builder
+              .region(region)
+              .credentialsProvider(getCredentialsProvider(r))
+              .build()
+          ).asJava
+      )
+
+}
+
 class AlpakkaS3StreamClient(
+  defaultS3Presigner: => S3Presigner,
+  stsClient: => StsClient,
   region: Region,
   frontendBucket: S3Bucket,
   assetsKeyPrefix: String,
-  chunkSize: Information = 20.megabytes
+  chunkSize: Information,
+  externalPublishBucketToRole: Map[S3Bucket, Arn]
 ) extends S3StreamClient
     with StrictLogging {
+
+  def this(
+    region: Region,
+    frontendBucket: S3Bucket,
+    assetsKeyPrefix: String,
+    chunkSize: Information = 20.megabytes,
+    externalPublishBucketToRole: Map[S3Bucket, Arn] = Map.empty
+  ) = {
+    this(
+      S3Presigner.builder
+        .region(region)
+        .build, // deliberately inlined to take advantage of call-by-name
+      StsClient.builder
+        .region(region)
+        .build, // deliberately inlined to take advantage of call-by-name
+      region,
+      frontendBucket,
+      assetsKeyPrefix,
+      chunkSize,
+      externalPublishBucketToRole
+    )
+  }
 
   private val MANIFEST_FILE = "manifest.json"
   private val README_FILE = "readme.md"
@@ -151,7 +235,7 @@ class AlpakkaS3StreamClient(
 
   private val chunkSizeBytes: Long = chunkSize.toBytes.toLong
 
-  lazy val s3Presigner = S3Presigner.builder.region(region).build
+  private val assumeRoleCache = new AssumeRoleResourceCache(region, stsClient)
 
   /**
     * Assumed locations of items in the publish bucket.
@@ -186,6 +270,35 @@ class AlpakkaS3StreamClient(
     }
   }
 
+  // Returns None iff bucket is not external
+  private def getCachedAssumeRoleCredentialsProvider(
+    bucket: S3Bucket
+  ): Option[StsAssumeRoleCredentialsProvider] =
+    externalPublishBucketToRole
+      .get(bucket)
+      .map(assumeRoleCache.getCredentialsProvider)
+
+  private def getPresignerForBucket(bucket: S3Bucket): S3Presigner =
+    externalPublishBucketToRole
+      .get(bucket)
+      .map(assumeRoleCache.getPresigner)
+      .getOrElse(defaultS3Presigner)
+
+  private def configuredSource[A, B](
+    publishBucket: S3Bucket,
+    source: Source[A, B]
+  )(implicit
+    system: ActorSystem
+  ): Source[A, B] =
+    getCachedAssumeRoleCredentialsProvider(publishBucket)
+      .fold(source)(assumeRoleCredentialsProvider => {
+        val useAssumeRoleCredentialsProvider = S3Ext(system).settings
+          .withCredentialsProvider(assumeRoleCredentialsProvider)
+        source.withAttributes(
+          S3Attributes.settings(useAssumeRoleCredentialsProvider)
+        )
+      })
+
   /**
     * State machine used to unfold a download from S3.
     */
@@ -205,29 +318,31 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Source[ZipSource, NotUsed] = {
     logger.info(s"Listing s3://${version.s3Bucket}")
-    S3.listBucket(version.s3Bucket.value, Some(version.s3Key.value))
-      .map { s3Object: ListBucketResultContents =>
-        logger.info(s"Downloading s3://${version.s3Bucket}/${s3Object.key}")
+    configuredSource(
+      version.s3Bucket,
+      S3.listBucket(version.s3Bucket.value, Some(version.s3Key.value))
+    ).map { s3Object: ListBucketResultContents =>
+      logger.info(s"Downloading s3://${version.s3Bucket}/${s3Object.key}")
 
-        val zipEntryName =
-          joinPath(zipPrefix, s3Object.key.stripPrefix(version.s3Key.value))
+      val zipEntryName =
+        joinPath(zipPrefix, s3Object.key.stripPrefix(version.s3Key.value))
 
-        // This is a convoluted way to build a source for each file without
-        // using mapAsync, which greedily starts to download files without
-        // waiting for a pull. This leads to "Substream source cannot be
-        // materialized more than once" errors when a large file is being
-        // downloaded and the next download times out waiting to be pulled
-        // downstream. unfoldAsync only evalates the source on pull.
-        val byteSource = Source
-          .unfoldAsync[DownloadState, Source[ByteString, NotUsed]](Starting) {
-            case Starting => downloadRange(s3Object, 0)
-            case InProgress(nextByte) =>
-              downloadRange(s3Object, nextByte)
-            case Finished => Future.successful(None)
-          }
-          .flatMapConcat(s => s)
-        (zipEntryName, byteSource)
-      }
+      // This is a convoluted way to build a source for each file without
+      // using mapAsync, which greedily starts to download files without
+      // waiting for a pull. This leads to "Substream source cannot be
+      // materialized more than once" errors when a large file is being
+      // downloaded and the next download times out waiting to be pulled
+      // downstream. unfoldAsync only evalates the source on pull.
+      val byteSource = Source
+        .unfoldAsync[DownloadState, Source[ByteString, NotUsed]](Starting) {
+          case Starting => downloadRange(s3Object, 0)
+          case InProgress(nextByte) =>
+            downloadRange(s3Object, nextByte)
+          case Finished => Future.successful(None)
+        }
+        .flatMapConcat(s => s)
+      (zipEntryName, byteSource)
+    }
   }
 
   /**
@@ -242,6 +357,14 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[Option[(DownloadState, Source[ByteString, NotUsed])]] = {
 
+    def configuredDownloadSource(
+      byteRange: ByteRange.Slice
+    ): Source[Option[(Source[ByteString, NotUsed], ObjectMetadata)], NotUsed] =
+      configuredSource(
+        S3Bucket(s3Object.bucketName),
+        S3.download(s3Object.bucketName, s3Object.key, Some(byteRange))
+      )
+
     val (byteRange, nextState) =
       if ((start + chunkSizeBytes) >= s3Object.size)
         (ByteRange(start, s3Object.size), Finished)
@@ -251,15 +374,15 @@ class AlpakkaS3StreamClient(
           InProgress(start + chunkSizeBytes)
         )
 
-    S3.download(s3Object.bucketName, s3Object.key, Some(byteRange))
+    configuredDownloadSource(byteRange)
       .recoverWithRetries(attempts = 2, {
         case e: TcpIdleTimeoutException =>
           logger.error("TCP Idle Timeout", e)
-          S3.download(s3Object.bucketName, s3Object.key, Some(byteRange))
+          configuredDownloadSource(byteRange)
       })
       .runWith(Sink.head)
       .flatMap {
-        case Some((source, metadata)) =>
+        case Some((source, _)) =>
           Future.successful(Some((nextState, source)))
         case None =>
           Future.failed(
@@ -277,7 +400,7 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] =
-    s3FileSource(version.s3Bucket, metadataKey(version))
+    s3FileSource(version.s3Bucket, metadataKey(version), isRequesterPays = true)
 
   /**
     * Write all metadata files for a revision to S3.
@@ -359,9 +482,10 @@ class AlpakkaS3StreamClient(
       manifestManifest <- Source
         .single(bytes)
         .runWith(
-          S3.multipartUpload(
+          S3.multipartUploadWithHeaders(
             version.s3Bucket.value,
-            (key / MANIFEST_FILE).toString
+            (key / MANIFEST_FILE).toString,
+            s3Headers = s3Headers(true)
           )
         )
         .map(
@@ -413,10 +537,11 @@ class AlpakkaS3StreamClient(
       (contentType, source) <- streamPresignedUrl(presignedUrl)
 
       _ <- source.runWith(
-        S3.multipartUpload(
+        S3.multipartUploadWithHeaders(
           version.s3Bucket.value,
           key.toString,
-          contentType = contentType
+          contentType = contentType,
+          s3Headers = s3Headers(true)
         )
       )
       size <- getObjectSize(version.s3Bucket, key)
@@ -527,7 +652,11 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[PublishJobOutput] =
     for {
-      (source, _) <- s3FileSource(version.s3Bucket, outputKey(version))
+      (source, _) <- s3FileSource(
+        version.s3Bucket,
+        outputKey(version),
+        isRequesterPays = true
+      )
 
       content <- source
         .runWith(Sink.fold(ByteString.empty)(_ ++ _))
@@ -537,14 +666,26 @@ class AlpakkaS3StreamClient(
         .fold(Future.failed, Future.successful)
     } yield output
 
+  private def s3Headers(isRequesterPays: Boolean): S3Headers =
+    if (!isRequesterPays) S3Headers.empty
+    else
+      S3Headers().withCustomHeaders(Map("x-amz-request-payer" -> "requester"))
+
   def s3FileSource(
     bucket: S3Bucket,
-    fileKey: S3Key.File
+    fileKey: S3Key.File,
+    isRequesterPays: Boolean = false
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[(Source[ByteString, NotUsed], Long)] =
-    S3.download(bucket.value, fileKey.value)
+  ): Future[(Source[ByteString, NotUsed], Long)] = {
+    S3.download(
+        bucket.value,
+        fileKey.value,
+        range = None,
+        versionId = None,
+        s3Headers = s3Headers(isRequesterPays)
+      )
       .runWith(Sink.head)
       .flatMap {
         case Some((source, content)) =>
@@ -552,6 +693,7 @@ class AlpakkaS3StreamClient(
         case None =>
           Future.failed(S3Exception(bucket, fileKey))
       }
+  }
 
   /**
     * Delete the outputs.json file so that it does not appear in the published
@@ -563,7 +705,12 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[Unit] =
-    S3.deleteObject(version.s3Bucket.value, outputKey(version).value)
+    S3.deleteObject(
+        version.s3Bucket.value,
+        outputKey(version).value,
+        versionId = None,
+        s3Headers = s3Headers(true)
+      )
       .runWith(Sink.head)
       .map(_ => ())
 
@@ -604,7 +751,10 @@ class AlpakkaS3StreamClient(
       .signatureDuration(Duration.ofNanos(60.minutes.toNanos))
       .getObjectRequest(objectRequest)
       .build
-    s3Presigner.presignGetObject(presignedRequest).url.toString
+    getPresignerForBucket(bucket)
+      .presignGetObject(presignedRequest)
+      .url
+      .toString
   }
 
   case class ModelSchema(name: String, file: String) {

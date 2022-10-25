@@ -8,8 +8,11 @@ import akka.stream._
 import akka.stream.scaladsl._
 import akka.stream.testkit.scaladsl.TestSink
 import akka.util.ByteString
-import com.pennsieve.discover.S3Exception
-import com.pennsieve.discover.DockerS3Service
+import com.pennsieve.discover.{
+  DockerS3Service,
+  ExternalPublishBucketConfiguration,
+  S3Exception
+}
 import com.pennsieve.discover.models._
 import com.pennsieve.models._
 import com.pennsieve.test.AwaitableImplicits
@@ -27,6 +30,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.EitherValues._
+import software.amazon.awssdk.arns.Arn
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.model.{
@@ -39,6 +43,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.services.sts.StsClient
 import squants.information.Information
 import squants.information.InformationConversions._
 
@@ -114,11 +119,23 @@ class S3StreamClientSpec
     .endpointOverride(new URI(s3Endpoint))
     .build()
 
+  lazy val stsClient: StsClient = StsClient
+    .builder()
+    .region(Region.US_EAST_1)
+    .credentialsProvider(
+      StaticCredentialsProvider
+        .create(AwsBasicCredentials.create(accessKey, secretKey))
+    )
+    .endpointOverride(new URI(s3Endpoint))
+    .build()
+
   /**
     * Create a streaming client for testing, and the required S3 buckets.
     */
   def createClient(
-    chunkSize: Information = 20.megabytes
+    chunkSize: Information = 20.megabytes,
+    externalPublishBucketConfig: Option[ExternalPublishBucketConfiguration] =
+      None
   ): (AlpakkaS3StreamClient, String, String) = {
 
     val publishBucket = s"publish-bucket-${UUID.randomUUID()}"
@@ -127,12 +144,19 @@ class S3StreamClientSpec
     val frontendBucket = s"frontend-bucket-${UUID.randomUUID()}"
     createBucket(frontendBucket)
 
+    externalPublishBucketConfig.foreach(c => createBucket(c.bucket.value))
+    val bucketToRole =
+      externalPublishBucketConfig.map(c => c.bucket -> c.roleArn).toMap
+
     (
       new AlpakkaS3StreamClient(
+        s3Presigner,
+        stsClient,
         Region.US_EAST_1,
         S3Bucket(frontendBucket),
         "dataset-assets",
-        chunkSize
+        chunkSize,
+        bucketToRole
       ),
       publishBucket,
       frontendBucket
@@ -183,6 +207,41 @@ class S3StreamClientSpec
 
       sink.request(n = 100)
       sink.expectNext(("dataset/files/file1.txt", ByteString("file1 data")))
+      sink.expectComplete()
+    }
+
+    "generate stream from external S3 publish bucket" in {
+      val externalBucket = s"external-bucket-${UUID.randomUUID()}"
+      val externalBucketConfig = ExternalPublishBucketConfiguration(
+        S3Bucket(externalBucket),
+        Arn.fromString(
+          "arn:aws:iam::000000000000:role/external-bucket-access-role"
+        )
+      )
+      val (client, _, _) =
+        createClient(externalPublishBucketConfig = Some(externalBucketConfig))
+
+      // Data is even multiple of chunk size
+      putObject(externalBucket, "0/1/files/file1.txt", "file1 data")
+      // Not a multiple - last chunk is truncated
+      putObject(externalBucket, "0/1/files/file2.txt", "file2 data+")
+      putObject(externalBucket, "0/1/files/nested/file3.txt", "file3 data")
+
+      val sink = client
+        .datasetFilesSource(version(0, 1, externalBucket), "dataset")
+        .mapAsync(1) {
+          case (path, source) =>
+            source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))
+        }
+        .toMat(TestSink.probe)(Keep.right)
+        .run()
+
+      sink.request(n = 100)
+      sink.expectNextUnordered(
+        ("dataset/files/file1.txt", ByteString("file1 data")),
+        ("dataset/files/file2.txt", ByteString("file2 data+")),
+        ("dataset/files/nested/file3.txt", ByteString("file3 data"))
+      )
       sink.expectComplete()
     }
   }

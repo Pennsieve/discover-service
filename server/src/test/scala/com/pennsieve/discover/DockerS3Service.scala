@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 
 trait DockerS3Service extends DockerKit with AwaitableImplicits {
 
-  val minioTag = "RELEASE.2019-04-23T23-50-36Z"
+  val minioTag = "RELEASE.2022-10-20T00-55-09Z"
   val accessKey: String = "access_key"
   val secretKey: String = "access_secret"
   val minioExposedPort: Int = 9000

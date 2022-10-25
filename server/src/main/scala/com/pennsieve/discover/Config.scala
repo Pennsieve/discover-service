@@ -9,6 +9,7 @@ import squants.information.InformationConversions._
 import pureconfig._
 import pureconfig.module.squants._
 import pureconfig.generic.auto._
+import software.amazon.awssdk.arns.Arn
 
 import scala.concurrent.duration._
 import scala.concurrent.duration.FiniteDuration
@@ -29,11 +30,17 @@ case class Config(
   sns: SNSConfiguration,
   pennsieveApi: PennsieveApiConfiguration,
   authorizationService: AuthorizationConfiguration,
-  download: DownloadConfiguration
+  download: DownloadConfiguration,
+  externalPublishBuckets: Map[S3Bucket, Arn] = Map.empty
 )
 
 object Config {
   implicit val awsRegionReader = ConfigReader[String].map(Region.of(_))
+  implicit val awsArnReader = ConfigReader[String].map(Arn.fromString(_))
+  implicit val externalPublishBucketConfigurationReader
+    : ConfigReader[Map[S3Bucket, Arn]] =
+    ConfigReader[List[ExternalPublishBucketConfiguration]]
+      .map(_.map(c => c.bucket -> c.roleArn).toMap)
 
   def load: Config = ConfigSource.default.loadOrThrow[Config]
 }
@@ -103,3 +110,5 @@ case class ElasticSearchConfiguration(host: String, port: Int) {
 }
 
 case class SNSConfiguration(alertTopic: String, region: Region)
+
+case class ExternalPublishBucketConfiguration(bucket: S3Bucket, roleArn: Arn)
