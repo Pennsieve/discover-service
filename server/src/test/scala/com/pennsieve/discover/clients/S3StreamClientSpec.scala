@@ -43,6 +43,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.services.sts.StsClient
 import squants.information.Information
 import squants.information.InformationConversions._
@@ -107,6 +108,7 @@ class S3StreamClientSpec
           .create(AwsBasicCredentials.create(accessKey, secretKey))
       )
       .endpointOverride(new URI(s3Endpoint))
+      .httpClientBuilder(UrlConnectionHttpClient.builder())
       .build()
 
   lazy val s3Presigner: S3Presigner = S3Presigner
@@ -127,6 +129,7 @@ class S3StreamClientSpec
         .create(AwsBasicCredentials.create(accessKey, secretKey))
     )
     .endpointOverride(new URI(s3Endpoint))
+    .httpClientBuilder(UrlConnectionHttpClient.builder())
     .build()
 
   /**
