@@ -24,7 +24,7 @@ import com.pennsieve.discover.downloads.ZipStream._
 import com.pennsieve.discover.models._
 import com.pennsieve.models._
 import com.pennsieve.discover.utils.joinPath
-import com.typesafe.scalalogging.StrictLogging
+import com.typesafe.scalalogging.{ LazyLogging, StrictLogging }
 import org.apache.commons.io.FilenameUtils
 import squants.information.Information
 import squants.information.InformationConversions._
@@ -148,7 +148,8 @@ trait S3StreamClient {
   def getPresignedUrlForFile(s3Bucket: S3Bucket, key: S3Key.File): String
 }
 
-class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient) {
+class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
+    extends LazyLogging {
 
   private val roleToCredentialsProvider =
     new ConcurrentHashMap[String, StsAssumeRoleCredentialsProvider]()
@@ -158,6 +159,7 @@ class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient) {
   private def createAssumeRoleCredentialsProvider(
     roleArn: String
   ): StsAssumeRoleCredentialsProvider = {
+    logger.info(s"creating StsAssumeRoleCredentialsProvider for $roleArn")
     val assumeRoleRequest =
       AssumeRoleRequest
         .builder()
