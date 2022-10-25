@@ -142,6 +142,7 @@ lazy val server = project
       "software.amazon.awssdk" % "sns" % awsSdkVersion,
       "software.amazon.awssdk" % "s3" % awsSdkVersion,
       "software.amazon.awssdk" % "sts" % awsSdkVersion,
+      "software.amazon.awssdk" % "url-connection-client" % awsSdkVersion,
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-squants" % pureConfigVersion,
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",

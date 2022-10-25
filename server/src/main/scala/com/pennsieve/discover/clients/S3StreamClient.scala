@@ -42,6 +42,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import com.pennsieve.discover.models.Revision
 import software.amazon.awssdk.arns.Arn
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
@@ -219,6 +220,7 @@ class AlpakkaS3StreamClient(
         .build, // deliberately inlined to take advantage of call-by-name
       StsClient.builder
         .region(region)
+        .httpClientBuilder(UrlConnectionHttpClient.builder())
         .build, // deliberately inlined to take advantage of call-by-name
       region,
       frontendBucket,
