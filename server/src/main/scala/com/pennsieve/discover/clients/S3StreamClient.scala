@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import com.pennsieve.discover.models.Revision
+import software.amazon.awssdk.arns.Arn
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
@@ -152,18 +153,18 @@ class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
     extends LazyLogging {
 
   private val roleToCredentialsProvider =
-    new ConcurrentHashMap[String, StsAssumeRoleCredentialsProvider]()
+    new ConcurrentHashMap[Arn, StsAssumeRoleCredentialsProvider]()
   private val roleToPresigner =
-    new ConcurrentHashMap[String, S3Presigner]()
+    new ConcurrentHashMap[Arn, S3Presigner]()
 
   private def createAssumeRoleCredentialsProvider(
-    roleArn: String
+    roleArn: Arn
   ): StsAssumeRoleCredentialsProvider = {
     logger.info(s"creating StsAssumeRoleCredentialsProvider for $roleArn")
     val assumeRoleRequest =
       AssumeRoleRequest
         .builder()
-        .roleArn(roleArn)
+        .roleArn(roleArn.toString)
         .roleSessionName("discover-service-access-session")
         .build()
     StsAssumeRoleCredentialsProvider
@@ -173,20 +174,18 @@ class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
       .build()
   }
 
-  def getCredentialsProvider(
-    roleArn: String
-  ): StsAssumeRoleCredentialsProvider =
+  def getCredentialsProvider(roleArn: Arn): StsAssumeRoleCredentialsProvider =
     roleToCredentialsProvider.computeIfAbsent(
       roleArn,
       (createAssumeRoleCredentialsProvider(_)).asJava
     )
 
-  def getPresigner(roleArn: String): S3Presigner =
+  def getPresigner(roleArn: Arn): S3Presigner =
     roleToPresigner
       .computeIfAbsent(
         roleArn,
         (
-          (r: String) =>
+          (r: Arn) =>
             S3Presigner.builder
               .region(region)
               .credentialsProvider(getCredentialsProvider(r))
@@ -203,7 +202,7 @@ class AlpakkaS3StreamClient(
   frontendBucket: S3Bucket,
   assetsKeyPrefix: String,
   chunkSize: Information,
-  externalPublishBucketToRole: Map[S3Bucket, String]
+  externalPublishBucketToRole: Map[S3Bucket, Arn]
 ) extends S3StreamClient
     with StrictLogging {
 
@@ -212,7 +211,7 @@ class AlpakkaS3StreamClient(
     frontendBucket: S3Bucket,
     assetsKeyPrefix: String,
     chunkSize: Information = 20.megabytes,
-    externalPublishBucketToRole: Map[S3Bucket, String] = Map.empty
+    externalPublishBucketToRole: Map[S3Bucket, Arn] = Map.empty
   ) = {
     this(
       S3Presigner.builder

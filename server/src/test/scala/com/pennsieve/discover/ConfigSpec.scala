@@ -6,6 +6,7 @@ import com.pennsieve.discover.models.S3Bucket
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.OptionValues._
+import software.amazon.awssdk.arns.Arn
 
 class ConfigSpec extends AnyWordSpec with Matchers {
 
@@ -17,7 +18,11 @@ class ConfigSpec extends AnyWordSpec with Matchers {
 
       config.externalPublishBuckets
         .get(S3Bucket("external-bucket-1"))
-        .value should be("external-role-1")
+        .value should be(
+        Arn.fromString(
+          "arn:aws:iam::000000000000:role/external-bucket-1-access-role"
+        )
+      )
 
       config.externalPublishBuckets
         .get(S3Bucket("default-bucket"))

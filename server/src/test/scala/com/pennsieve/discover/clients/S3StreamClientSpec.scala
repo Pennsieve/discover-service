@@ -30,6 +30,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.EitherValues._
+import software.amazon.awssdk.arns.Arn
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.model.{
@@ -213,7 +214,9 @@ class S3StreamClientSpec
       val externalBucket = s"external-bucket-${UUID.randomUUID()}"
       val externalBucketConfig = ExternalPublishBucketConfiguration(
         S3Bucket(externalBucket),
-        "arn:aws:iam::000000000000:role/external-bucket-access-role"
+        Arn.fromString(
+          "arn:aws:iam::000000000000:role/external-bucket-access-role"
+        )
       )
       val (client, _, _) =
         createClient(externalPublishBucketConfig = Some(externalBucketConfig))
