@@ -636,7 +636,8 @@ class AlpakkaS3StreamClient(
     for {
       (source, _) <- s3FileSource(
         version.s3Bucket,
-        readmeKey(version, revision)
+        readmeKey(version, revision),
+        isRequesterPays = true
       )
 
       content <- source
@@ -795,7 +796,11 @@ class AlpakkaS3StreamClient(
   ): Source[ModelSchema, NotUsed] = {
     val graphSchema = Source
       .futureSource(
-        s3FileSource(version.s3Bucket, graphSchemaKey(version)).map(_._1)
+        s3FileSource(
+          version.s3Bucket,
+          graphSchemaKey(version),
+          isRequesterPays = true
+        ).map(_._1)
       )
       .runWith(Sink.fold(ByteString.empty)(_ ++ _))
       .map(_.utf8String)
@@ -822,7 +827,9 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Source[Map[String, String], NotUsed] =
     Source
-      .futureSource(s3FileSource(bucket, fileKey).map(_._1))
+      .futureSource(
+        s3FileSource(bucket, fileKey, isRequesterPays = true).map(_._1)
+      )
       .via(CsvParsing.lineScanner())
       .via(CsvToMap.toMapAsStrings(StandardCharsets.UTF_8))
       .mapMaterializedValue(_ => NotUsed)
