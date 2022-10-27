@@ -110,11 +110,17 @@ class PublishHandlerSpec
       relationshipType = Some(RelationshipType.Describes)
     )
 
+  val customBucketConfig =
+    definitions.BucketConfig("org-publish-bucket", "org-embargo-bucket")
+
   val customBucketReleaseBody: definitions.ReleaseRequest =
-    definitions.ReleaseRequest(publishBucket = Some("org-custom-bucket"))
+    definitions.ReleaseRequest(bucketConfig = Some(customBucketConfig))
 
   val defaultBucketReleaseBody: definitions.ReleaseRequest =
     definitions.ReleaseRequest()
+
+  val defaultBucketUnpublishBody: definitions.UnpublishRequest =
+    definitions.UnpublishRequest()
 
   val requestBody: definitions.PublishRequest = definitions.PublishRequest(
     name = datasetName,
@@ -1135,7 +1141,8 @@ class PublishHandlerSpec
             organizationId = organizationId,
             datasetId = datasetId,
             version = version.version,
-            s3Bucket = S3Bucket(customBucketReleaseBody.publishBucket.get),
+            s3Bucket =
+              S3Bucket(customBucketReleaseBody.bucketConfig.get.publish),
             s3Key = version.s3Key
           )
       }
@@ -1214,7 +1221,7 @@ class PublishHandlerSpec
     "fail without a JWT" in {
 
       val response = client
-        .unpublish(organizationId, datasetId)
+        .unpublish(organizationId, datasetId, defaultBucketUnpublishBody)
         .awaitFinite()
         .value
 
@@ -1223,7 +1230,12 @@ class PublishHandlerSpec
 
     "fail with a user JWT" in {
       val response = client
-        .unpublish(organizationId, datasetId, userAuthToken)
+        .unpublish(
+          organizationId,
+          datasetId,
+          defaultBucketUnpublishBody,
+          userAuthToken
+        )
         .awaitFinite()
         .value
 
@@ -1261,7 +1273,12 @@ class PublishHandlerSpec
 
       val response =
         client
-          .unpublish(organizationId, datasetId, authToken)
+          .unpublish(
+            organizationId,
+            datasetId,
+            defaultBucketUnpublishBody,
+            authToken
+          )
           .awaitFinite()
           .value
           .asInstanceOf[UnpublishResponse.OK]
@@ -1288,7 +1305,12 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .unpublish(organizationId, datasetId, authToken)
+        .unpublish(
+          organizationId,
+          datasetId,
+          defaultBucketUnpublishBody,
+          authToken
+        )
         .awaitFinite()
         .value
         .asInstanceOf[UnpublishResponse.OK]
@@ -1345,7 +1367,12 @@ class PublishHandlerSpec
       publishSuccessfully(publicDataset, version)
 
       val response = client
-        .unpublish(organizationId, datasetId, authToken)
+        .unpublish(
+          organizationId,
+          datasetId,
+          defaultBucketUnpublishBody,
+          authToken
+        )
         .awaitFinite()
         .value
         .asInstanceOf[UnpublishResponse.OK]
@@ -1377,7 +1404,12 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .unpublish(organizationId, datasetId, authToken)
+        .unpublish(
+          organizationId,
+          datasetId,
+          defaultBucketUnpublishBody,
+          authToken
+        )
         .awaitFinite()
         .value
 
@@ -1395,7 +1427,12 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .unpublish(organizationId, datasetId, authToken)
+        .unpublish(
+          organizationId,
+          datasetId,
+          defaultBucketUnpublishBody,
+          authToken
+        )
         .awaitFinite()
         .value
 
@@ -1413,7 +1450,12 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .unpublish(organizationId, datasetId, authToken)
+        .unpublish(
+          organizationId,
+          datasetId,
+          defaultBucketUnpublishBody,
+          authToken
+        )
         .awaitFinite()
         .value
 
@@ -1426,7 +1468,12 @@ class PublishHandlerSpec
 
       val response =
         client
-          .unpublish(organizationId, datasetId, authToken)
+          .unpublish(
+            organizationId,
+            datasetId,
+            defaultBucketUnpublishBody,
+            authToken
+          )
           .awaitFinite()
           .value
 
