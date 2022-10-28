@@ -114,7 +114,7 @@ class PublishHandlerSpec
     definitions.BucketConfig("org-publish-bucket", "org-embargo-bucket")
 
   val customBucketReleaseBody: definitions.ReleaseRequest =
-    definitions.ReleaseRequest(bucketConfig = Some(customBucketConfig))
+    definitions.ReleaseRequest(Some(customBucketConfig))
 
   val defaultBucketReleaseBody: definitions.ReleaseRequest =
     definitions.ReleaseRequest()
@@ -1141,9 +1141,11 @@ class PublishHandlerSpec
             organizationId = organizationId,
             datasetId = datasetId,
             version = version.version,
-            s3Bucket =
+            s3Key = version.s3Key,
+            publishBucket =
               S3Bucket(customBucketReleaseBody.bucketConfig.get.publish),
-            s3Key = version.s3Key
+            embargoBucket =
+              S3Bucket(customBucketReleaseBody.bucketConfig.get.embargo)
           )
       }
     }
@@ -1191,8 +1193,9 @@ class PublishHandlerSpec
             organizationId = organizationId,
             datasetId = datasetId,
             version = version.version,
-            s3Bucket = config.s3.publishBucket,
-            s3Key = version.s3Key
+            s3Key = version.s3Key,
+            publishBucket = config.s3.publishBucket,
+            embargoBucket = config.s3.embargoBucket
           )
       }
     }
@@ -1288,7 +1291,13 @@ class PublishHandlerSpec
 
       ports.lambdaClient
         .asInstanceOf[MockLambdaClient]
-        .s3Keys shouldBe List(publicDataset.id.toString)
+        .requests shouldBe List(
+        LambdaRequest(
+          publicDataset.id.toString,
+          config.s3.publishBucket.value,
+          config.s3.embargoBucket.value
+        )
+      )
 
       ports.searchClient
         .asInstanceOf[MockSearchClient]

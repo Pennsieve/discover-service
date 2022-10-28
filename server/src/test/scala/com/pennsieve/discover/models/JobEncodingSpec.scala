@@ -64,7 +64,9 @@ class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
         doi = "10.324/4529",
         contributors = List(contrib1),
         collections = List(collection1),
-        externalPublications = List(externalPublication)
+        externalPublications = List(externalPublication),
+        publishBucket = S3Bucket("publish-bucket"),
+        embargoBucket = S3Bucket("embargo-bucket")
       )
 
       val json = job.asJson.toString
@@ -89,7 +91,9 @@ class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
           |  "doi" : "10.324/4529",
           |  "contributors" : "[{\\"id\\":1,\\"first_name\\":\\"Alfred\\",\\"middle_initial\\":\\"C\\",\\"last_name\\":\\"Kinsey\\",\\"degree\\":\\"Ph.D.\\",\\"orcid\\":null}]",
           |  "collections" : "[{\\"name\\":\\"My Awesome Collection\\",\\"source_collection_id\\":2,\\"dataset_id\\":1,\\"version_id\\":1}]",
-          |  "external_publications" : "[{\\"doi\\":\\"10.26275/t6j6-77pu\\",\\"relationshipType\\":\\"IsSourceOf\\"}]"
+          |  "external_publications" : "[{\\"doi\\":\\"10.26275/t6j6-77pu\\",\\"relationshipType\\":\\"IsSourceOf\\"}]",
+          |  "publish_bucket" : "publish-bucket",
+          |  "embargo_bucket" : "embargo-bucket"
           |}""".stripMargin
 
     }
@@ -99,7 +103,14 @@ class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
 
     "encode integers as strings" in {
       val job =
-        EmbargoReleaseJob(1, 10, 7, S3Key.Version(2, 5), S3Bucket("bucket"))
+        EmbargoReleaseJob(
+          1,
+          10,
+          7,
+          S3Key.Version(2, 5),
+          S3Bucket("publish-bucket"),
+          S3Bucket("embargo-bucket")
+        )
 
       job.asJson.toString shouldBe
         s"""{
@@ -107,7 +118,8 @@ class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
           |  "dataset_id" : "10",
           |  "version" : "7",
           |  "s3_key" : "2/5/",
-          |  "s3_bucket" : "bucket"
+          |  "publish_bucket" : "publish-bucket",
+          |  "embargo_bucket" : "embargo-bucket"
           |}""".stripMargin
     }
   }

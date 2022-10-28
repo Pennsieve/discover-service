@@ -13,7 +13,8 @@ case class EmbargoReleaseJob(
   datasetId: Int,
   version: Int,
   s3Key: S3Key.Version,
-  s3Bucket: S3Bucket
+  publishBucket: S3Bucket,
+  embargoBucket: S3Bucket
 )
 
 object EmbargoReleaseJob {
@@ -21,26 +22,29 @@ object EmbargoReleaseJob {
   def apply(
     publicDataset: PublicDataset,
     version: PublicDatasetVersion,
-    s3Bucket: S3Bucket
+    publishBucket: S3Bucket,
+    embargoBucket: S3Bucket
   ): EmbargoReleaseJob =
     EmbargoReleaseJob(
       publicDataset.sourceOrganizationId,
       publicDataset.sourceDatasetId,
       version.version,
       version.s3Key,
-      s3Bucket
+      publishBucket,
+      embargoBucket
     )
 
   /**
     * Same with PublishJob, need custom encoder to convert all fields to strings.
     */
   implicit val encoder: Encoder[EmbargoReleaseJob] =
-    Encoder.forProduct5(
+    Encoder.forProduct6(
       "organization_id",
       "dataset_id",
       "version",
       "s3_key",
-      "s3_bucket"
+      "publish_bucket",
+      "embargo_bucket"
     )(
       j =>
         (
@@ -48,7 +52,8 @@ object EmbargoReleaseJob {
           j.datasetId.toString,
           j.version.toString,
           j.s3Key.value,
-          j.s3Bucket.toString
+          j.publishBucket.value,
+          j.embargoBucket.value
         )
     )
 }

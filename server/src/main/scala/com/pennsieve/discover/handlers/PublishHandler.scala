@@ -241,7 +241,9 @@ class PublishHandler(
                     doi,
                     contributors,
                     collections,
-                    externalPublications
+                    externalPublications,
+                    publishBucket,
+                    embargoBucket
                   )
                 )
             )
@@ -580,7 +582,9 @@ class PublishHandler(
 
         sfnResponse <- DBIO.from(
           ports.stepFunctionsClient
-            .startRelease(EmbargoReleaseJob(dataset, version, publishBucket))
+            .startRelease(
+              EmbargoReleaseJob(dataset, version, publishBucket, embargoBucket)
+            )
         )
 
         _ = ports.log.info(s"Started step function ${sfnResponse.toString}")
@@ -680,7 +684,15 @@ class PublishHandler(
                 .hideDoi(version.doi, headers)
           )
         )
-        _ <- DBIO.from(deleteAssets(s3Key = dataset.id.toString))
+
+        (publishBucket, embargoBucket) = resolveBucketConfig(body.bucketConfig)
+        _ <- DBIO.from(
+          deleteAssets(
+            s3Key = dataset.id.toString,
+            publishBucket = publishBucket.value,
+            embargoBucket = embargoBucket.value
+          )
+        )
         status <- PublicDatasetVersionsMapper.getDatasetStatus(dataset)
       } yield status
 
@@ -941,8 +953,12 @@ class PublishHandler(
     }
   }
 
-  def deleteAssets(s3Key: String): Future[InvokeResponse] = {
-    ports.lambdaClient.runS3Clean(s3Key)
+  def deleteAssets(
+    s3Key: String,
+    publishBucket: String,
+    embargoBucket: String
+  ): Future[InvokeResponse] = {
+    ports.lambdaClient.runS3Clean(s3Key, publishBucket, embargoBucket)
   }
 
   def getOrCreateDoi(organizationId: Int, datasetId: Int): Future[DoiDTO] = {
