@@ -81,9 +81,13 @@ case class S3Exception(bucket: S3Bucket, key: S3Key) extends Throwable {
   override def getMessage: String = s"Error streaming s3://$bucket/$key"
 }
 
-case class LambdaException(s3KeyPrefix: String) extends Throwable {
+case class LambdaException(
+  s3KeyPrefix: String,
+  publishBucket: String,
+  embargoBucket: String
+) extends Throwable {
   override def getMessage: String =
-    s"Failed to run s3clean lambda function for s3_key_prefix=$s3KeyPrefix"
+    s"Failed to run s3clean lambda function for s3_key_prefix=$s3KeyPrefix, publish_bucket=$publishBucket, embargo_bucket=$embargoBucket"
 }
 
 case class BadQueryParameter(error: Throwable) extends Throwable {

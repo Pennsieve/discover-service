@@ -36,12 +36,13 @@ import slick.dbio.DBIOAction
 import slick.jdbc.TransactionIsolation
 import software.amazon.awssdk.services.lambda.model.InvokeResponse
 import com.pennsieve.discover.server.definitions.{
+  BucketConfig,
   InternalContributor,
   SponsorshipRequest,
   SponsorshipResponse
 }
-import java.time.LocalDate
 
+import java.time.LocalDate
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
 import com.pennsieve.discover.db.PublicFilesMapper
@@ -57,8 +58,20 @@ class PublishHandler(
   implicit val config: Config = ports.config
 
   val defaultPublishBucket = ports.config.s3.publishBucket
+  val defaultEmbargoBucket = ports.config.s3.embargoBucket
 
   type PublishResponse = GuardrailResource.PublishResponse
+
+  private def resolveBucketConfig(
+    bucketConfig: Option[BucketConfig]
+  ): (S3Bucket, S3Bucket) = {
+    (
+      bucketConfig
+        .map(c => S3Bucket(c.publish))
+        .getOrElse(defaultPublishBucket),
+      bucketConfig.map(c => S3Bucket(c.embargo)).getOrElse(defaultEmbargoBucket)
+    )
+  }
 
   override def publish(
     respond: GuardrailResource.PublishResponse.type
@@ -78,15 +91,9 @@ class PublishHandler(
 
     val shouldEmbargo = embargo.getOrElse(false)
 
-    val targetS3Bucket = if (shouldEmbargo) {
-      S3Bucket(
-        body.embargoBucket.getOrElse(ports.config.s3.embargoBucket.value)
-      )
-    } else {
-      S3Bucket(
-        body.publishBucket.getOrElse(ports.config.s3.publishBucket.value)
-      )
-    }
+    val (publishBucket, embargoBucket) = resolveBucketConfig(body.bucketConfig)
+
+    val targetS3Bucket = if (shouldEmbargo) embargoBucket else publishBucket
 
     withServiceOwnerAuthorization[PublishResponse](
       claim,
@@ -234,7 +241,9 @@ class PublishHandler(
                     doi,
                     contributors,
                     collections,
-                    externalPublications
+                    externalPublications,
+                    publishBucket,
+                    embargoBucket
                   )
                 )
             )
@@ -536,8 +545,8 @@ class PublishHandler(
       organizationId,
       datasetId
     ) { _ =>
-      val publishBucket =
-        body.publishBucket.map(S3Bucket(_)).getOrElse(defaultPublishBucket)
+      val (publishBucket, embargoBucket) =
+        resolveBucketConfig(body.bucketConfig)
 
       val query = for {
         dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(
@@ -573,7 +582,9 @@ class PublishHandler(
 
         sfnResponse <- DBIO.from(
           ports.stepFunctionsClient
-            .startRelease(EmbargoReleaseJob(dataset, version, publishBucket))
+            .startRelease(
+              EmbargoReleaseJob(dataset, version, publishBucket, embargoBucket)
+            )
         )
 
         _ = ports.log.info(s"Started step function ${sfnResponse.toString}")
@@ -609,7 +620,8 @@ class PublishHandler(
     respond: GuardrailResource.UnpublishResponse.type
   )(
     organizationId: Int,
-    datasetId: Int
+    datasetId: Int,
+    body: definitions.UnpublishRequest
   ): Future[GuardrailResource.UnpublishResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       organizationId = Some(organizationId),
@@ -672,7 +684,15 @@ class PublishHandler(
                 .hideDoi(version.doi, headers)
           )
         )
-        _ <- DBIO.from(deleteAssets(s3Key = dataset.id.toString))
+
+        (publishBucket, embargoBucket) = resolveBucketConfig(body.bucketConfig)
+        _ <- DBIO.from(
+          deleteAssets(
+            s3Key = dataset.id.toString,
+            publishBucket = publishBucket.value,
+            embargoBucket = embargoBucket.value
+          )
+        )
         status <- PublicDatasetVersionsMapper.getDatasetStatus(dataset)
       } yield status
 
@@ -933,8 +953,12 @@ class PublishHandler(
     }
   }
 
-  def deleteAssets(s3Key: String): Future[InvokeResponse] = {
-    ports.lambdaClient.runS3Clean(s3Key)
+  def deleteAssets(
+    s3Key: String,
+    publishBucket: String,
+    embargoBucket: String
+  ): Future[InvokeResponse] = {
+    ports.lambdaClient.runS3Clean(s3Key, publishBucket, embargoBucket)
   }
 
   def getOrCreateDoi(organizationId: Int, datasetId: Int): Future[DoiDTO] = {

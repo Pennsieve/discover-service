@@ -23,7 +23,9 @@ import scala.concurrent.{ ExecutionContext, Future }
 trait LambdaClient {
 
   def runS3Clean(
-    s3KeyPrefix: String
+    s3KeyPrefix: String,
+    publishBucket: String,
+    embargoBucket: String
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -46,7 +48,9 @@ class AlpakkaLambdaClient(
     .build()
 
   def runS3Clean(
-    s3KeyPrefix: String
+    s3KeyPrefix: String,
+    publishBucket: String,
+    embargoBucket: String
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -56,7 +60,13 @@ class AlpakkaLambdaClient(
       .functionName(s3CleanFunction)
       .payload(
         SdkBytes
-          .fromUtf8String(Map("s3_key_prefix" -> s3KeyPrefix).asJson.noSpaces)
+          .fromUtf8String(
+            Map(
+              "s3_key_prefix" -> s3KeyPrefix,
+              "publish_bucket" -> publishBucket,
+              "embargo_bucket" -> embargoBucket
+            ).asJson.noSpaces
+          )
       )
       .build()
     Source
@@ -68,9 +78,14 @@ class AlpakkaLambdaClient(
           if (response.statusCode() == 200) {
             Future.successful(response)
           } else {
-            Future.failed(LambdaException(s3KeyPrefix))
+            Future.failed(
+              LambdaException(s3KeyPrefix, publishBucket, embargoBucket)
+            )
           }
-        case _ => Future.failed(LambdaException(s3KeyPrefix))
+        case _ =>
+          Future.failed(
+            LambdaException(s3KeyPrefix, publishBucket, embargoBucket)
+          )
       }
   }
 

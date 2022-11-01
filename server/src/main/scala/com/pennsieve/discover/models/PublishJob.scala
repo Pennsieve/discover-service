@@ -13,6 +13,15 @@ import io.circe.parser.decode
 
 /**
   * Job definition that is sent to the AWS State Machine.
+  *
+  * @param s3Bucket      this is the target bucket. Either a publish or embargo bucket.
+  * @param publishBucket this is either the owning organization's custom publish bucket or
+  *                      the default publish bucket if the organization does not have a custom
+  *                      bucket.
+  * @param embargoBucket this is either the owning organization's custom embargo bucket or
+  *                      the default embargo bucket if the organization does not have a custom
+  *                      bucket.
+
   */
 case class PublishJob(
   organizationId: Int,
@@ -33,7 +42,9 @@ case class PublishJob(
   doi: String,
   contributors: List[PublicContributor],
   collections: List[PublicCollection],
-  externalPublications: List[PublicExternalPublication]
+  externalPublications: List[PublicExternalPublication],
+  publishBucket: S3Bucket,
+  embargoBucket: S3Bucket
 )
 
 object PublishJob {
@@ -45,7 +56,9 @@ object PublishJob {
     doi: DoiDTO,
     contributors: List[PublicContributor],
     collections: List[PublicCollection],
-    externalPublications: List[PublicExternalPublication]
+    externalPublications: List[PublicExternalPublication],
+    publishBucket: S3Bucket,
+    embargoBucket: S3Bucket
   ): PublishJob = {
     PublishJob(
       organizationId = publicDataset.sourceOrganizationId,
@@ -66,7 +79,9 @@ object PublishJob {
       doi = doi.doi,
       contributors = contributors,
       collections = collections,
-      externalPublications = externalPublications
+      externalPublications = externalPublications,
+      publishBucket = publishBucket,
+      embargoBucket = embargoBucket
     )
   }
 
@@ -103,7 +118,7 @@ object PublishJob {
     * way to transform JSON types in Step Function input/output/result parameters.
     * Contributors are therefore encoded as a string rather than a collection fo objects
     */
-  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct19(
+  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct21(
     "organization_id",
     "organization_node_id",
     "organization_name",
@@ -122,7 +137,9 @@ object PublishJob {
     "doi",
     "contributors",
     "collections",
-    "external_publications"
+    "external_publications",
+    "publish_bucket",
+    "embargo_bucket"
   )(
     j =>
       (
@@ -144,7 +161,9 @@ object PublishJob {
         j.doi,
         j.contributors.asJson.noSpaces,
         j.collections.asJson.noSpaces,
-        j.externalPublications.asJson.noSpaces
+        j.externalPublications.asJson.noSpaces,
+        j.publishBucket.value,
+        j.embargoBucket.value
       )
   )
 }

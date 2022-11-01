@@ -266,7 +266,7 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/ReleaseRequest"
-        description: Object identifying custom publish bucket if it exists
+        description: Object identifying custom publish bucket configuration if it exists
         required: true
       responses:
         "202":
@@ -314,6 +314,13 @@ paths:
           schema:
             type: integer
             format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnpublishRequest"
+        description: Object identifying custom publish bucket configuration if it exists
+        required: true
       responses:
         "200":
           description: Success
@@ -500,6 +507,20 @@ components:
       bearerFormat: JWT
 
   schemas:
+    BucketConfig:
+      description: Holds an organization's custom publish and embargo bucket names. Not used if organization does not use its own buckets.
+      type: object
+      required:
+        - publish
+        - embargo
+      properties:
+        publish:
+          description: name of the publish bucket
+          type: string
+        embargo:
+          description: name of the embargo bucket
+          type: string
+
     PublishRequest:
       type: object
       required:
@@ -574,17 +595,23 @@ components:
           type: string
         datasetNodeId:
           type: string
-        publishBucket:
-          type: string
-        embargoBucket:
-          type: string
+        bucketConfig:
+          description: The owning organization's custom bucket config. Omit if there is no such config
+          $ref: "#/components/schemas/BucketConfig"
 
     ReleaseRequest:
       type: object
       properties:
-        publishBucket:
-          description: The owning organization's custom publish bucket. Omit if there is no such bucket.
-          type: string
+        bucketConfig:
+          description: The owning organization's custom bucket config. Omit if there is no such config.
+          $ref: "#/components/schemas/BucketConfig"
+
+    UnpublishRequest:
+      type: object
+      properties:
+        bucketConfig:
+          description: The owning organization's custom bucket config. Omit if there is no such config.
+          $ref: "#/components/schemas/BucketConfig"
 
     ReviseRequest:
       type: object
