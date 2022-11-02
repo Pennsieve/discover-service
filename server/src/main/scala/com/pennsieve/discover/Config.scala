@@ -35,6 +35,7 @@ case class Config(
 )
 
 object Config {
+
   implicit val awsRegionReader = ConfigReader[String].map(Region.of(_))
   implicit val awsArnReader = ConfigReader[String].map(Arn.fromString(_))
   implicit val externalPublishBucketConfigurationReader
@@ -43,6 +44,10 @@ object Config {
       .map(_.map(c => c.bucket -> c.roleArn).toMap)
 
   def load: Config = ConfigSource.default.loadOrThrow[Config]
+
+  // Here for testing different config files.
+  private[discover] def loadForTest(resourceName: String): Config =
+    ConfigSource.resources(resourceName).loadOrThrow[Config]
 }
 
 case class JwtConfig(key: String, duration: FiniteDuration = 5.minutes)

@@ -12,7 +12,8 @@ class ConfigSpec extends AnyWordSpec with Matchers {
 
   "load" should {
     "correctly parse the external-publish-buckets section" in {
-      val config: Config = Config.load
+      val config: Config =
+        Config.loadForTest("config-with-external-buckets.conf")
 
       config.externalPublishBuckets.isEmpty should be(false)
 
@@ -28,5 +29,13 @@ class ConfigSpec extends AnyWordSpec with Matchers {
         .get(S3Bucket("default-bucket"))
         .isDefined should be(false)
     }
+
+    "work if no external-publish-bucket section exists" in {
+      val config: Config =
+        Config.loadForTest("config-without-external-buckets.conf")
+
+      config.externalPublishBuckets.isEmpty should be(true)
+    }
+
   }
 }
