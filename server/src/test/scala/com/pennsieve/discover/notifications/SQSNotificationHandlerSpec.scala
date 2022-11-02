@@ -524,7 +524,8 @@ class SQSNotificationHandlerSpec
         organizationId = publicDataset.sourceOrganizationId,
         datasetId = publicDataset.sourceDatasetId,
         version = publicDatasetV1.version,
-        s3Bucket = S3Bucket("bucket"),
+        publishBucket = S3Bucket("publish-bucket"),
+        embargoBucket = S3Bucket("embargo-bucket"),
         success = true
       )
     ) shouldBe an[MessageAction.Delete]
@@ -537,7 +538,7 @@ class SQSNotificationHandlerSpec
       .awaitFinite()
 
     // Update S3 bucket to be public bucket, not embargo bucket
-    publicVersion.s3Bucket shouldBe S3Bucket("bucket")
+    publicVersion.s3Bucket shouldBe S3Bucket("publish-bucket")
 
     ports.pennsieveApiClient
       .asInstanceOf[MockPennsieveApiClient]
@@ -606,7 +607,8 @@ class SQSNotificationHandlerSpec
       organizationId = publicDataset.sourceOrganizationId,
       datasetId = publicDataset.sourceDatasetId,
       version = publicDatasetV1.version,
-      s3Bucket = S3Bucket("bucket"),
+      publishBucket = S3Bucket("publish-bucket"),
+      embargoBucket = S3Bucket("embargo-bucket"),
       success = false,
       Some("Error, error!")
     )

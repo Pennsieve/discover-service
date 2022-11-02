@@ -88,7 +88,8 @@ class SQSNotificationSpec extends AnyWordSpec with Suite with Matchers {
           |  "organization_id" : "1",
           |  "dataset_id" : "2",
           |  "version" : "5",
-          |  "s3_bucket" : "bucket",
+          |  "publish_bucket" : "publish-bucket",
+          |  "embargo_bucket" : "embargo-bucket",
           |  "success" : true
           |}""".stripMargin
 
@@ -97,7 +98,8 @@ class SQSNotificationSpec extends AnyWordSpec with Suite with Matchers {
           organizationId = 1,
           datasetId = 2,
           version = 5,
-          s3Bucket = S3Bucket("bucket"),
+          publishBucket = S3Bucket("publish-bucket"),
+          embargoBucket = S3Bucket("embargo-bucket"),
           success = true,
           error = None
         )
