@@ -538,7 +538,7 @@ class SQSNotificationHandlerSpec
       .awaitFinite()
 
     // Update S3 bucket to be public bucket, not embargo bucket
-    publicVersion.s3Bucket shouldBe S3Bucket("bucket")
+    publicVersion.s3Bucket shouldBe S3Bucket("publish-bucket")
 
     ports.pennsieveApiClient
       .asInstanceOf[MockPennsieveApiClient]
