@@ -142,7 +142,8 @@ case class ReleaseNotification(
   organizationId: Int,
   datasetId: Int,
   version: Int,
-  s3Bucket: S3Bucket,
+  publishBucket: S3Bucket,
+  embargoBucket: S3Bucket,
   success: Boolean,
   error: Option[String] = None
 ) extends SQSNotification
@@ -150,12 +151,13 @@ case class ReleaseNotification(
 
 object ReleaseNotification {
 
-  implicit val encoder: Encoder[ReleaseNotification] = Encoder.forProduct7(
+  implicit val encoder: Encoder[ReleaseNotification] = Encoder.forProduct8(
     "job_type",
     "organization_id",
     "dataset_id",
     "version",
-    "s3_bucket",
+    "publish_bucket",
+    "embargo_bucket",
     "success",
     "error"
   )(
@@ -165,7 +167,8 @@ object ReleaseNotification {
         j.organizationId.toString,
         j.datasetId.toString,
         j.version.toString,
-        j.s3Bucket.toString,
+        j.publishBucket.toString,
+        j.embargoBucket.toString,
         j.success.asJson,
         j.error.asJson
       )
@@ -178,7 +181,8 @@ object ReleaseNotification {
           organizationId <- c.downField("organization_id").as[Int]
           datasetId <- c.downField("dataset_id").as[Int]
           success <- c.downField("success").as[Boolean]
-          s3Bucket <- c.downField("s3_bucket").as[S3Bucket]
+          publishBucket <- c.downField("publish_bucket").as[S3Bucket]
+          embargoBucket <- c.downField("embargo_bucket").as[S3Bucket]
           version <- c.downField("version").as[Int]
           error <- c.downField("error").as[Option[String]]
         } yield {
@@ -186,7 +190,8 @@ object ReleaseNotification {
             organizationId,
             datasetId,
             version,
-            s3Bucket,
+            publishBucket,
+            embargoBucket,
             success,
             error
           )
