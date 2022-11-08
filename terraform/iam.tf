@@ -14,7 +14,9 @@ data "aws_iam_policy_document" "iam_policy_document" {
     sid       = "KMSDecryptPermissions"
     effect    = "Allow"
     actions   = ["kms:Decrypt"]
-    resources = ["arn:aws:kms:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:key/alias/aws/ssm"]
+    resources = [
+      "arn:aws:kms:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:key/alias/aws/ssm"
+    ]
   }
 
   statement {
@@ -34,7 +36,9 @@ data "aws_iam_policy_document" "iam_policy_document" {
       "ssm:GetParametersByPath",
     ]
 
-    resources = ["arn:aws:ssm:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:parameter/${var.environment_name}/${var.service_name}/*"]
+    resources = [
+      "arn:aws:ssm:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:parameter/${var.environment_name}/${var.service_name}/*"
+    ]
   }
 
   statement {
@@ -52,33 +56,35 @@ data "aws_iam_policy_document" "iam_policy_document" {
   }
 
   statement {
-      sid    = "GlueGetTable"
-      effect = "Allow"
+    sid    = "GlueGetTable"
+    effect = "Allow"
 
-      actions = [
-        "glue:GetTable",
-        "glue:GetCatalogImportStatus"
-      ]
+    actions = [
+      "glue:GetTable",
+      "glue:GetCatalogImportStatus"
+    ]
 
     resources = [
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:catalog",
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:database/${aws_athena_database.s3_access_logs_db.name}",
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:table/${aws_athena_database.s3_access_logs_db.name}/*",
-      ]
-   }
+    ]
+  }
 
   statement {
-      sid    = "AthenaQueryExecution"
-      effect = "Allow"
+    sid    = "AthenaQueryExecution"
+    effect = "Allow"
 
-      actions = [
-        "athena:StartQueryExecution",
-        "athena:GetQueryExecution",
-        "athena:GetQueryResultsStream"
-      ]
+    actions = [
+      "athena:StartQueryExecution",
+      "athena:GetQueryExecution",
+      "athena:GetQueryResultsStream"
+    ]
 
-    resources = ["arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:workgroup/primary"]
-   }
+    resources = [
+      "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:workgroup/primary"
+    ]
+  }
 
   statement {
     sid    = "SQSReceiveMessages"
@@ -181,6 +187,13 @@ data "aws_iam_policy_document" "iam_policy_document" {
     resources = [
       data.terraform_remote_state.discover_s3clean_lambda.outputs.lambda_function_arn,
     ]
+  }
+
+  statement {
+    sid       = "AssumeSPARCPublishBucketRole"
+    effect    = "Allow"
+    actions   = ["sts:AssumeRole"]
+    resources = [data.terraform_remote_state.platform_infrastructure.outputs.sparc_bucket_role_arn]
   }
 
   # statement {
