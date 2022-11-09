@@ -8,7 +8,7 @@ object DoiRedirect {
     publicDataset: PublicDataset,
     publicVersion: PublicDatasetVersion
   ): String = {
-    if (publicDataset.sourceOrganizationName == "SPARC Consortium" &&
+    if (publicDataset.sourceOrganizationName == "SPARC" &&
       publicDiscoverUrl == "https://discover.pennsieve.io") {
       getSPARCUrl(publicDataset.id, publicVersion.version)
     } else {
@@ -17,8 +17,8 @@ object DoiRedirect {
   }
 
   def getPublisher(publicDataset: PublicDataset): Option[String] = {
-    if (publicDataset.sourceOrganizationName == "SPARC Consortium") {
-      Some("SPARC Consortium")
+    if (publicDataset.sourceOrganizationName == "SPARC") {
+      Some("SPARC")
     } else {
       Some("Pennsieve Discover")
     }
