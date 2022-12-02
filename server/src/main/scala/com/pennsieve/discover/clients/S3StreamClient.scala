@@ -469,17 +469,24 @@ class AlpakkaS3StreamClient(
       Printer.spaces2.copy(dropNullValues = true).print(metadata.asJson)
     )
 
+    logger.info(s"copying banner to ${version.s3Bucket.value}")
+
     for {
       bannerManifest <- copyPresignedUrlToRevision(
         bannerPresignedUrl,
         key / newNameSameExtension(bannerPresignedUrl, BANNER),
         version
       )
+      _ = logger.info(s"copied banner to ${version.s3Bucket.value}")
+      _ = logger.info(s"copying readme to ${version.s3Bucket.value}")
+
       readmeManifest <- copyPresignedUrlToRevision(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README),
         version
       )
+      _ = logger.info(s"copied readme to ${version.s3Bucket.value}")
+      _ = logger.info(s"start multipart upload of manifest to ${version.s3Bucket.value}")
 
       manifestManifest <- Source
         .single(bytes)
@@ -501,6 +508,8 @@ class AlpakkaS3StreamClient(
               None
             )
         )
+      _ = logger.info(s"finish multipart upload of manifest to ${version.s3Bucket.value}")
+      _ = logger.info(s"copying banner and readme to frontend bucket ${frontendBucket.value}")
 
       _ <- copyPresignedUrlToFrontendBucket(
         bannerPresignedUrl,
@@ -510,6 +519,7 @@ class AlpakkaS3StreamClient(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README)
       )
+      _ = logger.info(s"copied banner and readme to frontend bucket ${frontendBucket.value}")
 
     } yield
       NewFiles(
