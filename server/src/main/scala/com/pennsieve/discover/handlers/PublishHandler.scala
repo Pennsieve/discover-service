@@ -463,6 +463,7 @@ class PublishHandler(
             )
         )
 
+        _ = ports.log.info(s"writing dataset revision metadata for ${revisedDataset.id}")
         newFiles <- DBIO.from(
           ports.s3StreamClient.writeDatasetRevisionMetadata(
             revisedDataset,
@@ -487,6 +488,7 @@ class PublishHandler(
         )
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 
+        _ = ports.log.info(s"updating Elasticsearch for revision of dataset ${revisedDataset.id}")
         // Update ElasticSearch
         _ <- DBIO.from(for {
           readme <- ports.s3StreamClient
