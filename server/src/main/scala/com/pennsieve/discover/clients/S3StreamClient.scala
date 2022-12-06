@@ -486,7 +486,9 @@ class AlpakkaS3StreamClient(
         version
       )
       _ = logger.info(s"copied readme to ${version.s3Bucket.value}")
-      _ = logger.info(s"start multipart upload of manifest to ${version.s3Bucket.value}")
+      _ = logger.info(
+        s"start multipart upload of manifest to ${version.s3Bucket.value}"
+      )
 
       manifestManifest <- Source
         .single(bytes)
@@ -497,19 +499,26 @@ class AlpakkaS3StreamClient(
             s3Headers = s3Headers(true)
           )
         )
-        .map(
-          result =>
-            FileManifest(
-              path = (key / MANIFEST_FILE)
-                .removeVersionPrefix(version.s3Key)
-                .toString,
-              size = bytes.length,
-              fileType = FileType.Json,
-              None
-            )
-        )
-      _ = logger.info(s"finish multipart upload of manifest to ${version.s3Bucket.value}")
-      _ = logger.info(s"copying banner and readme to frontend bucket ${frontendBucket.value}")
+        .map(result => {
+          logger.info(
+            s"mapping result of multipart upload of manifest to ${version.s3Bucket.value}"
+          )
+
+          FileManifest(
+            path = (key / MANIFEST_FILE)
+              .removeVersionPrefix(version.s3Key)
+              .toString,
+            size = bytes.length,
+            fileType = FileType.Json,
+            None
+          )
+        })
+      _ = logger.info(
+        s"finish multipart upload of manifest to ${version.s3Bucket.value}"
+      )
+      _ = logger.info(
+        s"copying banner and readme to frontend bucket ${frontendBucket.value}"
+      )
 
       _ <- copyPresignedUrlToFrontendBucket(
         bannerPresignedUrl,
@@ -519,7 +528,9 @@ class AlpakkaS3StreamClient(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README)
       )
-      _ = logger.info(s"copied banner and readme to frontend bucket ${frontendBucket.value}")
+      _ = logger.info(
+        s"copied banner and readme to frontend bucket ${frontendBucket.value}"
+      )
 
     } yield
       NewFiles(
@@ -575,9 +586,10 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[String] = {
+    logger.info(s"copying ${presignedUrl} to ${frontendBucket.value} ${key}")
     for {
       (contentType, source) <- streamPresignedUrl(presignedUrl)
-
+      _ = logger.info(s"read presigned url ${presignedUrl}")
       response <- source.runWith(
         S3.multipartUpload(
           frontendBucket.value,
@@ -585,7 +597,12 @@ class AlpakkaS3StreamClient(
           contentType = contentType
         )
       )
-    } yield response.key
+    } yield {
+      logger.info(
+        s"completed copy of ${presignedUrl} to ${frontendBucket.value} ${key}"
+      )
+      response.key
+    }
   }
 
   private def streamPresignedUrl(
