@@ -591,10 +591,11 @@ class AlpakkaS3StreamClient(
       (contentType, source) <- streamPresignedUrl(presignedUrl)
       _ = logger.info(s"read presigned url ${presignedUrl}")
       response <- source.runWith(
-        S3.multipartUpload(
+        S3.multipartUploadWithHeaders(
           frontendBucket.value,
           joinPath(assetsKeyPrefix, key.toString),
-          contentType = contentType
+          contentType = contentType,
+          s3Headers = S3Headers.empty
         )
       )
     } yield {
