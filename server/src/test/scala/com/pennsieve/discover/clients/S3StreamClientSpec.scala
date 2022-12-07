@@ -31,7 +31,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.EitherValues._
 import software.amazon.awssdk.arns.Arn
-import software.amazon.awssdk.services.s3.{ S3AsyncClient, S3Client }
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.model.{
   CreateBucketRequest,
@@ -43,13 +43,14 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
-import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.services.sts.StsClient
 import squants.information.Information
 import squants.information.InformationConversions._
 
 import java.net.URI
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.nio.file.{ Path, Paths }
 import java.time.OffsetDateTime
@@ -538,7 +539,9 @@ class S3StreamClientSpec
       val banner = getObject(publishBucket, "3/4/revisions/5/banner.jpg")
       banner shouldBe readResourceContents("/banner.jpg")
 
-      val manifest = getObject(publishBucket, "3/4/revisions/5/manifest.json")
+      val manifest = StandardCharsets.UTF_8
+        .decode(getObject(publishBucket, "3/4/revisions/5/manifest.json"))
+        .toString
 
       // Should drop the empty "files" key.
       parse(manifest).value.hcursor.keys.get should not contain "files"
@@ -613,18 +616,11 @@ class S3StreamClientSpec
       RequestBody.fromFile(path)
     )
 
-  def getObject(bucket: String, key: String): String = {
-    // TODO: use the AWS S3 client instead of our stream client
-    val client =
-      AlpakkaS3StreamClient(Region.US_EAST_1, S3Bucket("any"), "dataset-assets")
-    client
-      .s3FileSource(S3Bucket(bucket), S3Key.File(key))
-      .flatMap(
-        _._1
-          .runWith(Sink.fold(ByteString.empty)(_ ++ _))
-          .map(_.utf8String)
+  def getObject(bucket: String, key: String): ByteBuffer = {
+    s3.getObjectAsBytes(
+        GetObjectRequest.builder().bucket(bucket).key(key).build()
       )
-      .awaitFinite()
+      .asByteBuffer()
   }
 
   def getPresignedUrl(bucket: String, key: String): Uri =
@@ -653,12 +649,12 @@ class S3StreamClientSpec
     Paths.get(resource.toURI())
   }
 
-  def readResourceContents(name: String): String =
+  def readResourceContents(name: String): ByteBuffer =
     FileIO
       .fromPath(getResource(name))
       .runWith(Sink.fold(ByteString())(_ ++ _))
       .awaitFinite()
-      .utf8String
+      .asByteBuffer
 
   def randomString(length: Int = 20): String =
     Random.alphanumeric take length mkString

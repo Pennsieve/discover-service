@@ -2,7 +2,7 @@
 
 package com.pennsieve.discover.clients
 
-import akka.{ Done, NotUsed }
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.ByteRange
 import akka.http.scaladsl.Http
@@ -40,7 +40,7 @@ import io.scalaland.chimney.dsl._
 
 import java.nio.charset.StandardCharsets
 import java.time.Duration
-import java.util.concurrent.{ CompletableFuture, ConcurrentHashMap }
+import java.util.concurrent.ConcurrentHashMap
 import com.pennsieve.discover.models.Revision
 import software.amazon.awssdk.arns.Arn
 import software.amazon.awssdk.core.sync.RequestBody
@@ -506,7 +506,7 @@ class AlpakkaS3StreamClient(
         s"start multipart upload of manifest to ${version.s3Bucket.value}"
       )
 
-      manifestManifest <- uploadByteSource2(
+      manifestManifest <- uploadByteSource(
         Source.single(bytes),
         version.s3Bucket.value,
         (key / MANIFEST_FILE).toString,
@@ -559,7 +559,7 @@ class AlpakkaS3StreamClient(
     s"$newName.$extension"
   }
 
-  private def uploadByteSource2(
+  private def uploadByteSource(
     source: Source[ByteString, NotUsed],
     bucket: String,
     key: String,
@@ -591,25 +591,6 @@ class AlpakkaS3StreamClient(
 
   }
 
-  private def uploadByteSource(
-    source: Source[ByteString, NotUsed],
-    key: S3Key.File,
-    version: PublicDatasetVersion,
-    contentType: ContentType,
-    s3Headers: S3Headers
-  )(implicit
-    system: ActorSystem
-  ): Future[MultipartUploadResult] = {
-    source.runWith(
-      S3.multipartUploadWithHeaders(
-        version.s3Bucket.value,
-        key.toString,
-        contentType = contentType,
-        s3Headers = s3Headers
-      )
-    )
-  }
-
   //Visible to package for testing
   private[clients] def copyPresignedUrlToRevision(
     presignedUrl: Uri,
@@ -627,7 +608,7 @@ class AlpakkaS3StreamClient(
       (contentType, source) <- streamPresignedUrl(presignedUrl)
       _ = logger.info(s"read presigned url ${presignedUrl}")
 
-      _ <- uploadByteSource2(
+      _ <- uploadByteSource(
         source,
         version.s3Bucket.value,
         key.toString,
