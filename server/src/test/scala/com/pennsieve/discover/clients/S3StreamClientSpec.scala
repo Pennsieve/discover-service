@@ -31,7 +31,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.EitherValues._
 import software.amazon.awssdk.arns.Arn
-import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.{ S3AsyncClient, S3Client }
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.model.{
   CreateBucketRequest,
@@ -43,6 +43,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.services.sts.StsClient
 import squants.information.Information
@@ -121,6 +122,19 @@ class S3StreamClientSpec
     .endpointOverride(new URI(s3Endpoint))
     .build()
 
+  lazy val sharedHttpClient = UrlConnectionHttpClient.builder().build()
+
+  lazy val s3Client: S3Client = S3Client
+    .builder()
+    .region(Region.US_EAST_1)
+    .credentialsProvider(
+      StaticCredentialsProvider
+        .create(AwsBasicCredentials.create(accessKey, secretKey))
+    )
+    .httpClient(sharedHttpClient)
+    .endpointOverride(new URI(s3Endpoint))
+    .build()
+
   lazy val stsClient: StsClient = StsClient
     .builder()
     .region(Region.US_EAST_1)
@@ -129,7 +143,7 @@ class S3StreamClientSpec
         .create(AwsBasicCredentials.create(accessKey, secretKey))
     )
     .endpointOverride(new URI(s3Endpoint))
-    .httpClientBuilder(UrlConnectionHttpClient.builder())
+    .httpClient(sharedHttpClient)
     .build()
 
   /**
@@ -154,6 +168,7 @@ class S3StreamClientSpec
     (
       new AlpakkaS3StreamClient(
         s3Presigner,
+        s3Client,
         stsClient,
         Region.US_EAST_1,
         S3Bucket(frontendBucket),
@@ -601,11 +616,7 @@ class S3StreamClientSpec
   def getObject(bucket: String, key: String): String = {
     // TODO: use the AWS S3 client instead of our stream client
     val client =
-      new AlpakkaS3StreamClient(
-        Region.US_EAST_1,
-        S3Bucket("any"),
-        "dataset-assets"
-      )
+      AlpakkaS3StreamClient(Region.US_EAST_1, S3Bucket("any"), "dataset-assets")
     client
       .s3FileSource(S3Bucket(bucket), S3Key.File(key))
       .flatMap(
