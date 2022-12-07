@@ -556,8 +556,13 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[FileManifest] = {
+    logger.info(
+      s"copying ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
+    )
+
     for {
       (contentType, source) <- streamPresignedUrl(presignedUrl)
+      _ = logger.info(s"read presigned url ${presignedUrl}")
 
       _ <- source.runWith(
         S3.multipartUploadWithHeaders(
@@ -567,8 +572,17 @@ class AlpakkaS3StreamClient(
           s3Headers = s3Headers(true)
         )
       )
+      _ = logger.info(
+        s"uploaded presigned url ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
+      )
+
       size <- getObjectSize(version.s3Bucket, key)
-    } yield
+      _ = logger.info(s"got size of file at presigned url ${presignedUrl}")
+
+    } yield {
+      logger.info(
+        s"completed copy of ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
+      )
       FileManifest(
         path = key.removeVersionPrefix(version.s3Key).toString,
         size = size,
@@ -577,6 +591,7 @@ class AlpakkaS3StreamClient(
         ),
         None
       )
+    }
   }
 
   private def copyPresignedUrlToFrontendBucket(
