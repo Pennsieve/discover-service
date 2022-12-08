@@ -698,13 +698,10 @@ class PublishHandler(
                 .hideDoi(version.doi, headers)
           )
         )
-
-        (publishBucket, embargoBucket) = resolveBucketConfig(body.bucketConfig)
         _ <- DBIO.from(
-          deleteAssets(
+          deleteAssetsMulti(
             s3Key = dataset.id.toString,
-            publishBucket = publishBucket.value,
-            embargoBucket = embargoBucket.value
+            versions.map(_.s3Bucket).toSet
           )
         )
         status <- PublicDatasetVersionsMapper.getDatasetStatus(dataset)
@@ -973,6 +970,24 @@ class PublishHandler(
     embargoBucket: String
   ): Future[InvokeResponse] = {
     ports.lambdaClient.runS3Clean(s3Key, publishBucket, embargoBucket)
+  }
+
+  private def deleteAssetsMulti(
+    s3Key: String,
+    buckets: Set[S3Bucket]
+  ): Future[Iterator[InvokeResponse]] = {
+    val atMostTwoAtATime = buckets.grouped(2)
+    Future.sequence(
+      atMostTwoAtATime
+        .map(_.toList match {
+          case List(S3Bucket(b1), S3Bucket(b2)) => deleteAssets(s3Key, b1, b2)
+          case List(S3Bucket(b)) => deleteAssets(s3Key, b, b)
+          case _ =>
+            throw new AssertionError(
+              s"${atMostTwoAtATime} shouldn't produce lists with more than two elements!"
+            )
+        })
+    )
   }
 
   def getOrCreateDoi(organizationId: Int, datasetId: Int): Future[DoiDTO] = {
