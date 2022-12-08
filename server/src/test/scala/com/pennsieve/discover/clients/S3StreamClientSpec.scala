@@ -101,18 +101,6 @@ class S3StreamClientSpec
         throw new DockerException("Docker may not be running")
     }
 
-  lazy val s3: S3Client =
-    S3Client
-      .builder()
-      .region(Region.US_EAST_1)
-      .credentialsProvider(
-        StaticCredentialsProvider
-          .create(AwsBasicCredentials.create(accessKey, secretKey))
-      )
-      .endpointOverride(new URI(s3Endpoint))
-      .httpClientBuilder(UrlConnectionHttpClient.builder())
-      .build()
-
   lazy val s3Presigner: S3Presigner = S3Presigner
     .builder()
     .region(Region.US_EAST_1)
@@ -594,10 +582,10 @@ class S3StreamClientSpec
   }
 
   def createBucket(name: String) =
-    s3.createBucket(CreateBucketRequest.builder().bucket(name).build())
+    s3Client.createBucket(CreateBucketRequest.builder().bucket(name).build())
 
   def putObject(bucket: String, key: String, content: String = randomString()) =
-    s3.putObject(
+    s3Client.putObject(
       PutObjectRequest
         .builder()
         .bucket(bucket)
@@ -607,7 +595,7 @@ class S3StreamClientSpec
     )
 
   def putObject(bucket: String, key: String, path: Path) =
-    s3.putObject(
+    s3Client.putObject(
       PutObjectRequest
         .builder()
         .bucket(bucket)
@@ -617,7 +605,8 @@ class S3StreamClientSpec
     )
 
   def getObject(bucket: String, key: String): ByteBuffer = {
-    s3.getObjectAsBytes(
+    s3Client
+      .getObjectAsBytes(
         GetObjectRequest.builder().bucket(bucket).key(key).build()
       )
       .asByteBuffer()
