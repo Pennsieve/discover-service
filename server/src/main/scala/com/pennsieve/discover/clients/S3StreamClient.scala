@@ -11,7 +11,6 @@ import akka.stream._
 import akka.stream.scaladsl._
 import akka.stream.alpakka.s3.{
   ListBucketResultContents,
-  MultipartUploadResult,
   ObjectMetadata,
   S3Attributes,
   S3Ext,
@@ -485,7 +484,7 @@ class AlpakkaS3StreamClient(
       Printer.spaces2.copy(dropNullValues = true).print(metadata.asJson)
     )
 
-    logger.info(s"copying banner to ${version.s3Bucket.value}")
+    logger.debug(s"copying banner to ${version.s3Bucket.value}")
 
     for {
       bannerManifest <- copyPresignedUrlToRevision(
@@ -493,41 +492,36 @@ class AlpakkaS3StreamClient(
         key / newNameSameExtension(bannerPresignedUrl, BANNER),
         version
       )
-      _ = logger.info(s"copied banner to ${version.s3Bucket.value}")
-      _ = logger.info(s"copying readme to ${version.s3Bucket.value}")
+      _ = logger.debug(s"copied banner to ${version.s3Bucket.value}")
+      _ = logger.debug(s"copying readme to ${version.s3Bucket.value}")
 
       readmeManifest <- copyPresignedUrlToRevision(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README),
         version
       )
-      _ = logger.info(s"copied readme to ${version.s3Bucket.value}")
-      _ = logger.info(
-        s"start multipart upload of manifest to ${version.s3Bucket.value}"
-      )
+      _ = logger.debug(s"copied readme to ${version.s3Bucket.value}")
+      _ = logger.debug(s"start upload of manifest to ${version.s3Bucket.value}")
 
-      manifestManifest <- uploadByteSource(
+      manifestManifest <- putByteSource(
         Source.single(bytes),
         version.s3Bucket.value,
         (key / MANIFEST_FILE).toString,
         isRequesterPays = true
-      ).map(_ => {
-        logger.info(
-          s"mapping result of upload of manifest to ${version.s3Bucket.value}"
-        )
-
-        FileManifest(
-          path = (key / MANIFEST_FILE)
-            .removeVersionPrefix(version.s3Key),
-          size = bytes.length,
-          fileType = FileType.Json,
-          None
-        )
-      })
-      _ = logger.info(
-        s"finish multipart upload of manifest to ${version.s3Bucket.value}"
+      ).map(
+        _ =>
+          FileManifest(
+            path = (key / MANIFEST_FILE)
+              .removeVersionPrefix(version.s3Key),
+            size = bytes.length,
+            fileType = FileType.Json,
+            None
+          )
       )
-      _ = logger.info(
+      _ = logger.debug(
+        s"finish upload of manifest to ${version.s3Bucket.value}"
+      )
+      _ = logger.debug(
         s"copying banner and readme to frontend bucket ${frontendBucket.value}"
       )
 
@@ -539,7 +533,7 @@ class AlpakkaS3StreamClient(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README)
       )
-      _ = logger.info(
+      _ = logger.debug(
         s"copied banner and readme to frontend bucket ${frontendBucket.value}"
       )
 
@@ -559,7 +553,7 @@ class AlpakkaS3StreamClient(
     s"$newName.$extension"
   }
 
-  private def uploadByteSource(
+  private def putByteSource(
     source: Source[ByteString, NotUsed],
     bucket: String,
     key: String,
@@ -568,14 +562,14 @@ class AlpakkaS3StreamClient(
   )(implicit
     system: ActorSystem
   ): Future[PutObjectResponse] = {
+    // null okay because it's passed to Java method that can handle it
+    val requestPayer = if (isRequesterPays) RequestPayer.REQUESTER else null
     val requestBuilder = PutObjectRequest
       .builder()
       .bucket(bucket)
       .key(key)
       .contentType(contentType)
-    if (isRequesterPays) {
-      requestBuilder.requestPayer(RequestPayer.REQUESTER)
-    }
+      .requestPayer(requestPayer)
 
     source
       .fold(ByteString.empty)(_ ++ _)
@@ -600,34 +594,34 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[FileManifest] = {
-    logger.info(
+    logger.debug(
       s"copying ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
     )
 
     for {
       (contentType, source) <- streamPresignedUrl(presignedUrl)
-      _ = logger.info(s"read presigned url ${presignedUrl}")
+      _ = logger.debug(s"read presigned url ${presignedUrl}")
 
-      _ <- uploadByteSource(
+      _ <- putByteSource(
         source,
         version.s3Bucket.value,
         key.toString,
         contentType.toString(),
         isRequesterPays = true
       )
-      _ = logger.info(
+      _ = logger.debug(
         s"uploaded presigned url ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
       )
 
       size <- getObjectSize(version.s3Bucket, key)
-      _ = logger.info(s"got size of file at presigned url ${presignedUrl}")
+      _ = logger.debug(s"got size of file at presigned url ${presignedUrl}")
 
     } yield {
-      logger.info(
+      logger.debug(
         s"completed copy of ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
       )
       FileManifest(
-        path = key.removeVersionPrefix(version.s3Key).toString,
+        path = key.removeVersionPrefix(version.s3Key),
         size = size,
         fileType = utils.getFileTypeFromExtension(
           FilenameUtils.getExtension(key.toString)
@@ -644,10 +638,10 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[String] = {
-    logger.info(s"copying ${presignedUrl} to ${frontendBucket.value} ${key}")
+    logger.debug(s"copying ${presignedUrl} to ${frontendBucket.value} ${key}")
     for {
       (contentType, source) <- streamPresignedUrl(presignedUrl)
-      _ = logger.info(s"read presigned url ${presignedUrl}")
+      _ = logger.debug(s"read presigned url ${presignedUrl}")
       response <- source.runWith(
         S3.multipartUploadWithHeaders(
           frontendBucket.value,
@@ -657,7 +651,7 @@ class AlpakkaS3StreamClient(
         )
       )
     } yield {
-      logger.info(
+      logger.debug(
         s"completed copy of ${presignedUrl} to ${frontendBucket.value} ${key}"
       )
       response.key
