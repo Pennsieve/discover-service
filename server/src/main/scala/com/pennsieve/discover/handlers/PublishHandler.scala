@@ -463,7 +463,9 @@ class PublishHandler(
             )
         )
 
-        _ = ports.log.info(s"writing dataset revision metadata for ${revisedDataset.id}")
+        _ = ports.log.info(
+          s"writing dataset revision metadata for ${revisedDataset.id}"
+        )
         newFiles <- DBIO.from(
           ports.s3StreamClient.writeDatasetRevisionMetadata(
             revisedDataset,
@@ -488,7 +490,9 @@ class PublishHandler(
         )
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 
-        _ = ports.log.info(s"updating Elasticsearch for revision of dataset ${revisedDataset.id}")
+        _ = ports.log.info(
+          s"updating Elasticsearch for revision of dataset ${revisedDataset.id}"
+        )
         // Update ElasticSearch
         _ <- DBIO.from(for {
           readme <- ports.s3StreamClient
@@ -547,8 +551,11 @@ class PublishHandler(
       organizationId,
       datasetId
     ) { _ =>
-      val (publishBucket, embargoBucket) =
+      val (publishBucket, _) =
         resolveBucketConfig(body.bucketConfig)
+      // Ignoring embargo bucket in bucketConfig because it may not be where the dataset was embargoed.
+      // eg., It may have been embargoed before custom buckets were configured for the organization.
+      // The correct embargo bucket will be in the most current PublicDatasetVersion obtained below.
 
       val query = for {
         dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(
@@ -585,7 +592,12 @@ class PublishHandler(
         sfnResponse <- DBIO.from(
           ports.stepFunctionsClient
             .startRelease(
-              EmbargoReleaseJob(dataset, version, publishBucket, embargoBucket)
+              EmbargoReleaseJob(
+                dataset,
+                version,
+                publishBucket = publishBucket,
+                embargoBucket = version.s3Bucket
+              )
             )
         )
 
