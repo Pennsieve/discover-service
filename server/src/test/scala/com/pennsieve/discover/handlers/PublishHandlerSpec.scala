@@ -1098,12 +1098,13 @@ class PublishHandlerSpec
         .value shouldBe ReleaseResponse.NotFound
     }
 
-    "release an embargoed dataset" in {
+    "release an embargoed dataset for an org with a custom bucket config" in {
       TestUtilities.createDatasetV1(ports.db)(
         name = datasetName,
         sourceOrganizationId = organizationId,
         sourceDatasetId = datasetId,
-        status = PublishStatus.EmbargoSucceeded
+        status = PublishStatus.EmbargoSucceeded,
+        s3Bucket = customBucketReleaseBody.bucketConfig.get.embargo
       )
 
       val response = client
@@ -1195,7 +1196,7 @@ class PublishHandlerSpec
             version = version.version,
             s3Key = version.s3Key,
             publishBucket = config.s3.publishBucket,
-            embargoBucket = config.s3.embargoBucket
+            embargoBucket = version.s3Bucket
           )
       }
     }
@@ -1291,11 +1292,11 @@ class PublishHandlerSpec
 
       ports.lambdaClient
         .asInstanceOf[MockLambdaClient]
-        .requests shouldBe List(
+        .requests should contain theSameElementsAs List(
         LambdaRequest(
           publicDataset.id.toString,
-          config.s3.publishBucket.value,
-          config.s3.embargoBucket.value
+          version.s3Bucket.value,
+          version.s3Bucket.value
         )
       )
 
