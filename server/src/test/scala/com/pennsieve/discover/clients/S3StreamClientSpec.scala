@@ -49,6 +49,8 @@ import squants.information.Information
 import squants.information.InformationConversions._
 
 import java.net.URI
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.nio.file.{ Path, Paths }
 import java.time.OffsetDateTime
@@ -99,18 +101,6 @@ class S3StreamClientSpec
         throw new DockerException("Docker may not be running")
     }
 
-  lazy val s3: S3Client =
-    S3Client
-      .builder()
-      .region(Region.US_EAST_1)
-      .credentialsProvider(
-        StaticCredentialsProvider
-          .create(AwsBasicCredentials.create(accessKey, secretKey))
-      )
-      .endpointOverride(new URI(s3Endpoint))
-      .httpClientBuilder(UrlConnectionHttpClient.builder())
-      .build()
-
   lazy val s3Presigner: S3Presigner = S3Presigner
     .builder()
     .region(Region.US_EAST_1)
@@ -118,6 +108,19 @@ class S3StreamClientSpec
       StaticCredentialsProvider
         .create(AwsBasicCredentials.create(accessKey, secretKey))
     )
+    .endpointOverride(new URI(s3Endpoint))
+    .build()
+
+  lazy val sharedHttpClient = UrlConnectionHttpClient.builder().build()
+
+  lazy val s3Client: S3Client = S3Client
+    .builder()
+    .region(Region.US_EAST_1)
+    .credentialsProvider(
+      StaticCredentialsProvider
+        .create(AwsBasicCredentials.create(accessKey, secretKey))
+    )
+    .httpClient(sharedHttpClient)
     .endpointOverride(new URI(s3Endpoint))
     .build()
 
@@ -129,7 +132,7 @@ class S3StreamClientSpec
         .create(AwsBasicCredentials.create(accessKey, secretKey))
     )
     .endpointOverride(new URI(s3Endpoint))
-    .httpClientBuilder(UrlConnectionHttpClient.builder())
+    .httpClient(sharedHttpClient)
     .build()
 
   /**
@@ -154,6 +157,7 @@ class S3StreamClientSpec
     (
       new AlpakkaS3StreamClient(
         s3Presigner,
+        s3Client,
         stsClient,
         Region.US_EAST_1,
         S3Bucket(frontendBucket),
@@ -523,7 +527,9 @@ class S3StreamClientSpec
       val banner = getObject(publishBucket, "3/4/revisions/5/banner.jpg")
       banner shouldBe readResourceContents("/banner.jpg")
 
-      val manifest = getObject(publishBucket, "3/4/revisions/5/manifest.json")
+      val manifest = StandardCharsets.UTF_8
+        .decode(getObject(publishBucket, "3/4/revisions/5/manifest.json"))
+        .toString
 
       // Should drop the empty "files" key.
       parse(manifest).value.hcursor.keys.get should not contain "files"
@@ -576,10 +582,10 @@ class S3StreamClientSpec
   }
 
   def createBucket(name: String) =
-    s3.createBucket(CreateBucketRequest.builder().bucket(name).build())
+    s3Client.createBucket(CreateBucketRequest.builder().bucket(name).build())
 
   def putObject(bucket: String, key: String, content: String = randomString()) =
-    s3.putObject(
+    s3Client.putObject(
       PutObjectRequest
         .builder()
         .bucket(bucket)
@@ -589,7 +595,7 @@ class S3StreamClientSpec
     )
 
   def putObject(bucket: String, key: String, path: Path) =
-    s3.putObject(
+    s3Client.putObject(
       PutObjectRequest
         .builder()
         .bucket(bucket)
@@ -598,22 +604,12 @@ class S3StreamClientSpec
       RequestBody.fromFile(path)
     )
 
-  def getObject(bucket: String, key: String): String = {
-    // TODO: use the AWS S3 client instead of our stream client
-    val client =
-      new AlpakkaS3StreamClient(
-        Region.US_EAST_1,
-        S3Bucket("any"),
-        "dataset-assets"
+  def getObject(bucket: String, key: String): ByteBuffer = {
+    s3Client
+      .getObjectAsBytes(
+        GetObjectRequest.builder().bucket(bucket).key(key).build()
       )
-    client
-      .s3FileSource(S3Bucket(bucket), S3Key.File(key))
-      .flatMap(
-        _._1
-          .runWith(Sink.fold(ByteString.empty)(_ ++ _))
-          .map(_.utf8String)
-      )
-      .awaitFinite()
+      .asByteBuffer()
   }
 
   def getPresignedUrl(bucket: String, key: String): Uri =
@@ -642,12 +638,12 @@ class S3StreamClientSpec
     Paths.get(resource.toURI())
   }
 
-  def readResourceContents(name: String): String =
+  def readResourceContents(name: String): ByteBuffer =
     FileIO
       .fromPath(getResource(name))
       .runWith(Sink.fold(ByteString())(_ ++ _))
       .awaitFinite()
-      .utf8String
+      .asByteBuffer
 
   def randomString(length: Int = 20): String =
     Random.alphanumeric take length mkString

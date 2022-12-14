@@ -116,7 +116,7 @@ object Ports {
     )
 
     val s3StreamClient: S3StreamClient =
-      new AlpakkaS3StreamClient(
+      AlpakkaS3StreamClient(
         region = config.s3.region,
         frontendBucket = config.s3.frontendBucket,
         assetsKeyPrefix = config.s3.assetsKeyPrefix,

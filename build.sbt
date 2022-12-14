@@ -174,7 +174,8 @@ lazy val server = project
       "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion.value % Test,
       "org.apache.httpcomponents" % "httpclient" % "4.5.8" % Test,
       "software.amazon.awssdk" % "s3" % awsSdkVersion % Test,
-      "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test
+      "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test,
+      "org.mock-server" % "mockserver-client-java-no-dependencies" % "5.14.0" % Test
     ),
     Compile / guardrailTasks := List(
       ScalaServer(

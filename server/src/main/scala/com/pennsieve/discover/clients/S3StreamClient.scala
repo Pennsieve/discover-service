@@ -42,9 +42,16 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import com.pennsieve.discover.models.Revision
 import software.amazon.awssdk.arns.Arn
+import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.{
+  GetObjectRequest,
+  PutObjectRequest,
+  PutObjectResponse,
+  RequestPayer
+}
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
 import software.amazon.awssdk.services.sts.StsClient
@@ -196,8 +203,39 @@ class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
 
 }
 
+object AlpakkaS3StreamClient {
+  def apply(
+    region: Region,
+    frontendBucket: S3Bucket,
+    assetsKeyPrefix: String,
+    chunkSize: Information = 20.megabytes,
+    externalPublishBucketToRole: Map[S3Bucket, Arn] = Map.empty
+  ): AlpakkaS3StreamClient = {
+    val sharedHttpClient = UrlConnectionHttpClient.builder().build()
+    new AlpakkaS3StreamClient(
+      S3Presigner.builder
+        .region(region)
+        .build, // deliberately inlined to take advantage of call-by-name
+      S3Client.builder
+        .region(region)
+        .httpClient(sharedHttpClient)
+        .build,
+      StsClient.builder
+        .region(region)
+        .httpClient(sharedHttpClient)
+        .build, // deliberately inlined to take advantage of call-by-name,
+      region,
+      frontendBucket,
+      assetsKeyPrefix,
+      chunkSize,
+      externalPublishBucketToRole
+    )
+  }
+}
+
 class AlpakkaS3StreamClient(
   defaultS3Presigner: => S3Presigner,
+  s3Client: => S3Client,
   stsClient: => StsClient,
   region: Region,
   frontendBucket: S3Bucket,
@@ -206,29 +244,6 @@ class AlpakkaS3StreamClient(
   externalPublishBucketToRole: Map[S3Bucket, Arn]
 ) extends S3StreamClient
     with StrictLogging {
-
-  def this(
-    region: Region,
-    frontendBucket: S3Bucket,
-    assetsKeyPrefix: String,
-    chunkSize: Information = 20.megabytes,
-    externalPublishBucketToRole: Map[S3Bucket, Arn] = Map.empty
-  ) = {
-    this(
-      S3Presigner.builder
-        .region(region)
-        .build, // deliberately inlined to take advantage of call-by-name
-      StsClient.builder
-        .region(region)
-        .httpClientBuilder(UrlConnectionHttpClient.builder())
-        .build, // deliberately inlined to take advantage of call-by-name
-      region,
-      frontendBucket,
-      assetsKeyPrefix,
-      chunkSize,
-      externalPublishBucketToRole
-    )
-  }
 
   private val MANIFEST_FILE = "manifest.json"
   private val README_FILE = "readme.md"
@@ -469,7 +484,7 @@ class AlpakkaS3StreamClient(
       Printer.spaces2.copy(dropNullValues = true).print(metadata.asJson)
     )
 
-    logger.info(s"copying banner to ${version.s3Bucket.value}")
+    logger.debug(s"copying banner to ${version.s3Bucket.value}")
 
     for {
       bannerManifest <- copyPresignedUrlToRevision(
@@ -477,46 +492,36 @@ class AlpakkaS3StreamClient(
         key / newNameSameExtension(bannerPresignedUrl, BANNER),
         version
       )
-      _ = logger.info(s"copied banner to ${version.s3Bucket.value}")
-      _ = logger.info(s"copying readme to ${version.s3Bucket.value}")
+      _ = logger.debug(s"copied banner to ${version.s3Bucket.value}")
+      _ = logger.debug(s"copying readme to ${version.s3Bucket.value}")
 
       readmeManifest <- copyPresignedUrlToRevision(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README),
         version
       )
-      _ = logger.info(s"copied readme to ${version.s3Bucket.value}")
-      _ = logger.info(
-        s"start multipart upload of manifest to ${version.s3Bucket.value}"
-      )
+      _ = logger.debug(s"copied readme to ${version.s3Bucket.value}")
+      _ = logger.debug(s"start upload of manifest to ${version.s3Bucket.value}")
 
-      manifestManifest <- Source
-        .single(bytes)
-        .runWith(
-          S3.multipartUploadWithHeaders(
-            version.s3Bucket.value,
-            (key / MANIFEST_FILE).toString,
-            s3Headers = s3Headers(true)
-          )
-        )
-        .map(result => {
-          logger.info(
-            s"mapping result of multipart upload of manifest to ${version.s3Bucket.value}"
-          )
-
+      manifestManifest <- putByteSource(
+        Source.single(bytes),
+        version.s3Bucket.value,
+        (key / MANIFEST_FILE).toString,
+        isRequesterPays = true
+      ).map(
+        _ =>
           FileManifest(
             path = (key / MANIFEST_FILE)
-              .removeVersionPrefix(version.s3Key)
-              .toString,
+              .removeVersionPrefix(version.s3Key),
             size = bytes.length,
             fileType = FileType.Json,
             None
           )
-        })
-      _ = logger.info(
-        s"finish multipart upload of manifest to ${version.s3Bucket.value}"
       )
-      _ = logger.info(
+      _ = logger.debug(
+        s"finish upload of manifest to ${version.s3Bucket.value}"
+      )
+      _ = logger.debug(
         s"copying banner and readme to frontend bucket ${frontendBucket.value}"
       )
 
@@ -528,7 +533,7 @@ class AlpakkaS3StreamClient(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README)
       )
-      _ = logger.info(
+      _ = logger.debug(
         s"copied banner and readme to frontend bucket ${frontendBucket.value}"
       )
 
@@ -548,7 +553,40 @@ class AlpakkaS3StreamClient(
     s"$newName.$extension"
   }
 
-  private def copyPresignedUrlToRevision(
+  private def putByteSource(
+    source: Source[ByteString, NotUsed],
+    bucket: String,
+    key: String,
+    contentType: String = "application/octet-stream",
+    isRequesterPays: Boolean
+  )(implicit
+    system: ActorSystem
+  ): Future[PutObjectResponse] = {
+    // null okay because it's passed to Java method that can handle it
+    val requestPayer = if (isRequesterPays) RequestPayer.REQUESTER else null
+    val requestBuilder = PutObjectRequest
+      .builder()
+      .bucket(bucket)
+      .key(key)
+      .contentType(contentType)
+      .requestPayer(requestPayer)
+
+    source
+      .fold(ByteString.empty)(_ ++ _)
+      .map(
+        content =>
+          s3Client
+            .putObject(
+              requestBuilder.build(),
+              RequestBody.fromByteBuffer(content.toByteBuffer)
+            )
+      )
+      .runWith(Sink.head[PutObjectResponse])
+
+  }
+
+  //Visible to package for testing
+  private[clients] def copyPresignedUrlToRevision(
     presignedUrl: Uri,
     key: S3Key.File,
     version: PublicDatasetVersion
@@ -556,35 +594,34 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[FileManifest] = {
-    logger.info(
+    logger.debug(
       s"copying ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
     )
 
     for {
       (contentType, source) <- streamPresignedUrl(presignedUrl)
-      _ = logger.info(s"read presigned url ${presignedUrl}")
+      _ = logger.debug(s"read presigned url ${presignedUrl}")
 
-      _ <- source.runWith(
-        S3.multipartUploadWithHeaders(
-          version.s3Bucket.value,
-          key.toString,
-          contentType = contentType,
-          s3Headers = s3Headers(true)
-        )
+      _ <- putByteSource(
+        source,
+        version.s3Bucket.value,
+        key.toString,
+        contentType.toString(),
+        isRequesterPays = true
       )
-      _ = logger.info(
+      _ = logger.debug(
         s"uploaded presigned url ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
       )
 
       size <- getObjectSize(version.s3Bucket, key)
-      _ = logger.info(s"got size of file at presigned url ${presignedUrl}")
+      _ = logger.debug(s"got size of file at presigned url ${presignedUrl}")
 
     } yield {
-      logger.info(
+      logger.debug(
         s"completed copy of ${presignedUrl} to ${version.s3Bucket.value} ${key.toString}"
       )
       FileManifest(
-        path = key.removeVersionPrefix(version.s3Key).toString,
+        path = key.removeVersionPrefix(version.s3Key),
         size = size,
         fileType = utils.getFileTypeFromExtension(
           FilenameUtils.getExtension(key.toString)
@@ -601,10 +638,10 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[String] = {
-    logger.info(s"copying ${presignedUrl} to ${frontendBucket.value} ${key}")
+    logger.debug(s"copying ${presignedUrl} to ${frontendBucket.value} ${key}")
     for {
       (contentType, source) <- streamPresignedUrl(presignedUrl)
-      _ = logger.info(s"read presigned url ${presignedUrl}")
+      _ = logger.debug(s"read presigned url ${presignedUrl}")
       response <- source.runWith(
         S3.multipartUploadWithHeaders(
           frontendBucket.value,
@@ -614,7 +651,7 @@ class AlpakkaS3StreamClient(
         )
       )
     } yield {
-      logger.info(
+      logger.debug(
         s"completed copy of ${presignedUrl} to ${frontendBucket.value} ${key}"
       )
       response.key
@@ -659,7 +696,12 @@ class AlpakkaS3StreamClient(
   ): Future[Long] =
     for {
       maybeMetadata <- S3
-        .getObjectMetadata(bucket.value, key.toString)
+        .getObjectMetadata(
+          bucket.value,
+          key.toString,
+          versionId = None,
+          s3Headers = s3Headers(true)
+        )
         .runWith(Sink.head)
       size <- maybeMetadata
         .map(metadata => Future.successful(metadata.contentLength))
