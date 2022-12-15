@@ -463,7 +463,7 @@ class PublishHandler(
             )
         )
 
-        _ = ports.log.info(
+        _ = ports.log.debug(
           s"writing dataset revision metadata for ${revisedDataset.id}"
         )
         newFiles <- DBIO.from(
@@ -490,7 +490,7 @@ class PublishHandler(
         )
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 
-        _ = ports.log.info(
+        _ = ports.log.debug(
           s"updating Elasticsearch for revision of dataset ${revisedDataset.id}"
         )
         // Update ElasticSearch
