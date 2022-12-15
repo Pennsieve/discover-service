@@ -209,6 +209,11 @@ trait ServiceSpecHarness
       .asInstanceOf[MockS3StreamClient]
       .clear()
 
+    ports.lambdaClient
+      .asInstanceOf[MockLambdaClient]
+      .requests
+      .clear()
+
     // Clear dataset tables
     ports.db
       .run(for {

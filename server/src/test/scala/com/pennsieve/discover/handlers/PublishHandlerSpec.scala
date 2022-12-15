@@ -1455,6 +1455,90 @@ class PublishHandlerSpec
         .indexedDatasets shouldBe empty
     }
 
+    "unpublish a dataset that has been published multiple times to different publish buckets" in {
+
+      //Publish to default bucket
+      client
+        .publish(organizationId, datasetId, None, None, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val v1: PublicDatasetVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      // Complete publication process
+      publishSuccessfully(publicDataset, v1)
+
+      //Publish to custom bucket
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          requestBody.copy(bucketConfig = Some(customBucketConfig)),
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val v2: PublicDatasetVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      // Complete publication process
+      publishSuccessfully(publicDataset, v2)
+
+      val response =
+        client
+          .unpublish(
+            organizationId,
+            datasetId,
+            defaultBucketUnpublishBody,
+            authToken
+          )
+          .awaitFinite()
+          .value
+          .asInstanceOf[UnpublishResponse.OK]
+          .value
+
+      response.status shouldBe Unpublished
+
+      ports.lambdaClient
+        .asInstanceOf[MockLambdaClient]
+        .requests should contain theSameElementsAs List(
+        LambdaRequest(
+          publicDataset.id.toString,
+          v1.s3Bucket.value,
+          v2.s3Bucket.value
+        )
+      )
+
+      ports.searchClient
+        .asInstanceOf[MockSearchClient]
+        .indexedDatasets shouldBe empty
+    }
+
     "rollback a failed version when unpublishing" in {
 
       val version = TestUtilities.createDatasetV1(ports.db)(
@@ -1491,6 +1575,11 @@ class PublishHandlerSpec
           .filter(_.datasetId === version.datasetId)
           .result
       ) shouldBe empty
+
+      ports.lambdaClient
+        .asInstanceOf[MockLambdaClient]
+        .requests shouldBe empty
+
     }
 
     "rollback an embargoed version when unpublishing" in {
@@ -1553,6 +1642,17 @@ class PublishHandlerSpec
           .filter(_.datasetId === version.datasetId)
           .result
       ) shouldBe empty
+
+      ports.lambdaClient
+        .asInstanceOf[MockLambdaClient]
+        .requests should contain theSameElementsAs List(
+        LambdaRequest(
+          publicDataset.id.toString,
+          version.s3Bucket.value,
+          version.s3Bucket.value
+        )
+      )
+
     }
 
     "fail to unpublish a dataset that is currently publishing" in {
@@ -1748,7 +1848,10 @@ class PublishHandlerSpec
         )
       )
 
-      response shouldBe GetStatusesResponse.OK(expected)
+      response shouldBe a[GetStatusesResponse.OK]
+      response
+        .asInstanceOf[GetStatusesResponse.OK]
+        .value should contain theSameElementsAs expected
     }
   }
 
