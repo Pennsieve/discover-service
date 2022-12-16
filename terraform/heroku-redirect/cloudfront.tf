@@ -56,11 +56,11 @@ resource "aws_cloudfront_distribution" "cloudfront_distribution" {
 
   tags = merge(
     local.common_tags,
-      map(
-        "Name", "${var.environment_name}-${var.service_name}-cloudfront-distribution-${data.terraform_remote_state.region.outputs.aws_region_shortname}",
-        "name", "${var.environment_name}-${var.service_name}-cloudfront-distribution-${data.terraform_remote_state.region.outputs.aws_region_shortname}",
-        "tier", "cloudfront-distribution",
-      )
+    tomap({
+      "Name" = "${var.environment_name}-${var.service_name}-cloudfront-distribution-${data.terraform_remote_state.region.outputs.aws_region_shortname}"
+      "name" = "${var.environment_name}-${var.service_name}-cloudfront-distribution-${data.terraform_remote_state.region.outputs.aws_region_shortname}"
+      "tier" = "cloudfront-distribution"
+    })
   )
 
   viewer_certificate {
