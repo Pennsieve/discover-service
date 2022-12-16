@@ -113,7 +113,7 @@ class PublishHandlerSpec
   val customBucketConfig =
     definitions.BucketConfig("org-publish-bucket", "org-embargo-bucket")
 
-  val customBucketReleaseBody: definitions.ReleaseRequest =
+  def customBucketReleaseBody(customBucketConfig: definitions.BucketConfig) =
     definitions.ReleaseRequest(Some(customBucketConfig))
 
   val defaultBucketReleaseBody: definitions.ReleaseRequest =
@@ -142,6 +142,9 @@ class PublishHandlerSpec
     organizationName = organizationName,
     datasetNodeId = datasetNodeId
   )
+
+  val customBucketRequestBody: definitions.PublishRequest =
+    requestBody.copy(bucketConfig = Some(customBucketConfig))
 
   val reviseRequest = definitions.ReviseRequest(
     name = "A different name",
@@ -336,7 +339,7 @@ class PublishHandlerSpec
       publicVersion.size shouldBe requestBody.size
       publicVersion.description shouldBe requestBody.description
       publicVersion.status shouldBe PublishStatus.PublishInProgress
-      publicVersion.s3Bucket shouldBe S3Bucket("bucket")
+      publicVersion.s3Bucket shouldBe config.s3.publishBucket
       publicVersion.s3Key shouldBe S3Key.Version(
         s"${publicDataset.id}/${publicVersion.version}/"
       )
@@ -396,6 +399,7 @@ class PublishHandlerSpec
           job.userFirstName shouldBe requestBody.ownerFirstName
           job.userLastName shouldBe requestBody.ownerLastName
           job.userOrcid shouldBe requestBody.ownerOrcid
+          job.s3Bucket shouldBe config.s3.publishBucket
           job.s3PgdumpKey shouldBe (
             S3Key
               .Version(publicDataset.id, publicVersion.version) / "dump.sql"
@@ -408,6 +412,47 @@ class PublishHandlerSpec
           job.doi shouldBe doiDto.doi
 
       }
+    }
+
+    "correctly use custom publish bucket" in {
+
+      val response = client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          customBucketRequestBody,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      publicVersion.s3Bucket.value shouldBe customBucketConfig.publish
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs should have length 1
+      publishedJobs.head.s3Bucket.value shouldBe customBucketConfig.publish
     }
 
     "publish to an embargo bucket" in {
@@ -472,7 +517,7 @@ class PublishHandlerSpec
       publicVersion.size shouldBe requestBody.size
       publicVersion.description shouldBe requestBody.description
       publicVersion.status shouldBe PublishStatus.EmbargoInProgress
-      publicVersion.s3Bucket shouldBe S3Bucket("embargo-bucket")
+      publicVersion.s3Bucket shouldBe config.s3.embargoBucket
       publicVersion.s3Key shouldBe S3Key.Version(
         s"${publicDataset.id}/${publicVersion.version}/"
       )
@@ -484,7 +529,49 @@ class PublishHandlerSpec
         .startedJobs
 
       publishedJobs.length shouldBe 1
-      publishedJobs.head.s3Bucket shouldBe S3Bucket("embargo-bucket")
+      publishedJobs.head.s3Bucket shouldBe config.s3.embargoBucket
+    }
+
+    "correctly use custom embargo bucket" in {
+      val expectedEmbargoReleaseDate = LocalDate.of(2025, 6, 1)
+
+      val response = client
+        .publish(
+          organizationId,
+          datasetId,
+          Some(true),
+          Some(expectedEmbargoReleaseDate),
+          customBucketRequestBody,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      publicVersion.s3Bucket.value shouldBe customBucketConfig.embargo
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.s3Bucket.value shouldBe customBucketConfig.embargo
     }
 
     "return the publishing status of the dataset" in {
@@ -1037,7 +1124,7 @@ class PublishHandlerSpec
     "fail without a JWT" in {
 
       val response = client
-        .release(organizationId, datasetId, customBucketReleaseBody)
+        .release(organizationId, datasetId, defaultBucketReleaseBody)
         .awaitFinite()
         .value
 
@@ -1049,7 +1136,7 @@ class PublishHandlerSpec
         .release(
           organizationId,
           datasetId,
-          customBucketReleaseBody,
+          defaultBucketReleaseBody,
           userAuthToken
         )
         .awaitFinite()
@@ -1068,7 +1155,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
+        .release(organizationId, datasetId, defaultBucketReleaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1083,7 +1170,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
+        .release(organizationId, datasetId, defaultBucketReleaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Forbidden]
@@ -1093,21 +1180,27 @@ class PublishHandlerSpec
     "fail to release a dataset that does not exist" in {
 
       val response = client
-        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
+        .release(organizationId, datasetId, defaultBucketReleaseBody, authToken)
         .awaitFinite()
         .value shouldBe ReleaseResponse.NotFound
     }
 
-    "release an embargoed dataset" in {
+    "release an embargoed dataset for an org with a custom bucket config" in {
       TestUtilities.createDatasetV1(ports.db)(
         name = datasetName,
         sourceOrganizationId = organizationId,
         sourceDatasetId = datasetId,
-        status = PublishStatus.EmbargoSucceeded
+        status = PublishStatus.EmbargoSucceeded,
+        s3Bucket = customBucketConfig.embargo
       )
 
       val response = client
-        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
+        .release(
+          organizationId,
+          datasetId,
+          customBucketReleaseBody(customBucketConfig),
+          authToken
+        )
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
@@ -1142,10 +1235,8 @@ class PublishHandlerSpec
             datasetId = datasetId,
             version = version.version,
             s3Key = version.s3Key,
-            publishBucket =
-              S3Bucket(customBucketReleaseBody.bucketConfig.get.publish),
-            embargoBucket =
-              S3Bucket(customBucketReleaseBody.bucketConfig.get.embargo)
+            publishBucket = S3Bucket(customBucketConfig.publish),
+            embargoBucket = S3Bucket(customBucketConfig.embargo)
           )
       }
     }
@@ -1195,7 +1286,67 @@ class PublishHandlerSpec
             version = version.version,
             s3Key = version.s3Key,
             publishBucket = config.s3.publishBucket,
-            embargoBucket = config.s3.embargoBucket
+            embargoBucket = version.s3Bucket
+          )
+      }
+    }
+
+    "release a dataset for an org with a custom bucket config that was embargoed pre custom buckets" in {
+      TestUtilities.createDatasetV1(ports.db)(
+        name = datasetName,
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = PublishStatus.EmbargoSucceeded,
+        s3Bucket = config.s3.embargoBucket.value
+      )
+
+      val response = client
+        .release(
+          organizationId,
+          datasetId,
+          customBucketReleaseBody(customBucketConfig),
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[ReleaseResponse.Accepted]
+        .value
+
+      val (publicDataset, version) = run(for {
+        dataset <- PublicDatasetsMapper
+          .getDatasetFromSourceIds(organizationId, datasetId)
+
+        version <- PublicDatasetVersionsMapper
+          .getLatestVersion(dataset.id)
+      } yield (dataset, version.get))
+
+      // Still the embargo bucket because this is not reset until
+      // we are notified that step function completes successfully.
+      version.s3Bucket.value shouldBe config.s3.embargoBucket.value
+
+      response shouldBe DatasetPublishStatus(
+        datasetName,
+        organizationId,
+        datasetId,
+        Some(publicDataset.id),
+        0,
+        PublishStatus.ReleaseInProgress,
+        Some(version.createdAt)
+      )
+
+      val releaseJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedReleaseJobs
+
+      inside(releaseJobs.toList) {
+        case job :: Nil =>
+          job shouldBe EmbargoReleaseJob(
+            organizationId = organizationId,
+            datasetId = datasetId,
+            version = version.version,
+            s3Key = version.s3Key,
+            publishBucket = S3Bucket(customBucketConfig.publish),
+            embargoBucket = S3Bucket(config.s3.embargoBucket.value)
           )
       }
     }
@@ -1209,7 +1360,7 @@ class PublishHandlerSpec
       )
 
       val response = client
-        .release(organizationId, datasetId, customBucketReleaseBody, authToken)
+        .release(organizationId, datasetId, defaultBucketReleaseBody, authToken)
         .awaitFinite()
         .value
         .asInstanceOf[ReleaseResponse.Accepted]
@@ -1291,11 +1442,95 @@ class PublishHandlerSpec
 
       ports.lambdaClient
         .asInstanceOf[MockLambdaClient]
-        .requests shouldBe List(
+        .requests should contain theSameElementsAs List(
         LambdaRequest(
           publicDataset.id.toString,
-          config.s3.publishBucket.value,
-          config.s3.embargoBucket.value
+          version.s3Bucket.value,
+          version.s3Bucket.value
+        )
+      )
+
+      ports.searchClient
+        .asInstanceOf[MockSearchClient]
+        .indexedDatasets shouldBe empty
+    }
+
+    "unpublish a dataset that has been published multiple times to different publish buckets" in {
+
+      //Publish to default bucket
+      client
+        .publish(organizationId, datasetId, None, None, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val v1: PublicDatasetVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      // Complete publication process
+      publishSuccessfully(publicDataset, v1)
+
+      //Publish to custom bucket
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          requestBody.copy(bucketConfig = Some(customBucketConfig)),
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val v2: PublicDatasetVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      // Complete publication process
+      publishSuccessfully(publicDataset, v2)
+
+      val response =
+        client
+          .unpublish(
+            organizationId,
+            datasetId,
+            defaultBucketUnpublishBody,
+            authToken
+          )
+          .awaitFinite()
+          .value
+          .asInstanceOf[UnpublishResponse.OK]
+          .value
+
+      response.status shouldBe Unpublished
+
+      ports.lambdaClient
+        .asInstanceOf[MockLambdaClient]
+        .requests should contain theSameElementsAs List(
+        LambdaRequest(
+          publicDataset.id.toString,
+          v1.s3Bucket.value,
+          v2.s3Bucket.value
         )
       )
 
@@ -1340,6 +1575,11 @@ class PublishHandlerSpec
           .filter(_.datasetId === version.datasetId)
           .result
       ) shouldBe empty
+
+      ports.lambdaClient
+        .asInstanceOf[MockLambdaClient]
+        .requests shouldBe empty
+
     }
 
     "rollback an embargoed version when unpublishing" in {
@@ -1402,6 +1642,17 @@ class PublishHandlerSpec
           .filter(_.datasetId === version.datasetId)
           .result
       ) shouldBe empty
+
+      ports.lambdaClient
+        .asInstanceOf[MockLambdaClient]
+        .requests should contain theSameElementsAs List(
+        LambdaRequest(
+          publicDataset.id.toString,
+          version.s3Bucket.value,
+          version.s3Bucket.value
+        )
+      )
+
     }
 
     "fail to unpublish a dataset that is currently publishing" in {
@@ -1597,7 +1848,10 @@ class PublishHandlerSpec
         )
       )
 
-      response shouldBe GetStatusesResponse.OK(expected)
+      response shouldBe a[GetStatusesResponse.OK]
+      response
+        .asInstanceOf[GetStatusesResponse.OK]
+        .value should contain theSameElementsAs expected
     }
   }
 
