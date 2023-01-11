@@ -31,10 +31,6 @@ variable "glue_db_name" {
   default = "s3_access_logs_db"
 }
 
-variable "s3_glue_location" {
-  default = "s3://pennsieve-${var.environment_name}-${var.service_name}-publish-logs-use1/${var.environment_name}/${var.service_name}-publish/s3"
-}
-
 locals {
   java_opts = [
     "-javaagent:/app/newrelic.jar",
@@ -48,6 +44,8 @@ locals {
 
   hosted_zone = data.terraform_remote_state.account.outputs.public_hosted_zone_id
   domain_name = data.terraform_remote_state.account.outputs.domain_name
+
+  s3_glue_location= "s3://pennsieve-${var.environment_name}-${var.service_name}-publish-logs-use1/${var.environment_name}/${var.service_name}-publish/s3"
 
   common_tags = {
     aws_account      = var.aws_account

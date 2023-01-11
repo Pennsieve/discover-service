@@ -1,5 +1,5 @@
 # AWS Glue Table
-resource "aws_glue_catalog_table" "${var.environment_name}_${var.service_name}_s3_logs" {
+resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
   name          = "${var.environment_name}_${var.service_name}_s3_logs"
   database_name = "${var.glue_db_name}"
 
@@ -11,7 +11,7 @@ resource "aws_glue_catalog_table" "${var.environment_name}_${var.service_name}_s
   }
 
   storage_descriptor {
-    location      = "${var.s3_glue_location}"
+    location      = "${local.resource_prefix}"
     input_format  = "org.apache.hadoop.mapred.TextInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
 
