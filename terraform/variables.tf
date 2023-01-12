@@ -45,8 +45,6 @@ locals {
   hosted_zone = data.terraform_remote_state.account.outputs.public_hosted_zone_id
   domain_name = data.terraform_remote_state.account.outputs.domain_name
 
-  s3_glue_location= "s3://pennsieve-${var.environment_name}-${var.service_name}-publish-logs-use1/${var.environment_name}/${var.service_name}-publish/s3"
-
   common_tags = {
     aws_account      = var.aws_account
     aws_region       = data.aws_region.current_region.name

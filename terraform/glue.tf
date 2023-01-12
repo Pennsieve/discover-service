@@ -1,7 +1,7 @@
 # AWS Glue Table
 resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
-  name          = "${var.environment_name}_${var.service_name}_s3_logs"
-  database_name = "${var.glue_db_name}"
+  name          = "${var.environment_name}_discover_s3_logs"
+  database_name = var.glue_db_name
 
   table_type = "EXTERNAL_TABLE"
 
@@ -11,7 +11,7 @@ resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
   }
 
   storage_descriptor {
-    location      = "${local.resource_prefix}"
+    location      = "s3://${data.terraform_remote_state.platform_infrastructure.outputs.discover_publish_logs_s3_bucket_id}/${var.environment_name}/discover-publish/s3"
     input_format  = "org.apache.hadoop.mapred.TextInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
 
