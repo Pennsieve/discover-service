@@ -990,7 +990,12 @@ class PublishHandler(
     )
   }
 
-  def getOrCreateDoi(organizationId: Int, datasetId: Int): Future[DoiDTO] = {
+  def getOrCreateDoi(
+    organizationId: Int,
+    datasetId: Int
+  )(implicit
+    logContext: DiscoverLogContext
+  ): Future[DoiDTO] = {
     val token = Authenticator.generateServiceToken(
       ports.jwt,
       organizationId = organizationId,
@@ -1002,15 +1007,21 @@ class PublishHandler(
       latestDoi <- ports.doiClient
         .getLatestDoi(organizationId, datasetId, headers)
         .recoverWith {
-          case NoDoiException =>
+          case NoDoiException => {
             // no DOI exists for the dataset, so create a new one
+            ports.log.info("creating new DOI: no existing DOI found")
             ports.doiClient.createDraftDoi(organizationId, datasetId, headers)
+          }
         }
       isDuplicateDoi <- ports.db.run(
         PublicDatasetVersionsMapper.isDuplicateDoi(latestDoi.doi)
       )
-      validDoi <- if (latestDoi.state.contains(DoiState.Findable) || isDuplicateDoi) {
+      isFindable = latestDoi.state.contains(DoiState.Findable)
+      validDoi <- if (isFindable || isDuplicateDoi) {
         // create a new draft DOI if the latest DOI is Findable, or if the latest DOI is already associated with a dataset version
+        ports.log.info(
+          s"creating new DOI: existing DOI ${latestDoi.doi} is not usable (isFindable: ${isFindable}, isDuplicateDoi: ${isDuplicateDoi})"
+        )
         ports.doiClient.createDraftDoi(organizationId, datasetId, headers)
       } else Future.successful(latestDoi)
     } yield validDoi
