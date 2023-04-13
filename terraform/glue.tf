@@ -1,7 +1,7 @@
 # AWS Glue Table
-resource "aws_glue_catalog_table" "${var.environment_name}_${var.service_name}_s3_logs" {
-  name          = "${var.environment_name}_${var.service_name}_s3_logs"
-  database_name = "${var.glue_db_name}"
+resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
+  name          = "discover"
+  database_name = var.glue_db_name
 
   table_type = "EXTERNAL_TABLE"
 
@@ -11,12 +11,12 @@ resource "aws_glue_catalog_table" "${var.environment_name}_${var.service_name}_s
   }
 
   storage_descriptor {
-    location      = "${var.s3_glue_location}"
+    location      = "s3://${data.terraform_remote_state.platform_infrastructure.outputs.discover_publish_logs_s3_bucket_id}/${var.environment_name}/discover-publish/s3"
     input_format  = "org.apache.hadoop.mapred.TextInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
 
     ser_de_info {
-      name                  = "hadoop_serilization_library"
+      name                  = "hadoop_serialization_library"
       serialization_library = "org.apache.hadoop.hive.serde2.RegexSerDe"
 
       parameters = {

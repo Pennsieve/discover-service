@@ -31,10 +31,6 @@ variable "glue_db_name" {
   default = "s3_access_logs_db"
 }
 
-variable "s3_glue_location" {
-  default = "s3://pennsieve-${var.environment_name}-${var.service_name}-publish-logs-use1/${var.environment_name}/${var.service_name}-publish/s3"
-}
-
 locals {
   java_opts = [
     "-javaagent:/app/newrelic.jar",
