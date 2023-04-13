@@ -1,6 +1,6 @@
 # AWS Glue Table
 resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
-  name          = "${var.environment_name}_discover_s3_logs"
+  name          = "discover"
   database_name = var.glue_db_name
 
   table_type = "EXTERNAL_TABLE"
@@ -16,7 +16,7 @@ resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
     output_format = "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
 
     ser_de_info {
-      name                  = "hadoop_serilization_library"
+      name                  = "hadoop_serialization_library"
       serialization_library = "org.apache.hadoop.hive.serde2.RegexSerDe"
 
       parameters = {
