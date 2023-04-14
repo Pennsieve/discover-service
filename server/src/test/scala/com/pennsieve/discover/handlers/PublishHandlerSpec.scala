@@ -813,7 +813,7 @@ class PublishHandlerSpec
         .createMockDoi(organizationId, datasetId)
         .doi
 
-      val failedVersion = TestUtilities.createNewDatasetVersion(ports.db)(
+      TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
         status = PublishFailed,
         doi = draftDoi
