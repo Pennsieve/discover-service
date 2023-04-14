@@ -774,7 +774,11 @@ object PublicDatasetVersionsMapper
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[Boolean, NoStream, Effect.Read] = {
-    this.filter(_.doi === doi).exists.result
+    this
+      .filter(_.doi === doi)
+      .filter(_.status inSet successfulStates)
+      .exists
+      .result
   }
 
   /**
