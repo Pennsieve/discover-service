@@ -801,6 +801,43 @@ class PublishHandlerSpec
 
       response shouldBe a[PublishResponse.Created]
     }
+
+    "not create a new DOI if draft DOI is only associated with a failed version" in {
+
+      val publicDataset = TestUtilities.createDataset(ports.db)(
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId
+      )
+      val draftDoi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(organizationId, datasetId)
+        .doi
+
+      val failedVersion = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishFailed,
+        doi = draftDoi
+      )
+
+      client
+        .publish(organizationId, datasetId, None, None, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val latestVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      latestVersion.doi shouldBe draftDoi
+
+    }
+
   }
 
   "POST /organizations/{organizationId}/datasets/{datasetId}/revise" should {
