@@ -21,6 +21,8 @@ resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
 
       parameters = {
         "serialization.format" = 1
+        "input.regex"          = "([^ ]*) ([^ ]*) \\[(.*?)\\] ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) (\"[^\"]*\"|-) (-|[0-9]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) (\"[^\"]*\"|-) ([^ ]*)(?: ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*))?.*$$"
+
       }
     }
 
@@ -35,108 +37,108 @@ resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
     }
 
     columns {
-      name    = "requestdatetime"
-      type    = "string"
+      name = "requestdatetime"
+      type = "string"
     }
 
     columns {
-      name    = "remoteip"
-      type    = "string"
+      name = "remoteip"
+      type = "string"
     }
 
     columns {
-      name    = "requester"
-      type    = "string"
+      name = "requester"
+      type = "string"
     }
 
     columns {
-      name    = "requestid"
-      type    = "string"
+      name = "requestid"
+      type = "string"
     }
 
     columns {
-      name    = "operation"
-      type    = "string"
+      name = "operation"
+      type = "string"
     }
 
     columns {
-      name    = "key"
-      type    = "string"
+      name = "key"
+      type = "string"
     }
 
     columns {
-      name    = "request_uri"
-      type    = "string"
+      name = "request_uri"
+      type = "string"
     }
 
     columns {
-      name    = "httpstatus"
-      type    = "string"
+      name = "httpstatus"
+      type = "string"
     }
 
     columns {
-      name    = "errorcode"
-      type    = "string"
+      name = "errorcode"
+      type = "string"
     }
 
     columns {
-      name    = "bytessent"
-      type    = "string"
+      name = "bytessent"
+      type = "string"
     }
 
     columns {
-      name    = "objectsize"
-      type    = "string"
+      name = "objectsize"
+      type = "string"
     }
 
     columns {
-      name    = "totaltime"
-      type    = "string"
+      name = "totaltime"
+      type = "string"
     }
 
     columns {
-      name    = "turnaroundtime"
-      type    = "string"
+      name = "turnaroundtime"
+      type = "string"
     }
 
     columns {
-      name    = "referrer"
-      type    = "string"
+      name = "referrer"
+      type = "string"
     }
 
     columns {
-      name    = "useragent"
-      type    = "string"
+      name = "useragent"
+      type = "string"
     }
 
     columns {
-      name    = "hostid"
-      type    = "string"
+      name = "hostid"
+      type = "string"
     }
 
     columns {
-      name    = "sigv"
-      type    = "string"
+      name = "sigv"
+      type = "string"
     }
 
     columns {
-      name    = "ciphersuite"
-      type    = "string"
+      name = "ciphersuite"
+      type = "string"
     }
 
     columns {
-      name    = "authtype"
-      type    = "string"
+      name = "authtype"
+      type = "string"
     }
 
     columns {
-      name    = "endpoint"
-      type    = "string"
+      name = "endpoint"
+      type = "string"
     }
 
     columns {
-      name    = "tlsversion"
-      type    = "string"
+      name = "tlsversion"
+      type = "string"
     }
   }
 }
