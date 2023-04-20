@@ -21,7 +21,7 @@ resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
 
       parameters = {
         "serialization.format" = 1
-        "input.regex"          = "([^ ]*) ([^ ]*) \\[(.*?)\\] ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) (\"[^\"]*\"|-) (-|[0-9]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) (\"[^\"]*\"|-) ([^ ]*)(?: ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*))?.*$$"
+        "input.regex"          = "([^ ]*) ([^ ]*) \\[(.*?)\\] ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) (\"[^\"]*\"|-) (-|[0-9]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) (\"[^\"]*\"|-) ([^ ]*)(?: ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*))?.*$"
 
       }
     }
@@ -83,12 +83,12 @@ resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
 
     columns {
       name = "bytessent"
-      type = "string"
+      type = "bigint"
     }
 
     columns {
       name = "objectsize"
-      type = "string"
+      type = "bigint"
     }
 
     columns {
@@ -108,6 +108,11 @@ resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
 
     columns {
       name = "useragent"
+      type = "string"
+    }
+
+    columns {
+      name = "versionid"
       type = "string"
     }
 
