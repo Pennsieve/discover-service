@@ -11,7 +11,9 @@ object DoiRedirect {
     if ((publicDataset.sourceOrganizationName == "SPARC" || publicDataset.sourceOrganizationName == "SPARC Consortium") &&
       publicDiscoverUrl == "https://discover.pennsieve.io") {
       getSPARCUrl(publicDataset.id, publicVersion.version)
-    } else {
+    } else if (publicDataset.sourceOrganizationName == "RE-JOIN" && publicDiscoverUrl == "https://discover.pennsieve.io") {
+      getSPARCUrl(publicDataset.id, publicVersion.version)
+    }else {
       getDiscoverUrl(publicDiscoverUrl, publicDataset.id, publicVersion.version)
     }
   }
@@ -19,7 +21,9 @@ object DoiRedirect {
   def getPublisher(publicDataset: PublicDataset): Option[String] = {
     if ((publicDataset.sourceOrganizationName == "SPARC" || publicDataset.sourceOrganizationName == "SPARC Consortium")) {
       Some("SPARC Consortium")
-    } else {
+    } else if (publicDataset.sourceOrganizationName == "RE-JOIN") {
+      Some("RE-JOIN Consortium")
+    }else {
       Some("Pennsieve Discover")
     }
   }
