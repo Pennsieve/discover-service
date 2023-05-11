@@ -31,15 +31,23 @@ class SyncHandler(
   system: ActorSystem
 ) extends GuardrailHandler {
 
+  def sinceMillis(startNanos: Long): Double =
+    (System.nanoTime() - startNanos) / 1e6
+
   override def syncAthenaDownloads(
     respond: GuardrailResource.SyncAthenaDownloadsResponse.type
   )(
     startDate: LocalDate,
     endDate: LocalDate
   ): Future[GuardrailResource.SyncAthenaDownloadsResponse] = {
+    val startNanos = System.nanoTime()
+    val logger = ports.logger.noContext
     val realEndDate = endDate.plusDays(1)
     val athenaDownloads =
       ports.athenaClient.getDatasetDownloadsForRange(startDate, realEndDate)
+    logger.info(
+      s"got ${athenaDownloads.size} downloads from Athena; since start: ${sinceMillis(startNanos)} ms"
+    )
 
     val query = for {
       databaseDownloads <- DatasetDownloadsMapper
@@ -48,24 +56,35 @@ class SyncHandler(
           OffsetDateTime.of(realEndDate, LocalTime.MIDNIGHT, ZoneOffset.UTC)
         )
 
+      _ = logger.info(s"got ${databaseDownloads.size} downloads from Postgres")
+
       cleanDownloads = utils.cleanAthenaDownloads(
         athenaDownloads,
         databaseDownloads
+      )
+
+      _ = logger.info(
+        s"got ${cleanDownloads.size} downloads from deduplication"
       )
 
       newDownloads <- DBIO.sequence(cleanDownloads.map { d =>
         DatasetDownloadsMapper
           .create(d.datasetId, d.version, d.origin, d.requestId, d.downloadedAt)
       })
+      _ = logger.info(
+        s"adding ${newDownloads.size} new download records to Postgres"
+      )
     } yield (newDownloads)
 
-    ports.db
+    val response = ports.db
       .run(query)
       .map {
         case _: List[DatasetDownload] => {
           GuardrailResource.SyncAthenaDownloadsResponse.OK
         }
       }
+    logger.info(s"completed Athena sync in ${sinceMillis(startNanos)} ms")
+    response
   }
 }
 
