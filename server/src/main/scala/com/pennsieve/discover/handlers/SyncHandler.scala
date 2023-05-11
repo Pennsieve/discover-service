@@ -7,7 +7,6 @@ import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
-
 import com.pennsieve.discover.db.profile.api.DBIO
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
@@ -23,6 +22,18 @@ import com.pennsieve.discover.server.sync.{
 import scala.concurrent.{ ExecutionContext, Future }
 import com.pennsieve.discover.db.DatasetDownloadsMapper
 import com.pennsieve.discover.models.{ DatasetDownload, DownloadOrigin }
+import com.pennsieve.service.utilities.LogContext
+
+import java.util.UUID
+
+final case class SyncHandlerLogContext(
+  startDate: LocalDate,
+  endDate: LocalDate,
+  requestId: UUID,
+  handler: String = "SyncHandler"
+) extends LogContext {
+  override val values: Map[String, String] = inferValues(this)
+}
 
 class SyncHandler(
   ports: Ports
@@ -40,12 +51,13 @@ class SyncHandler(
     startDate: LocalDate,
     endDate: LocalDate
   ): Future[GuardrailResource.SyncAthenaDownloadsResponse] = {
+    implicit val logContext =
+      SyncHandlerLogContext(startDate, endDate, UUID.randomUUID())
     val startNanos = System.nanoTime()
-    val logger = ports.logger.noContext
     val realEndDate = endDate.plusDays(1)
     val athenaDownloads =
       ports.athenaClient.getDatasetDownloadsForRange(startDate, realEndDate)
-    logger.info(
+    ports.log.info(
       s"got ${athenaDownloads.size} downloads from Athena; since start: ${sinceMillis(startNanos)} ms"
     )
 
@@ -56,14 +68,16 @@ class SyncHandler(
           OffsetDateTime.of(realEndDate, LocalTime.MIDNIGHT, ZoneOffset.UTC)
         )
 
-      _ = logger.info(s"got ${databaseDownloads.size} downloads from Postgres")
+      _ = ports.log.info(
+        s"got ${databaseDownloads.size} downloads from Postgres"
+      )
 
       cleanDownloads = utils.cleanAthenaDownloads(
         athenaDownloads,
         databaseDownloads
       )
 
-      _ = logger.info(
+      _ = ports.log.info(
         s"got ${cleanDownloads.size} downloads from deduplication"
       )
 
@@ -71,7 +85,7 @@ class SyncHandler(
         DatasetDownloadsMapper
           .create(d.datasetId, d.version, d.origin, d.requestId, d.downloadedAt)
       })
-      _ = logger.info(
+      _ = ports.log.info(
         s"adding ${newDownloads.size} new download records to Postgres"
       )
     } yield (newDownloads)
@@ -83,7 +97,7 @@ class SyncHandler(
           GuardrailResource.SyncAthenaDownloadsResponse.OK
         }
       }
-    logger.info(s"completed Athena sync in ${sinceMillis(startNanos)} ms")
+    ports.log.info(s"completed Athena sync in ${sinceMillis(startNanos)} ms")
     response
   }
 }
