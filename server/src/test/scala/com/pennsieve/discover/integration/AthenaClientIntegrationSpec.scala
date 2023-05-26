@@ -28,7 +28,10 @@ class AthenaClientIntegrationSpec
 
     "find the proper downloads" in {
 
-      val athenaClient: AthenaClient = new AthenaClientImpl()
+      val athenaClient: AthenaClient = new AthenaClientImpl(
+        pennsieveTable = config.athena.pennsieveBucketAccessTable,
+        sparcTable = config.athena.sparcBucketAccessTable
+      )
 
       val athenaDownloads = athenaClient.getDatasetDownloadsForRange(
         LocalDate.of(2020, 11, 11),
