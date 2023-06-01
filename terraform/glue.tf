@@ -5,7 +5,7 @@ resource "aws_glue_catalog_database" "glue_catalog_database_s3_logs" {
 
 resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
   name          = "discover"
-  database_name = var.glue_db_name
+  database_name = aws_glue_catalog_database.glue_catalog_database_s3_logs.name
 
   table_type = "EXTERNAL_TABLE"
 
