@@ -115,7 +115,7 @@ trait ServiceSpecHarness
       athena = AthenaConfig(
         pennsieveBucketAccessTable = "s3_access_logs_db.discover",
         sparcBucketAccessTable =
-          "sparc_dev_catalog.dev_discover_s3_access_logs_db.discover_logs"
+          "sparc_glue_catalog.dev_s3_access_logs_db.discover"
       )
     )
 

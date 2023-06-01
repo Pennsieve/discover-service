@@ -1,4 +1,8 @@
 # AWS Glue Table
+resource "aws_glue_catalog_database" "glue_catalog_database_s3_logs" {
+  name = var.glue_db_name
+}
+
 resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
   name          = "discover"
   database_name = var.glue_db_name
@@ -145,5 +149,15 @@ resource "aws_glue_catalog_table" "glue_catalog_table_s3_logs" {
       name = "tlsversion"
       type = "string"
     }
+  }
+}
+
+resource "aws_athena_data_catalog" "sparc_glue_catalog" {
+  name        = var.sparc_glue_catalog
+  description = "SPARC's Glue based Data Catalog"
+  type        = "GLUE"
+
+  parameters = {
+    "catalog-id" = data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id
   }
 }

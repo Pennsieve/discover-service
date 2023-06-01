@@ -196,6 +196,27 @@ data "aws_iam_policy_document" "iam_policy_document" {
     resources = [data.terraform_remote_state.platform_infrastructure.outputs.sparc_bucket_role_arn]
   }
 
+  statement {
+    sid       = "AllowAccessToSPARCS3AccessLogTable"
+    effect    = "Allow"
+    actions   = ["glue:*"]
+    resources = [
+      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:catalog",
+      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:database/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_db}",
+      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:table/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_db}/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_table}"
+    ]
+  }
+
+  statement {
+    sid       = "AllowAccessToSPARCS3AccessLogBucket"
+    effect    = "Allow"
+    actions   = ["s3:*"]
+    resources = [
+      "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_bucket}",
+      "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_bucket}/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_prefix}*"
+    ]
+  }
+
   # statement {
   #   sid    = "PublishToVictorOps"
   #   effect = "Allow"
