@@ -145,7 +145,10 @@ object Ports {
       .region(config.sqs.region)
       .build()
 
-    val athenaClient: AthenaClient = new AthenaClientImpl()
+    val athenaClient: AthenaClient = new AthenaClientImpl(
+      pennsieveTable = config.athena.pennsieveBucketAccessTable,
+      sparcTable = config.athena.sparcBucketAccessTable
+    )
 
     Ports(
       config,

@@ -31,6 +31,10 @@ variable "glue_db_name" {
   default = "s3_access_logs_db"
 }
 
+variable "sparc_glue_catalog" {
+  default = "sparc_glue_catalog"
+}
+
 locals {
   java_opts = [
     "-javaagent:/app/newrelic.jar",
@@ -51,4 +55,6 @@ locals {
     environment_name = var.environment_name
     service_name     = var.service_name
   }
+
+  sparc_environment_name = var.environment_name == "dev" ? "dev" : "prd"
 }

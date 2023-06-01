@@ -31,7 +31,8 @@ case class Config(
   pennsieveApi: PennsieveApiConfiguration,
   authorizationService: AuthorizationConfiguration,
   download: DownloadConfiguration,
-  externalPublishBuckets: Map[S3Bucket, Arn] = Map.empty
+  externalPublishBuckets: Map[S3Bucket, Arn] = Map.empty,
+  athena: AthenaConfig
 )
 
 object Config {
@@ -117,3 +118,8 @@ case class ElasticSearchConfiguration(host: String, port: Int) {
 case class SNSConfiguration(alertTopic: String, region: Region)
 
 case class ExternalPublishBucketConfiguration(bucket: S3Bucket, roleArn: Arn)
+
+case class AthenaConfig(
+  pennsieveBucketAccessTable: String,
+  sparcBucketAccessTable: String
+)

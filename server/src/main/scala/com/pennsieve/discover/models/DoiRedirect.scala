@@ -13,7 +13,7 @@ object DoiRedirect {
       getSPARCUrl(publicDataset.id, publicVersion.version)
     } else if (publicDataset.sourceOrganizationName == "RE-JOIN" && publicDiscoverUrl == "https://discover.pennsieve.io") {
       getSPARCUrl(publicDataset.id, publicVersion.version)
-    }else {
+    } else {
       getDiscoverUrl(publicDiscoverUrl, publicDataset.id, publicVersion.version)
     }
   }
@@ -23,7 +23,7 @@ object DoiRedirect {
       Some("SPARC Consortium")
     } else if (publicDataset.sourceOrganizationName == "RE-JOIN") {
       Some("RE-JOIN Consortium")
-    }else {
+    } else {
       Some("Pennsieve Discover")
     }
   }
