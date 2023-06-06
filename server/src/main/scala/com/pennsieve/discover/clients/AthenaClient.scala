@@ -34,7 +34,7 @@ class AthenaClientImpl(val pennsieveTable: String, val sparcTable: String)
             | UNION
             | ${tableQuery(sparcTable, startDate, endDate)}
             | ORDER BY  dataset_id, version, dl_date;""".stripMargin*/
-      sql"""${tableQuery(pennsieveTable, startDate, endDate)}
+      sql"""${tableQuery(sparcTable, startDate, endDate)}
            | ORDER BY  dataset_id, version, dl_date;""".stripMargin
         .map(
           rs =>
