@@ -217,6 +217,15 @@ data "aws_iam_policy_document" "iam_policy_document" {
     ]
   }
 
+  statement {
+    sid       = "AllowAccessToSPARCDataCatalog"
+    effect    = "Allow"
+    actions   = ["athena:GetDataCatalog"]
+    resources = [
+      "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:datacatalog/${aws_athena_data_catalog.sparc_glue_catalog.name}"
+    ]
+  }
+
   # statement {
   #   sid    = "PublishToVictorOps"
   #   effect = "Allow"
