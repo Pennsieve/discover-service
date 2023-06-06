@@ -30,10 +30,12 @@ class AthenaClientImpl(val pennsieveTable: String, val sparcTable: String)
     println(startDate)
     println(endDate)
     DB.athena { implicit s =>
-      sql"""${tableQuery(pennsieveTable, startDate, endDate)}
+     /* sql"""${tableQuery(pennsieveTable, startDate, endDate)}
             | UNION
             | ${tableQuery(sparcTable, startDate, endDate)}
-            | ORDER BY  dataset_id, version, dl_date;""".stripMargin
+            | ORDER BY  dataset_id, version, dl_date;""".stripMargin*/
+      sql"""${tableQuery(pennsieveTable, startDate, endDate)}
+           | ORDER BY  dataset_id, version, dl_date;""".stripMargin
         .map(
           rs =>
             DatasetDownload(
