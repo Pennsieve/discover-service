@@ -28,6 +28,7 @@ final case class PublicDatasetVersion(
   embargoReleaseDate: Option[LocalDate] = None,
   fileDownloadsCounter: Int = 0,
   datasetDownloadsCounter: Int = 0,
+  migrated: Boolean = false,
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC)
 ) {

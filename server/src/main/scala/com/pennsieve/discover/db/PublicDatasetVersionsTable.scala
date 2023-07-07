@@ -58,6 +58,8 @@ final class PublicDatasetVersionsTable(tag: Tag)
   def fileDownloadsCounter = column[Int]("file_downloads_counter")
   def datasetDownloadsCounter = column[Int]("dataset_downloads_counter")
 
+  def migrated = column[Boolean]("migrated")
+
   def pk =
     primaryKey("public_dataset_versions_pk", (datasetId, version))
 
@@ -82,6 +84,7 @@ final class PublicDatasetVersionsTable(tag: Tag)
       embargoReleaseDate,
       fileDownloadsCounter,
       datasetDownloadsCounter,
+      migrated,
       createdAt,
       updatedAt
     ).mapTo[PublicDatasetVersion]
