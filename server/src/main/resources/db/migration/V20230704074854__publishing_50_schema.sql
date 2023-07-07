@@ -1,4 +1,10 @@
 /*
+** add `migrated` column to public_dataset_versions:
+** - this is a flag that indicates whether a dataset version has 
+*/
+ALTER TABLE public_dataset_versions ADD COLUMN migrated BOOLEAN NOT NULL DEFAULT false;
+
+/*
 ** Table: public_file_versions
 */
 CREATE TABLE public_file_versions (
@@ -6,9 +12,9 @@ CREATE TABLE public_file_versions (
   name TEXT NOT NULL,
   file_type TEXT NOT NULL,
   size BIGINT NOT NULL,
-  source_package_id TEXT NOT NULL,
-  source_file_uuid UUID NOT NULL,
-  checksum JSONB,
+  source_package_id TEXT,
+  source_file_uuid UUID,
+  checksum JSONB DEFAULT '[]',
   s3_key TEXT NOT NULL,
   s3_version TEXT NOT NULL,
   path ltree NOT NULL,
