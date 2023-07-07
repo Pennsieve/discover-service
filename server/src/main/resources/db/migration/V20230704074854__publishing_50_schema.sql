@@ -1,6 +1,6 @@
 /*
 ** add `migrated` column to public_dataset_versions:
-** - this is a flag that indicates whether a dataset version has 
+** - this is a flag that indicates whether a dataset version has
 */
 ALTER TABLE public_dataset_versions ADD COLUMN migrated BOOLEAN NOT NULL DEFAULT false;
 

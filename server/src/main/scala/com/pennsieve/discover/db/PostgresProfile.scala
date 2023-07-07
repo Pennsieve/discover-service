@@ -5,14 +5,18 @@ package com.pennsieve.discover.db
 import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
 import com.pennsieve.discover.models.{
   DownloadOrigin,
+  FileChecksum,
   PennsieveSchemaVersion,
   S3Bucket,
   S3Key
 }
 import com.github.tminglei.slickpg._
+import io.circe.Json
+import io.circe.syntax._
 import slick.ast.BaseTypedType
 import slick.jdbc.{ JdbcCapabilities, JdbcType }
 import slick.basic.Capability
+import slick.lifted.MappedToBase.mappedToIsomorphism
 
 trait PostgresProfile
     extends ExPostgresProfile
@@ -87,6 +91,12 @@ trait PostgresProfile
       MappedColumnType
         .base[S3Key.Version, String](s => s.value, s => S3Key.Version(s))
 
+    implicit val fileChecksumMapper
+      : JdbcType[FileChecksum] with BaseTypedType[FileChecksum] =
+      MappedColumnType.base[FileChecksum, String](
+        s => s.toString,
+        s => FileChecksum.fromString(s)
+      )
   }
 
   override val pgjson = "jsonb" // jsonb support is in postgres 9.4.0 onward; for 9.3.x use "json"
