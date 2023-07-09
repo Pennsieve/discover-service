@@ -34,6 +34,8 @@ import java.util.Base64
 import java.nio.charset.StandardCharsets
 import scala.concurrent.ExecutionContext
 
+final case class TotalCount(value: Long) extends AnyVal
+
 final class PublicFilesTable(tag: Tag)
     extends Table[PublicFile](tag, "public_files") {
 
@@ -288,8 +290,6 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
             WHERE f.path ?? $treePaths::lquery[]
         """.as[FileDownloadDTO]
   }
-
-  case class TotalCount(value: Long) extends AnyVal
 
   /**
     * Find the files and directories under a given parent node.
