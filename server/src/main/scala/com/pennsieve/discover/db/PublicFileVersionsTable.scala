@@ -166,25 +166,32 @@ object PublicFileVersionsMapper
 //      sourcePackageId = sourcePackageId
 //    )
 //
-//  def getFile(
-//               version: PublicDatasetVersion,
-//               path: S3Key.File
-//             )(implicit
-//               executionContext: ExecutionContext
-//             ): DBIOAction[FileTreeNode, NoStream, Effect.Read with Effect] =
-//    this
-//      .filter(_.datasetId === version.datasetId)
-//      .filter(_.version === version.version)
-//      .filter(_.s3Key === path)
-//      .result
-//      .headOption
-//      .flatMap {
-//        case Some(f) =>
-//          DBIO.successful(FileTreeNode(f, version.s3Bucket))
-//        case _ =>
-//          DBIO.failed(NoFileException(version.datasetId, version.version, path))
-//      }
-//
+  def getFile(
+    version: PublicDatasetVersion,
+    path: S3Key.File
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[FileTreeNode, NoStream, Effect.Read with Effect] = {
+    val datasetVersionFiles =
+      PublicDatasetVersionFilesTableMapper
+        .filter(_.datasetId === version.datasetId)
+        .filter(_.datasetVersion === version.version)
+
+    this
+      .join(datasetVersionFiles)
+      .on(_.id === _.fileId)
+      .filter(_._1.s3Key === path)
+      .result
+      .headOption
+      .flatMap {
+        case Some((f, _)) =>
+          DBIO.successful(FileTreeNode(f, version))
+        case _ =>
+          DBIO.failed(NoFileException(version.datasetId, version.version, path))
+      }
+  }
+
+  //
 //  def getFileFromSourcePackageId(
 //                                  sourcePackageId: String,
 //                                  limit: Int,
