@@ -677,7 +677,8 @@ object PublicDatasetVersionsMapper
     s3Bucket: S3Bucket,
     banner: Option[S3Key.File] = None,
     readme: Option[S3Key.File] = None,
-    embargoReleaseDate: Option[LocalDate] = None
+    embargoReleaseDate: Option[LocalDate] = None,
+    migrated: Boolean = false
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[
@@ -712,7 +713,8 @@ object PublicDatasetVersionsMapper
         schemaVersion = schemaVersion,
         banner = banner,
         readme = readme,
-        embargoReleaseDate = embargoReleaseDate
+        embargoReleaseDate = embargoReleaseDate,
+        migrated = migrated
       )
       result <- (this returning this) += row
     } yield result
