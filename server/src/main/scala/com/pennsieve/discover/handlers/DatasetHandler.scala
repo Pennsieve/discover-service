@@ -507,7 +507,12 @@ class DatasetHandler(
         noSlashPath
       }
 
-      file <- PublicFilesMapper.getFile(version, S3Key.File(path))
+      file <- version.migrated match {
+        case false =>
+          PublicFilesMapper.getFile(version, S3Key.File(path))
+        case true =>
+          PublicFileVersionsMapper.getFile(version, S3Key.File(path))
+      }
 
     } yield (dataset, version, file)
 
