@@ -20,3 +20,8 @@ final class PublicDatasetVersionFilesTable(tag: Tag)
     (datasetId, datasetVersion, fileId, createdAt, updatedAt)
       .mapTo[PublicDatasetVersionFile]
 }
+
+object PublicDatasetVersionFilesTableMapper
+    extends TableQuery[PublicDatasetVersionFilesTable](
+      new PublicDatasetVersionFilesTable(_)
+    ) {}
