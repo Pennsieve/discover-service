@@ -24,5 +24,6 @@ object PennsieveSchemaVersion
   case object `2.0` extends PennsieveSchemaVersion
   case object `3.0` extends PennsieveSchemaVersion
   case object `4.0` extends PennsieveSchemaVersion
+  case object `5.0` extends PennsieveSchemaVersion
 
 }
