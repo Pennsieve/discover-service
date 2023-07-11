@@ -47,6 +47,11 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
 import com.pennsieve.discover.db.PublicFilesMapper
 
+object PublishingWorkflow {
+  val Version4: Long = 4
+  val Version5: Long = 5
+}
+
 class PublishHandler(
   ports: Ports,
   claim: Jwt.Claim
@@ -155,6 +160,10 @@ class PublishHandler(
               }
             )
 
+            requestedWorkflow = body.workflowId.getOrElse(
+              PublishingWorkflow.Version4
+            )
+
             version <- PublicDatasetVersionsMapper
               .create(
                 id = publicDataset.id,
@@ -170,7 +179,8 @@ class PublishHandler(
                 s3Bucket = targetS3Bucket,
                 embargoReleaseDate = embargoReleaseDate,
                 doi = doi.doi,
-                schemaVersion = PennsieveSchemaVersion.`4.0`
+                schemaVersion = PennsieveSchemaVersion.`4.0`,
+                migrated = requestedWorkflow == PublishingWorkflow.Version5
               )
             _ = ports.log.info(s"Public dataset version : $version")
 

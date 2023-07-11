@@ -52,4 +52,29 @@ object FileTreeNode {
       Some(file.createdAt)
     )
   }
+
+  def apply(
+    file: PublicFileVersion,
+    version: PublicDatasetVersion
+  ): FileTreeNode = {
+    val path =
+      if (file.s3Key.toString
+          .startsWith(s"${version.datasetId}/${version.version}")) {
+        file.s3Key.toString
+          .replace(s"${version.datasetId}/${version.version}/", "")
+      } else {
+        file.s3Key.toString
+      }
+
+    File(
+      file.name,
+      path,
+      utils.getFileType(file.fileType),
+      file.s3Key,
+      version.s3Bucket,
+      file.size,
+      file.sourcePackageId,
+      Some(file.createdAt)
+    )
+  }
 }

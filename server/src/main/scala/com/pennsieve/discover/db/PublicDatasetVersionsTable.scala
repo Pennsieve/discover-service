@@ -58,6 +58,8 @@ final class PublicDatasetVersionsTable(tag: Tag)
   def fileDownloadsCounter = column[Int]("file_downloads_counter")
   def datasetDownloadsCounter = column[Int]("dataset_downloads_counter")
 
+  def migrated = column[Boolean]("migrated")
+
   def pk =
     primaryKey("public_dataset_versions_pk", (datasetId, version))
 
@@ -82,6 +84,7 @@ final class PublicDatasetVersionsTable(tag: Tag)
       embargoReleaseDate,
       fileDownloadsCounter,
       datasetDownloadsCounter,
+      migrated,
       createdAt,
       updatedAt
     ).mapTo[PublicDatasetVersion]
@@ -674,7 +677,8 @@ object PublicDatasetVersionsMapper
     s3Bucket: S3Bucket,
     banner: Option[S3Key.File] = None,
     readme: Option[S3Key.File] = None,
-    embargoReleaseDate: Option[LocalDate] = None
+    embargoReleaseDate: Option[LocalDate] = None,
+    migrated: Boolean = false
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[
@@ -709,7 +713,8 @@ object PublicDatasetVersionsMapper
         schemaVersion = schemaVersion,
         banner = banner,
         readme = readme,
-        embargoReleaseDate = embargoReleaseDate
+        embargoReleaseDate = embargoReleaseDate,
+        migrated = migrated
       )
       result <- (this returning this) += row
     } yield result

@@ -2,7 +2,6 @@
 
 package com.pennsieve.discover.handlers
 import java.time.LocalDate
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
@@ -508,7 +507,12 @@ class DatasetHandler(
         noSlashPath
       }
 
-      file <- PublicFilesMapper.getFile(version, S3Key.File(path))
+      file <- version.migrated match {
+        case false =>
+          PublicFilesMapper.getFile(version, S3Key.File(path))
+        case true =>
+          PublicFileVersionsMapper.getFile(version, S3Key.File(path))
+      }
 
     } yield (dataset, version, file)
 
@@ -747,12 +751,23 @@ class DatasetHandler(
       )
       _ <- authorizeIfUnderEmbargo(dataset, version)
 
-      (totalCount, files) <- PublicFilesMapper.childrenOf(
-        version,
-        path,
-        limit = limit.getOrElse(defaultFileLimit),
-        offset = offset.getOrElse(defaultFileOffset)
-      )
+      (totalCount, files) <- version.migrated match {
+        case false =>
+          PublicFilesMapper.childrenOf(
+            version,
+            path,
+            limit = limit.getOrElse(defaultFileLimit),
+            offset = offset.getOrElse(defaultFileOffset)
+          )
+        case true =>
+          PublicFileVersionsMapper.childrenOf(
+            version,
+            path,
+            limit = limit.getOrElse(defaultFileLimit),
+            offset = offset.getOrElse(defaultFileOffset)
+          )
+      }
+
     } yield (totalCount, files)
 
     ports.db

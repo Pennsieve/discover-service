@@ -3,7 +3,7 @@
 package com.pennsieve.discover.db
 
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.db.PublicFilesMapper.TotalCount
+import com.pennsieve.discover.db.TotalCount
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.models.{
   FileDownloadDTO,

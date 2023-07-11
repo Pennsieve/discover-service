@@ -264,7 +264,8 @@ class AlpakkaS3StreamClient(
       case PennsieveSchemaVersion.`1.0` => version.s3Key / "metadata.json"
       case PennsieveSchemaVersion.`2.0` => version.s3Key / "metadata.json"
       case PennsieveSchemaVersion.`3.0` => version.s3Key / "metadata.json"
-      case PennsieveSchemaVersion.`4.0` => version.s3Key / MANIFEST_FILE
+      case PennsieveSchemaVersion.`4.0` | PennsieveSchemaVersion.`5.0` =>
+        version.s3Key / MANIFEST_FILE
     }
   }
 
@@ -282,7 +283,7 @@ class AlpakkaS3StreamClient(
       case PennsieveSchemaVersion.`1.0` => version.s3Key / "graph/schema.json"
       case PennsieveSchemaVersion.`2.0` => version.s3Key / "graph/schema.json"
       case PennsieveSchemaVersion.`3.0` => version.s3Key / "graph/schema.json"
-      case PennsieveSchemaVersion.`4.0` =>
+      case PennsieveSchemaVersion.`4.0` | PennsieveSchemaVersion.`5.0` =>
         version.s3Key / "metadata/schema.json"
     }
   }
@@ -851,7 +852,8 @@ class AlpakkaS3StreamClient(
         case PennsieveSchemaVersion.`1.0` => version.s3Key / s"graph/$file"
         case PennsieveSchemaVersion.`2.0` => version.s3Key / s"graph/$file"
         case PennsieveSchemaVersion.`3.0` => version.s3Key / s"graph/$file"
-        case PennsieveSchemaVersion.`4.0` => version.s3Key / s"metadata/$file"
+        case PennsieveSchemaVersion.`4.0` | PennsieveSchemaVersion.`5.0` =>
+          version.s3Key / s"metadata/$file"
       }
     }
 
