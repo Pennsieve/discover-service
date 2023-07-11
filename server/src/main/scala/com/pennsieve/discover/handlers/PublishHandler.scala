@@ -86,6 +86,46 @@ class PublishHandler(
     embargo: Option[Boolean],
     embargoReleaseDate: Option[LocalDate],
     body: definitions.PublishRequest
+  ): Future[PublishResponse] =
+    body.workflowId match {
+      case None =>
+        publish4x(respond)(
+          organizationId,
+          datasetId,
+          embargo,
+          embargoReleaseDate,
+          body
+        )
+      case Some(_) =>
+        publish5x(respond)(
+          organizationId,
+          datasetId,
+          embargo,
+          embargoReleaseDate,
+          body
+        )
+    }
+
+  def publish5x(
+    respond: GuardrailResource.PublishResponse.type
+  )(
+    organizationId: Int,
+    datasetId: Int,
+    embargo: Option[Boolean],
+    embargoReleaseDate: Option[LocalDate],
+    body: definitions.PublishRequest
+  ): Future[PublishResponse] = {
+    Future.successful(respond.InternalServerError("not implemented yet"))
+  }
+
+  def publish4x(
+    respond: GuardrailResource.PublishResponse.type
+  )(
+    organizationId: Int,
+    datasetId: Int,
+    embargo: Option[Boolean],
+    embargoReleaseDate: Option[LocalDate],
+    body: definitions.PublishRequest
   ): Future[PublishResponse] = {
 
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
