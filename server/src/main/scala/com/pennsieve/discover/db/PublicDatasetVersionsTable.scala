@@ -316,7 +316,8 @@ object PublicDatasetVersionsMapper
             None,
             0,
             PublishStatus.NotPublished,
-            None
+            None,
+            workflowId = PublishingWorkflow.Unknown
           )
         )
     })
@@ -378,6 +379,10 @@ object PublicDatasetVersionsMapper
             sponsorship = sponsorship.map {
               case Sponsorship(_, title, imageUrl, markup, _) =>
                 SponsorshipRequest(title, imageUrl, markup)
+            },
+            workflowId = latestVersion.map(_.migrated).getOrElse(false) match {
+              case true => PublishingWorkflow.Version5
+              case false => PublishingWorkflow.Version4
             }
           )
       }
