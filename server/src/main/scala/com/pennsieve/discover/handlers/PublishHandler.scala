@@ -47,11 +47,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
 import com.pennsieve.discover.db.PublicFilesMapper
 
-object PublishingWorkflow {
-  val Version4: Long = 4
-  val Version5: Long = 5
-}
-
 class PublishHandler(
   ports: Ports,
   claim: Jwt.Claim
