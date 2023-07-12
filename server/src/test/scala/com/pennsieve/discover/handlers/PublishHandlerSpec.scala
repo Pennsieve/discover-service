@@ -301,7 +301,8 @@ class PublishHandlerSpec
         None,
         0,
         PublishInProgress,
-        None
+        None,
+        workflowId = PublishingWorkflow.Version4
       )
 
       val publicDataset = ports.db
@@ -479,7 +480,8 @@ class PublishHandlerSpec
         None,
         0,
         PublishStatus.EmbargoInProgress,
-        None
+        None,
+        workflowId = PublishingWorkflow.Version4
       )
 
       val publicDataset = ports.db
@@ -608,7 +610,8 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         1,
         PublishInProgress,
-        Some(publicDataset1_V1.createdAt)
+        Some(publicDataset1_V1.createdAt),
+        workflowId = PublishingWorkflow.Version4
       )
 
       val doiDto = ports.doiClient
@@ -663,7 +666,8 @@ class PublishHandlerSpec
         None,
         0,
         PublishInProgress,
-        None
+        None,
+        workflowId = PublishingWorkflow.Version4
       )
 
       val doiDto = ports.doiClient
@@ -718,7 +722,8 @@ class PublishHandlerSpec
         None,
         0,
         PublishInProgress,
-        None
+        None,
+        workflowId = PublishingWorkflow.Version4
       )
 
       val doiDto = ports.doiClient
@@ -902,7 +907,8 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         1,
         PublishSucceeded,
-        Some(version.createdAt)
+        Some(version.createdAt),
+        workflowId = PublishingWorkflow.Version4
       )
 
       val revisedDataset = run(
@@ -1067,7 +1073,8 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         1,
         PublishSucceeded,
-        Some(version.createdAt)
+        Some(version.createdAt),
+        workflowId = PublishingWorkflow.Version4
       )
 
       val revision = run(RevisionsMapper.getLatestRevision(version)).get
@@ -1258,7 +1265,8 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         0,
         PublishStatus.ReleaseInProgress,
-        Some(version.createdAt)
+        Some(version.createdAt),
+        workflowId = PublishingWorkflow.Version4
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -1308,7 +1316,8 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         0,
         PublishStatus.ReleaseInProgress,
-        Some(version.createdAt)
+        Some(version.createdAt),
+        workflowId = PublishingWorkflow.Version4
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -1368,7 +1377,8 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         0,
         PublishStatus.ReleaseInProgress,
-        Some(version.createdAt)
+        Some(version.createdAt),
+        workflowId = PublishingWorkflow.Version4
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -1604,7 +1614,8 @@ class PublishHandlerSpec
         None,
         0,
         PublishStatus.NotPublished,
-        None
+        None,
+        workflowId = PublishingWorkflow.Version4
       )
 
       run(
@@ -1671,7 +1682,8 @@ class PublishHandlerSpec
         None,
         0,
         PublishStatus.NotPublished,
-        None
+        None,
+        workflowId = PublishingWorkflow.Version4
       )
 
       run(
@@ -1810,7 +1822,8 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         1,
         PublishSucceeded,
-        Some(publicDatasetV1.createdAt)
+        Some(publicDatasetV1.createdAt),
+        workflowId = PublishingWorkflow.Version4
       )
       response shouldBe GetStatusResponse.OK(expected)
     }
@@ -1871,7 +1884,8 @@ class PublishHandlerSpec
           Some(publicDataset1.id),
           1,
           PublishSucceeded,
-          Some(publicDataset1_V1.createdAt)
+          Some(publicDataset1_V1.createdAt),
+          workflowId = PublishingWorkflow.Version4
         ),
         DatasetPublishStatus(
           publicDataset2.name,
@@ -1881,7 +1895,8 @@ class PublishHandlerSpec
           1,
           PublishInProgress,
           Some(publicDataset2_V1.createdAt),
-          Some(SponsorshipRequest(Some("foo"), Some("bar"), None))
+          Some(SponsorshipRequest(Some("foo"), Some("bar"), None)),
+          workflowId = PublishingWorkflow.Version4
         )
       )
 

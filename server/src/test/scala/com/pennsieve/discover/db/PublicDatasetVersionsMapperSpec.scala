@@ -8,6 +8,7 @@ import com.pennsieve.discover.models.{
   OrderDirection,
   PublicDataset,
   PublicDatasetVersion,
+  PublishingWorkflow,
   S3Key
 }
 import com.pennsieve.discover.server.definitions.{
@@ -522,7 +523,9 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       2,
       PublishSucceeded,
-      Some(publicDatasetV2.createdAt)
+      Some(publicDatasetV2.createdAt),
+      workflowId =
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV2))
     )
 
     val result = ports.db
@@ -556,7 +559,9 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       1,
       PublishStatus.PublishInProgress,
-      Some(publicDatasetV1.createdAt)
+      Some(publicDatasetV1.createdAt),
+      workflowId =
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
     )
 
     val result = ports.db
@@ -586,7 +591,9 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       0,
       PublishStatus.Unpublished,
-      Some(publicDatasetV1.createdAt)
+      Some(publicDatasetV1.createdAt),
+      workflowId =
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
     )
 
     val result = ports.db
@@ -610,7 +617,8 @@ class PublicDatasetVersionsMapperSpec
       None,
       0,
       PublishStatus.NotPublished,
-      None
+      None,
+      workflowId = PublishingWorkflow.Unknown
     )
 
     val result = ports.db
@@ -645,7 +653,9 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       1,
       PublishStatus.PublishSucceeded,
-      Some(publicDatasetV1.createdAt)
+      Some(publicDatasetV1.createdAt),
+      workflowId =
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
     )
 
     val result = ports.db
@@ -680,7 +690,9 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       1,
       PublishStatus.PublishSucceeded,
-      Some(publicDatasetV1.createdAt)
+      Some(publicDatasetV1.createdAt),
+      workflowId =
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
     )
 
     val result = ports.db
