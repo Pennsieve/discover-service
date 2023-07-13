@@ -676,6 +676,7 @@ components:
         - sourceDatasetId
         - publishedVersionCount
         - status
+        - workflowId
       properties:
         name:
           type: string
@@ -699,6 +700,9 @@ components:
           format: date-time
         sponsorship:
           $ref: "#/components/schemas/SponsorshipRequest"
+        workflowId:
+          type: integer
+          format: int64
 
     InternalCollection:
       type: object

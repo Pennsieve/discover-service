@@ -20,6 +20,7 @@ import com.pennsieve.discover.models.{
   PublicDatasetVersion,
   PublicFile,
   PublishJobOutput,
+  PublishingWorkflow,
   S3Bucket
 }
 import com.pennsieve.discover.db.{
@@ -174,7 +175,8 @@ class SQSNotificationHandlerSpec
             Some(publicDataset.id),
             1,
             PublishStatus.PublishSucceeded,
-            Some(publicVersion.createdAt)
+            Some(publicVersion.createdAt),
+            workflowId = PublishingWorkflow.Version4
           ),
           None
         )
@@ -266,7 +268,8 @@ class SQSNotificationHandlerSpec
             None,
             0,
             PublishStatus.PublishFailed,
-            None
+            None,
+            workflowId = PublishingWorkflow.Version4
           ),
           Some(s"Version ${publicVersion.version} failed to publish")
         )
@@ -412,7 +415,8 @@ class SQSNotificationHandlerSpec
             None,
             0,
             PublishStatus.EmbargoFailed,
-            None
+            None,
+            workflowId = PublishingWorkflow.Version4
           ),
           Some(s"Version ${publicVersion.version} failed to publish")
         )
@@ -551,7 +555,8 @@ class SQSNotificationHandlerSpec
           Some(publicDataset.id),
           1,
           PublishStatus.PublishSucceeded,
-          Some(publicVersion.createdAt)
+          Some(publicVersion.createdAt),
+          workflowId = PublishingWorkflow.Version4
         ),
         None
       )
@@ -636,7 +641,8 @@ class SQSNotificationHandlerSpec
           Some(publicDataset.id),
           0,
           PublishStatus.ReleaseFailed,
-          Some(publicVersion.createdAt)
+          Some(publicVersion.createdAt),
+          workflowId = PublishingWorkflow.Version4
         ),
         Some(s"Version ${publicVersion.version} failed to release")
       )

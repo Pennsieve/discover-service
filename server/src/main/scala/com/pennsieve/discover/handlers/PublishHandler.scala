@@ -47,11 +47,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
 import com.pennsieve.discover.db.PublicFilesMapper
 
-object PublishingWorkflow {
-  val Version4: Long = 4
-  val Version5: Long = 5
-}
-
 class PublishHandler(
   ports: Ports,
   claim: Jwt.Claim
@@ -79,6 +74,46 @@ class PublishHandler(
   }
 
   override def publish(
+    respond: GuardrailResource.PublishResponse.type
+  )(
+    organizationId: Int,
+    datasetId: Int,
+    embargo: Option[Boolean],
+    embargoReleaseDate: Option[LocalDate],
+    body: definitions.PublishRequest
+  ): Future[PublishResponse] =
+    body.workflowId match {
+      case None =>
+        publish4x(respond)(
+          organizationId,
+          datasetId,
+          embargo,
+          embargoReleaseDate,
+          body
+        )
+      case Some(_) =>
+        publish5x(respond)(
+          organizationId,
+          datasetId,
+          embargo,
+          embargoReleaseDate,
+          body
+        )
+    }
+
+  def publish5x(
+    respond: GuardrailResource.PublishResponse.type
+  )(
+    organizationId: Int,
+    datasetId: Int,
+    embargo: Option[Boolean],
+    embargoReleaseDate: Option[LocalDate],
+    body: definitions.PublishRequest
+  ): Future[PublishResponse] = {
+    Future.successful(respond.InternalServerError("not implemented yet"))
+  }
+
+  def publish4x(
     respond: GuardrailResource.PublishResponse.type
   )(
     organizationId: Int,
