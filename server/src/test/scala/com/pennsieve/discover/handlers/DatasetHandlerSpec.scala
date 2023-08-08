@@ -376,21 +376,17 @@ class DatasetHandlerSpec
 
     "return 410 tombstone if the dataset has been unpublished" in {
       val dataset = TestUtilities.createDataset(ports.db)()
-      print("Dataset updated at: ")
-      print(dataset.updatedAt)
       val version =
         TestUtilities.createNewDatasetVersion(ports.db)(
           dataset.id,
           status = PublishStatus.Unpublished
         )
-      print(dataset.updatedAt)
 
       val response = datasetClient
         .getDataset(dataset.id, headers = authToken)
         .awaitFinite()
         .value
 
-      print(dataset.updatedAt)
       response shouldBe GetDatasetResponse.Gone(
         client.definitions.TombstoneDto(
           id = dataset.id,
