@@ -1203,6 +1203,7 @@ components:
         - tags
         - status
         - doi
+        - updatedAt
       properties:
         id:
           type: integer
@@ -1221,6 +1222,9 @@ components:
           x-scala-type: com.pennsieve.models.PublishStatus
         doi:
           type: string
+        updatedAt:
+          type: string
+          format: date-time
 
     PreviewAccessRequest:
       type: object

@@ -394,7 +394,8 @@ class DatasetHandlerSpec
           name = dataset.name,
           tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
-          doi = version.doi
+          doi = version.doi,
+          updatedAt = dataset.updatedAt
         )
       )
     }
@@ -455,7 +456,8 @@ class DatasetHandlerSpec
           name = dataset.name,
           tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
-          doi = "10.12345/abcd-efgh"
+          doi = "10.12345/abcd-efgh",
+          updatedAt = dataset.updatedAt
         )
       )
     }
@@ -715,7 +717,8 @@ class DatasetHandlerSpec
           name = dataset.name,
           tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
-          doi = version.doi
+          doi = version.doi,
+          updatedAt = dataset.updatedAt
         )
       )
     }
@@ -1566,7 +1569,8 @@ class DatasetHandlerSpec
           name = dataset.name,
           tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
-          doi = v.doi
+          doi = v.doi,
+          updatedAt = dataset.updatedAt
         )
       )
     }

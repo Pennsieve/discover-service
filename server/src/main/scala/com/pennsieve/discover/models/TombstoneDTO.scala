@@ -17,6 +17,7 @@ object TombstoneDTO {
       .withFieldComputed(_.id, _ => dataset.id)
       .withFieldComputed(_.name, _ => dataset.name)
       .withFieldComputed(_.tags, _ => dataset.tags.toVector)
+      .withFieldComputed(_.updatedAt, _ => dataset.updatedAt)
       .transform
   }
 }
