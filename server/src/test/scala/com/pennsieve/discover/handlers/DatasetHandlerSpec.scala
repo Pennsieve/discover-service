@@ -376,17 +376,21 @@ class DatasetHandlerSpec
 
     "return 410 tombstone if the dataset has been unpublished" in {
       val dataset = TestUtilities.createDataset(ports.db)()
+      print("Dataset updated at: ")
+      print(dataset.updatedAt)
       val version =
         TestUtilities.createNewDatasetVersion(ports.db)(
           dataset.id,
           status = PublishStatus.Unpublished
         )
+      print(dataset.updatedAt)
 
       val response = datasetClient
         .getDataset(dataset.id, headers = authToken)
         .awaitFinite()
         .value
 
+      print(dataset.updatedAt)
       response shouldBe GetDatasetResponse.Gone(
         client.definitions.TombstoneDto(
           id = dataset.id,
@@ -394,7 +398,8 @@ class DatasetHandlerSpec
           name = dataset.name,
           tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
-          doi = version.doi
+          doi = version.doi,
+          updatedAt = dataset.updatedAt
         )
       )
     }
@@ -455,7 +460,8 @@ class DatasetHandlerSpec
           name = dataset.name,
           tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
-          doi = "10.12345/abcd-efgh"
+          doi = "10.12345/abcd-efgh",
+          updatedAt = dataset.updatedAt
         )
       )
     }
@@ -715,7 +721,8 @@ class DatasetHandlerSpec
           name = dataset.name,
           tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
-          doi = version.doi
+          doi = version.doi,
+          updatedAt = dataset.updatedAt
         )
       )
     }
@@ -1566,7 +1573,8 @@ class DatasetHandlerSpec
           name = dataset.name,
           tags = dataset.tags.toVector,
           status = PublishStatus.Unpublished,
-          doi = v.doi
+          doi = v.doi,
+          updatedAt = dataset.updatedAt
         )
       )
     }
