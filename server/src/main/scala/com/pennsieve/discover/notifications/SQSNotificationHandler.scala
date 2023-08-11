@@ -10,16 +10,18 @@ import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.alpakka.sqs.scaladsl.{ SqsAckSink, SqsSource }
 import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Source }
-import akka.stream.{ _ }
+import akka.stream._
 import cats.data._
 import cats.implicits._
 import com.pennsieve.discover.models.DoiRedirect
 import com.pennsieve.discover.db.{
   PublicCollectionsMapper,
   PublicContributorsMapper,
+  PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   PublicExternalPublicationsMapper,
+  PublicFileVersionsMapper,
   PublicFilesMapper
 }
 import com.pennsieve.discover.db.profile.api._
@@ -33,7 +35,7 @@ import com.pennsieve.discover.server.definitions.{
 import com.pennsieve.discover.{ Authenticator, Ports, UnauthorizedException }
 import com.pennsieve.doi.client.definitions.PublishDoiRequest
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
-import com.pennsieve.models.{ DatasetMetadata, PublishStatus }
+import com.pennsieve.models.{ DatasetMetadata, FileManifest, PublishStatus }
 import com.pennsieve.service.utilities.LogContext
 import io.circe.parser.decode
 import software.amazon.awssdk.regions.Region
@@ -259,13 +261,59 @@ class SQSNotificationHandler(
       )
 
       // Store files in Postgres
-      _ <- ports.db.run(PublicFilesMapper.createMany(version, metadata.files))
+      _ <- updatedVersion.migrated match {
+        case true =>
+          // Publishing 5x
+          updatedVersion.version match {
+            case 1 =>
+              publishFirstVersion(updatedVersion, metadata.files)
+            case _ =>
+              publishNextVersion(updatedVersion, metadata.files)
+          }
+        case false =>
+          // Publishing 4x
+          ports.db.run(PublicFilesMapper.createMany(version, metadata.files))
+      }
 
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
 
       _ <- ports.s3StreamClient
         .deletePublishJobOutput(updatedVersion)
+    } yield ()
+
+  private def publishFirstVersion(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  ): Future[Unit] = {
+    val queryFindAll = for {
+      allFileVersions <- PublicFileVersionsMapper.getAll(version.datasetId)
+    } yield (allFileVersions)
+
+    for {
+      _ <- ports.db.run(PublicFileVersionsMapper.createMany(version, files))
+      allFileVersions <- ports.db.run(queryFindAll)
+      _ <- ports.db.run(
+        PublicDatasetVersionFilesTableMapper
+          .storeLinks(version, allFileVersions)
+      )
+    } yield ()
+  }
+
+  private def publishNextVersion(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  ): Future[Unit] =
+    for {
+      fileVersions <- Future.sequence(
+        files.map(
+          file =>
+            ports.db.run(PublicFileVersionsMapper.findOrCreate(version, file))
+        )
+      )
+      _ <- ports.db.run(
+        PublicDatasetVersionFilesTableMapper.storeLinks(version, fileVersions)
+      )
     } yield ()
 
   private def handleFailure(
