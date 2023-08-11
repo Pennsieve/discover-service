@@ -2,10 +2,18 @@
 
 package com.pennsieve.discover.db
 
+import akka.Done
+import com.pennsieve.discover.db.PublicFileVersionsMapper.buildFileVersion
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.models.PublicDatasetVersionFile
+import com.pennsieve.discover.models.{
+  PublicDatasetVersion,
+  PublicDatasetVersionFile,
+  PublicFileVersion
+}
+import slick.dbio.DBIOAction
 
 import java.time.OffsetDateTime
+import scala.concurrent.ExecutionContext
 
 final class PublicDatasetVersionFilesTable(tag: Tag)
     extends Table[PublicDatasetVersionFile](tag, "") {
@@ -24,4 +32,37 @@ final class PublicDatasetVersionFilesTable(tag: Tag)
 object PublicDatasetVersionFilesTableMapper
     extends TableQuery[PublicDatasetVersionFilesTable](
       new PublicDatasetVersionFilesTable(_)
-    ) {}
+    ) {
+
+  def storeLinks(
+    version: PublicDatasetVersion,
+    files: Seq[PublicFileVersion]
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    Done,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] =
+    DBIO
+      .sequence(
+        files
+          .map(buildDatasetVersionFile(version, _))
+          .grouped(10000)
+          .map((this returning this) ++= _)
+          .toList
+      )
+      .map(_ => Done)
+      .transactionally
+
+  def buildDatasetVersionFile(
+    version: PublicDatasetVersion,
+    file: PublicFileVersion
+  ): PublicDatasetVersionFile =
+    PublicDatasetVersionFile(
+      datasetId = version.datasetId,
+      datasetVersion = version.version,
+      fileId = file.id
+    )
+
+}
