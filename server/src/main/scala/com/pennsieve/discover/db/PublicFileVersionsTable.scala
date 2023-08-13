@@ -145,7 +145,7 @@ object PublicFileVersionsMapper
       fileType = fileManifest.fileType.toString,
       size = fileManifest.size,
       s3Key = version.s3Key / fileManifest.path,
-      s3Version = "TBD", // fileManifest.s3VersionId.getOrElse("missing"),
+      s3Version = fileManifest.s3VersionId.getOrElse("missing"),
       sourcePackageId = fileManifest.sourcePackageId,
       sourceFileUUID = fileManifest.id
     )
@@ -364,7 +364,7 @@ object PublicFileVersionsMapper
     def get = getFileVersion(
       version.datasetId,
       version.s3Key / file.path,
-      "" // file.s3VersionId
+      file.s3VersionId.getOrElse("missing")
     )
 
     def add = createOne(version, file)
