@@ -63,6 +63,15 @@ case class NoDatasetForDoiException(doi: String) extends Throwable {
     s"No dataset could be found for doi=$doi"
 }
 
+case class NoFileVersionException(
+  datasetId: Int,
+  s3Key: S3Key.File,
+  s3Version: String
+) extends Throwable {
+  override def getMessage: String =
+    s"File Version does not exist (datasetId: ${datasetId}) ${s3Key} (version: ${s3Version})"
+}
+
 case class DatasetUnpublishedException(
   dataset: PublicDataset,
   version: PublicDatasetVersion

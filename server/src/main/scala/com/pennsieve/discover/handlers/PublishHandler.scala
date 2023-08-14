@@ -81,46 +81,6 @@ class PublishHandler(
     embargo: Option[Boolean],
     embargoReleaseDate: Option[LocalDate],
     body: definitions.PublishRequest
-  ): Future[PublishResponse] =
-    body.workflowId match {
-      case None =>
-        publish4x(respond)(
-          organizationId,
-          datasetId,
-          embargo,
-          embargoReleaseDate,
-          body
-        )
-      case Some(_) =>
-        publish5x(respond)(
-          organizationId,
-          datasetId,
-          embargo,
-          embargoReleaseDate,
-          body
-        )
-    }
-
-  def publish5x(
-    respond: GuardrailResource.PublishResponse.type
-  )(
-    organizationId: Int,
-    datasetId: Int,
-    embargo: Option[Boolean],
-    embargoReleaseDate: Option[LocalDate],
-    body: definitions.PublishRequest
-  ): Future[PublishResponse] = {
-    Future.successful(respond.InternalServerError("not implemented yet"))
-  }
-
-  def publish4x(
-    respond: GuardrailResource.PublishResponse.type
-  )(
-    organizationId: Int,
-    datasetId: Int,
-    embargo: Option[Boolean],
-    embargoReleaseDate: Option[LocalDate],
-    body: definitions.PublishRequest
   ): Future[PublishResponse] = {
 
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
@@ -166,17 +126,20 @@ class PublishHandler(
             else
               DBIO.successful(())
 
-            _ <- PublicDatasetVersionsMapper
+            latest <- PublicDatasetVersionsMapper
               .getLatestVisibleVersion(publicDataset)
               .flatMap {
-                case Some(version)
-                    if (shouldEmbargo && !version.underEmbargo && version.status != Unpublished) =>
-                  DBIO.failed(
-                    ForbiddenException(
-                      s"Cannot embargo a dataset after successful publication. Found published version ${version.version}"
+                case Some(version) =>
+                  if (shouldEmbargo && !version.underEmbargo && version.status != Unpublished) {
+                    DBIO.failed(
+                      ForbiddenException(
+                        s"Cannot embargo a dataset after successful publication. Found published version ${version.version}"
+                      )
                     )
-                  )
-                case _ => DBIO.successful(())
+                  } else {
+                    DBIO.successful(Some(version))
+                  }
+                case _ => DBIO.successful(None)
               }
 
             // If the previous publish job failed, or the previous version was embargoed, roll the dataset back to the
@@ -199,6 +162,15 @@ class PublishHandler(
               PublishingWorkflow.Version4
             )
 
+            // ensure we use a compatible workflow with the previous published version
+            workflowVersion = latest match {
+              case Some(version) if version.migrated =>
+                PublishingWorkflow.Version5
+              case Some(version) if !version.migrated =>
+                PublishingWorkflow.Version4
+              case _ => requestedWorkflow
+            }
+
             version <- PublicDatasetVersionsMapper
               .create(
                 id = publicDataset.id,
@@ -215,7 +187,7 @@ class PublishHandler(
                 embargoReleaseDate = embargoReleaseDate,
                 doi = doi.doi,
                 schemaVersion = PennsieveSchemaVersion.`4.0`,
-                migrated = requestedWorkflow == PublishingWorkflow.Version5
+                migrated = workflowVersion == PublishingWorkflow.Version5
               )
             _ = ports.log.info(s"Public dataset version : $version")
 
@@ -288,7 +260,8 @@ class PublishHandler(
                     collections,
                     externalPublications,
                     publishBucket,
-                    embargoBucket
+                    embargoBucket,
+                    workflowId = workflowVersion
                   )
                 )
             )

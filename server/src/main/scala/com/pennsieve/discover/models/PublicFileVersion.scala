@@ -13,12 +13,13 @@ case class PublicFileVersion(
   size: Long,
   sourcePackageId: Option[String],
   sourceFileUUID: Option[UUID],
-  checksum: FileChecksum,
+  checksum: Option[FileChecksum] = None,
   s3Key: S3Key.File,
   s3Version: String,
   path: LTree,
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
-  updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC)
+  updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
+  datasetId: Int
 )
 
 object PublicFileVersion {

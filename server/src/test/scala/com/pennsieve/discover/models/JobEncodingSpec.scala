@@ -66,7 +66,8 @@ class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
         collections = List(collection1),
         externalPublications = List(externalPublication),
         publishBucket = S3Bucket("publish-bucket"),
-        embargoBucket = S3Bucket("embargo-bucket")
+        embargoBucket = S3Bucket("embargo-bucket"),
+        workflowId = PublishingWorkflow.Version4
       )
 
       val json = job.asJson.toString
@@ -93,7 +94,8 @@ class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
           |  "collections" : "[{\\"name\\":\\"My Awesome Collection\\",\\"source_collection_id\\":2,\\"dataset_id\\":1,\\"version_id\\":1}]",
           |  "external_publications" : "[{\\"doi\\":\\"10.26275/t6j6-77pu\\",\\"relationshipType\\":\\"IsSourceOf\\"}]",
           |  "publish_bucket" : "publish-bucket",
-          |  "embargo_bucket" : "embargo-bucket"
+          |  "embargo_bucket" : "embargo-bucket",
+          |  "workflow_id" : "4"
           |}""".stripMargin
 
     }

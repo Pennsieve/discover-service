@@ -4,14 +4,13 @@ package com.pennsieve.discover.db
 
 import akka.Done
 import cats.implicits._
-import com.github.tminglei.slickpg.LTree
-import com.pennsieve.discover.NoFileException
+import com.github.tminglei.slickpg._
+import com.pennsieve.discover.{ NoFileException, NoFileVersionException }
 
 import java.util.{ Base64, UUID }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
   FileChecksum,
-  FileDownloadDTO,
   FileTreeNode,
   PublicDatasetVersion,
   PublicFile,
@@ -20,13 +19,14 @@ import com.pennsieve.discover.models.{
   S3Key
 }
 import com.pennsieve.discover.utils.{ getFileType, joinPath }
-import com.pennsieve.models.{ FileManifest, PublishStatus }
-import slick.basic.DatabasePublisher
-import slick.jdbc.{ GetResult, ResultSetConcurrency, ResultSetType }
+import com.pennsieve.models.FileManifest
+import slick.dbio.{ DBIOAction, Effect }
+import slick.jdbc.GetResult
 
 import java.nio.charset.StandardCharsets
 import java.time.OffsetDateTime
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 final class PublicFileVersionsTable(tag: Tag)
     extends Table[PublicFileVersion](tag, "public_file_versions") {
@@ -37,12 +37,13 @@ final class PublicFileVersionsTable(tag: Tag)
   def size = column[Long]("size")
   def sourcePackageId = column[Option[String]]("source_package_id")
   def sourceFileUUID = column[Option[UUID]]("source_file_uuid")
-  def checksum = column[FileChecksum]("checksum")
+  def checksum = column[Option[FileChecksum]]("checksum")
   def s3Key = column[S3Key.File]("s3_key")
   def s3Version = column[String]("s3_version")
   def path = column[LTree]("path")
   def createdAt = column[OffsetDateTime]("created_at")
   def updatedAt = column[OffsetDateTime]("updated_at")
+  def datasetId = column[Int]("dataset_id")
 
   def * =
     (
@@ -57,7 +58,8 @@ final class PublicFileVersionsTable(tag: Tag)
       s3Version,
       path,
       createdAt,
-      updatedAt
+      updatedAt,
+      datasetId
     ).mapTo[PublicFileVersion]
 }
 
@@ -109,6 +111,43 @@ object PublicFileVersionsMapper
       size = fileManifest.size,
       s3Key = version.s3Key / fileManifest.path,
       sourcePackageId = fileManifest.sourcePackageId
+    )
+
+  private def buildFileVersion(
+    datasetId: Int,
+    name: String,
+    fileType: String,
+    size: Long,
+    s3Key: S3Key.File,
+    s3Version: String,
+    sourcePackageId: Option[String],
+    sourceFileUUID: Option[UUID]
+  ): PublicFileVersion =
+    PublicFileVersion(
+      name = name,
+      fileType = fileType,
+      size = size,
+      sourcePackageId = sourcePackageId,
+      sourceFileUUID = sourceFileUUID,
+      s3Key = s3Key,
+      s3Version = s3Version,
+      path = LTree(PublicFileVersionsMapper.convertPathToTree(s3Key)),
+      datasetId = datasetId
+    )
+
+  private def buildFileVersion(
+    version: PublicDatasetVersion,
+    fileManifest: FileManifest
+  ): PublicFileVersion =
+    buildFileVersion(
+      datasetId = version.datasetId,
+      name = fileManifest.name,
+      fileType = fileManifest.fileType.toString,
+      size = fileManifest.size,
+      s3Key = version.s3Key / fileManifest.path,
+      s3Version = fileManifest.s3VersionId.getOrElse("missing"),
+      sourcePackageId = fileManifest.sourcePackageId,
+      sourceFileUUID = fileManifest.id
     )
 
   // TODO: join with PublicDatasetVersionFiles table and filter
@@ -191,6 +230,26 @@ object PublicFileVersionsMapper
       }
   }
 
+  def getFileVersion(
+    datasetId: Int,
+    s3Key: S3Key.File,
+    s3Version: String
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[PublicFileVersion, NoStream, Effect.Read with Effect] =
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.s3Key === s3Key)
+      .filter(_.s3Version === s3Version)
+      .result
+      .headOption
+      .flatMap {
+        case None =>
+          DBIO.failed(NoFileVersionException(datasetId, s3Key, s3Version))
+        case Some(fileVersion) =>
+          DBIO.successful((fileVersion))
+      }
+
   //
 //  def getFileFromSourcePackageId(
 //                                  sourcePackageId: String,
@@ -237,27 +296,86 @@ object PublicFileVersionsMapper
 //    } yield (totalCount, organizationId, files)
 //  }
 //
-//  def createMany(
-//                  version: PublicDatasetVersion,
-//                  files: List[FileManifest]
-//                )(implicit
-//                  executionContext: ExecutionContext
-//                ): DBIOAction[
-//    Done,
-//    NoStream,
-//    Effect.Write with Effect.Transactional with Effect
-//  ] =
-//    DBIO
-//      .sequence(
-//        files
-//          .map(buildFile(version, _))
-//          .grouped(10000)
-//          .map(this ++= _)
-//          .toList
-//      )
-//      .map(_ => Done)
-//      .transactionally
-//
+
+  def getAll(
+    datasetId: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Seq[PublicFileVersion], NoStream, Effect.Read with Effect] = {
+    val query =
+      this
+        .filter(_.datasetId === datasetId)
+
+    for {
+      allFileVersions <- query.result
+        .map(_.toList)
+    } yield (allFileVersions)
+  }
+
+  //  def forVersion(
+  //                  version: PublicDatasetVersion
+  //                ): Query[PublicFileVersionsTable, PublicFile, Seq] =
+  //    this
+  //      .filter(_.version === version.version)
+  //      .filter(_.datasetId === version.datasetId)
+
+  def createOne(
+    version: PublicDatasetVersion,
+    file: FileManifest
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    PublicFileVersion,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] = (this returning this) += buildFileVersion(version, file)
+
+  def createMany(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    Done,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] =
+    DBIO
+      .sequence(
+        files
+          .map(buildFileVersion(version, _))
+          .grouped(10000)
+          .map((this returning this) ++= _)
+          .toList
+      )
+      .map(_ => Done)
+      .transactionally
+
+  def findOrCreate(
+    version: PublicDatasetVersion,
+    file: FileManifest
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    PublicFileVersion,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] = {
+    def get = getFileVersion(
+      version.datasetId,
+      version.s3Key / file.path,
+      file.s3VersionId.getOrElse("missing")
+    )
+
+    def add = createOne(version, file)
+
+    get.asTry.flatMap {
+      case Failure(_: NoFileVersionException) => add
+      case Failure(e) => DBIO.failed(e)
+      case Success(s) => DBIO.successful(s)
+    }.transactionally
+  }
+
 //  def getFileDownloadsMatchingPaths(
 //                                     version: PublicDatasetVersion,
 //                                     paths: Seq[String]

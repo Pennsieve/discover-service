@@ -8,7 +8,8 @@ ThisBuild / organization := "com.pennsieve"
 
 lazy val scala212 = "2.12.11"
 lazy val scala213 = "2.13.8"
-lazy val supportedScalaVersions = List(scala212, scala213)
+//lazy val supportedScalaVersions = List(scala212, scala213)
+lazy val supportedScalaVersions = List(scala213)
 
 ThisBuild / scalaVersion := scala213
 
@@ -53,7 +54,7 @@ lazy val circeVersion = SettingKey[String]("circeVersion")
 lazy val circe212Version = "0.11.1"
 lazy val circe213Version = "0.14.1"
 
-lazy val coreVersion = "166-27f7fae"
+lazy val coreVersion = "283-dfa3dc9"
 lazy val authMiddlewareVersion = "5.1.3"
 lazy val serviceUtilitiesVersion = "8-9751ee3"
 lazy val utilitiesVersion = "4-55953e4"

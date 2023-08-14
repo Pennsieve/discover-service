@@ -44,7 +44,8 @@ case class PublishJob(
   collections: List[PublicCollection],
   externalPublications: List[PublicExternalPublication],
   publishBucket: S3Bucket,
-  embargoBucket: S3Bucket
+  embargoBucket: S3Bucket,
+  workflowId: Long
 )
 
 object PublishJob {
@@ -58,7 +59,8 @@ object PublishJob {
     collections: List[PublicCollection],
     externalPublications: List[PublicExternalPublication],
     publishBucket: S3Bucket,
-    embargoBucket: S3Bucket
+    embargoBucket: S3Bucket,
+    workflowId: Long = PublishingWorkflow.Version4
   ): PublishJob = {
     PublishJob(
       organizationId = publicDataset.sourceOrganizationId,
@@ -81,7 +83,8 @@ object PublishJob {
       collections = collections,
       externalPublications = externalPublications,
       publishBucket = publishBucket,
-      embargoBucket = embargoBucket
+      embargoBucket = embargoBucket,
+      workflowId = workflowId
     )
   }
 
@@ -118,7 +121,7 @@ object PublishJob {
     * way to transform JSON types in Step Function input/output/result parameters.
     * Contributors are therefore encoded as a string rather than a collection fo objects
     */
-  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct21(
+  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct22(
     "organization_id",
     "organization_node_id",
     "organization_name",
@@ -139,7 +142,8 @@ object PublishJob {
     "collections",
     "external_publications",
     "publish_bucket",
-    "embargo_bucket"
+    "embargo_bucket",
+    "workflow_id"
   )(
     j =>
       (
@@ -163,7 +167,8 @@ object PublishJob {
         j.collections.asJson.noSpaces,
         j.externalPublications.asJson.noSpaces,
         j.publishBucket.value,
-        j.embargoBucket.value
+        j.embargoBucket.value,
+        j.workflowId.toString
       )
   )
 }

@@ -717,7 +717,7 @@ object PublicDatasetVersionsMapper
         fileCount = fileCount,
         recordCount = recordCount,
         s3Bucket = s3Bucket,
-        s3Key = S3Key.Version(id, version),
+        s3Key = S3Key.Version(id, version, migrated),
         status = status,
         doi = doi,
         schemaVersion = schemaVersion,
