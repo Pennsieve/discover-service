@@ -45,7 +45,11 @@ object S3Key {
   }
 
   object Version {
-    def apply(datasetId: Int, version: Int, migrated: Boolean): Version =
+    def apply(
+      datasetId: Int,
+      version: Int,
+      migrated: Boolean = false
+    ): Version =
       migrated match {
         case true =>
           Version(s"$datasetId/")
