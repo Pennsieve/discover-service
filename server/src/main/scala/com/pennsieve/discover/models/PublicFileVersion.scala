@@ -13,7 +13,6 @@ case class PublicFileVersion(
   size: Long,
   sourcePackageId: Option[String],
   sourceFileUUID: Option[UUID],
-  checksum: Option[FileChecksum] = None,
   s3Key: S3Key.File,
   s3Version: String,
   path: LTree,
