@@ -571,13 +571,29 @@ class DatasetHandler(
         dataset,
         versionId
       )
+      latest <- PublicDatasetVersionsMapper.getLatestVisibleVersion(dataset)
       _ <- authorizeIfUnderEmbargo(dataset, version)
-    } yield (dataset, version)
+    } yield (dataset, version, latest)
 
     ports.db
       .run(query.transactionally)
       .flatMap {
-        case (dataset: PublicDataset, version: PublicDatasetVersion) =>
+        case (
+            dataset: PublicDataset,
+            version: PublicDatasetVersion,
+            latest: Option[PublicDatasetVersion]
+            ) =>
+          if (version.migrated) {
+            latest match {
+              case Some(latest) =>
+                if (version.version != latest.version) {
+                  Future.failed(UnsupportedDownloadVersion())
+                }
+              case None =>
+                Future.failed(UnsupportedDownloadVersion())
+            }
+          }
+
           if (version.size > ports.config.download.maxSize.toBytes)
             Future.failed(DatasetTooLargeException)
           else

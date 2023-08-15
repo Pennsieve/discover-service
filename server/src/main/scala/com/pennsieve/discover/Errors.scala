@@ -118,3 +118,8 @@ case class NoFileException(id: Int, version: Int, path: S3Key.File)
   override def getMessage: String =
     s"No file could be found for id=$id version=$version path=$path"
 }
+
+case class UnsupportedDownloadVersion() extends Throwable {
+  override def getMessage: String =
+    "Only the most recent published dataset version can be downloaded"
+}
