@@ -79,25 +79,27 @@ class PublicDatasetVersionsMapperSpec
       assert(publicDatasetV2.status == PublishStatus.PublishInProgress)
     }
 
-    "version s3 key must be unique" in {
-
-      val publicDatasetV1 = TestUtilities.createDatasetV1(ports.db)()
-      val publicDatasetV2 = TestUtilities.createNewDatasetVersion(ports.db)(
-        id = publicDatasetV1.datasetId
-      )
-
-      intercept[PSQLException] {
-        ports.db
-          .run(sql"""
-               UPDATE public_dataset_versions
-               SET s3_key = ${publicDatasetV2.s3Key.value}
-               WHERE version = ${publicDatasetV1.version}
-               """.as[Int])
-          .awaitFinite()
-      }.getMessage() should include(
-        "duplicate key value violates unique constraint"
-      )
-    }
+    // Note: This test is no longer valid with the Publishing 5.0 capability
+    // (all dataset versions for the same published dataset have the same s3_key)
+//    "version s3 key must be unique" in {
+//
+//      val publicDatasetV1 = TestUtilities.createDatasetV1(ports.db)()
+//      val publicDatasetV2 = TestUtilities.createNewDatasetVersion(ports.db)(
+//        id = publicDatasetV1.datasetId
+//      )
+//
+//      intercept[PSQLException] {
+//        ports.db
+//          .run(sql"""
+//               UPDATE public_dataset_versions
+//               SET s3_key = ${publicDatasetV2.s3Key.value}
+//               WHERE version = ${publicDatasetV1.version}
+//               """.as[Int])
+//          .awaitFinite()
+//      }.getMessage() should include(
+//        "duplicate key value violates unique constraint"
+//      )
+//    }
 
     "s3 key must be formatted :datasetId/:version/" in {
 
