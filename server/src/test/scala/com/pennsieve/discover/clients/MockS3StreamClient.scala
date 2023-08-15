@@ -102,6 +102,16 @@ class MockS3StreamClient extends S3StreamClient {
       (Source.single(ByteString(sampleMetadata)), sampleMetadata.length)
     )
 
+  def datasetMetadataSource(
+    file: FileTreeNode.File
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(Source[ByteString, NotUsed], Long)] =
+    Future.successful(
+      (Source.single(ByteString(sampleMetadata)), sampleMetadata.length)
+    )
+
   val revisions: mutable.ArrayBuffer[
     (PublicDataset, PublicDatasetVersion, List[PublicContributor], Revision)
   ] =

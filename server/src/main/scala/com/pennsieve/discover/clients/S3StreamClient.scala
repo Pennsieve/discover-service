@@ -77,6 +77,13 @@ trait S3StreamClient {
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)]
 
+  def datasetMetadataSource(
+    file: FileTreeNode.File
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(Source[ByteString, NotUsed], Long)]
+
   def datasetRecordSource(
     dataset: PublicDataset,
     version: PublicDatasetVersion
@@ -417,8 +424,25 @@ class AlpakkaS3StreamClient(
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[(Source[ByteString, NotUsed], Long)] =
+  ): Future[(Source[ByteString, NotUsed], Long)] = {
+    // Note: this will get the latest that is on S3 for the Dataset Version
     s3FileSource(version.s3Bucket, metadataKey(version), isRequesterPays = true)
+  }
+
+  def datasetMetadataSource(
+    file: FileTreeNode.File
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(Source[ByteString, NotUsed], Long)] = {
+    // Note: this will get a specific metadata file that is on S3 (version specific)
+    s3FileSource(
+      file.s3Bucket,
+      file.s3Key,
+      isRequesterPays = true,
+      file.s3Version
+    )
+  }
 
   /**
     * Write all metadata files for a revision to S3.
@@ -763,7 +787,8 @@ class AlpakkaS3StreamClient(
   def s3FileSource(
     bucket: S3Bucket,
     fileKey: S3Key.File,
-    isRequesterPays: Boolean = false
+    isRequesterPays: Boolean = false,
+    s3Version: Option[String] = None
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -772,7 +797,7 @@ class AlpakkaS3StreamClient(
         bucket.value,
         fileKey.value,
         range = None,
-        versionId = None,
+        versionId = s3Version,
         s3Headers = s3Headers(isRequesterPays)
       )
       .runWith(Sink.head)

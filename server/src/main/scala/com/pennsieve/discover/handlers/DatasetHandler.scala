@@ -689,14 +689,30 @@ class DatasetHandler(
         versionId
       )
       _ <- authorizeIfUnderEmbargo(dataset, version)
-    } yield (dataset, version)
+      file <- version.migrated match {
+        case true =>
+          PublicFileVersionsMapper.getFile(
+            version,
+            DatasetMetadata.metadataKey(version)
+          )
+        case false =>
+          PublicFilesMapper.getFile(
+            version,
+            DatasetMetadata.metadataKey(version)
+          )
+      }
+    } yield (dataset, version, file)
 
     ports.db
       .run(query.transactionally)
       .flatMap {
-        case (dataset: PublicDataset, version: PublicDatasetVersion) =>
+        case (
+            dataset: PublicDataset,
+            version: PublicDatasetVersion,
+            file: FileTreeNode.File
+            ) =>
           ports.s3StreamClient
-            .datasetMetadataSource(version)
+            .datasetMetadataSource(file)
             .map {
               case ((source, contentLength)) =>
                 HttpResponse(
@@ -707,6 +723,7 @@ class DatasetHandler(
                   )
                 )
             }
+        case (_, _, _) => ??? // TODO: do something better here
       }
       .recoverWith {
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
