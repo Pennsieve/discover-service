@@ -571,13 +571,29 @@ class DatasetHandler(
         dataset,
         versionId
       )
+      latest <- PublicDatasetVersionsMapper.getLatestVisibleVersion(dataset)
       _ <- authorizeIfUnderEmbargo(dataset, version)
-    } yield (dataset, version)
+    } yield (dataset, version, latest)
 
     ports.db
       .run(query.transactionally)
       .flatMap {
-        case (dataset: PublicDataset, version: PublicDatasetVersion) =>
+        case (
+            dataset: PublicDataset,
+            version: PublicDatasetVersion,
+            latest: Option[PublicDatasetVersion]
+            ) =>
+          if (version.migrated) {
+            latest match {
+              case Some(latest) =>
+                if (version.version != latest.version) {
+                  Future.failed(UnsupportedDownloadVersion())
+                }
+              case None =>
+                Future.failed(UnsupportedDownloadVersion())
+            }
+          }
+
           if (version.size > ports.config.download.maxSize.toBytes)
             Future.failed(DatasetTooLargeException)
           else
@@ -689,14 +705,30 @@ class DatasetHandler(
         versionId
       )
       _ <- authorizeIfUnderEmbargo(dataset, version)
-    } yield (dataset, version)
+      file <- version.migrated match {
+        case true =>
+          PublicFileVersionsMapper.getFile(
+            version,
+            DatasetMetadata.metadataKey(version)
+          )
+        case false =>
+          PublicFilesMapper.getFile(
+            version,
+            DatasetMetadata.metadataKey(version)
+          )
+      }
+    } yield (dataset, version, file)
 
     ports.db
       .run(query.transactionally)
       .flatMap {
-        case (dataset: PublicDataset, version: PublicDatasetVersion) =>
+        case (
+            dataset: PublicDataset,
+            version: PublicDatasetVersion,
+            file: FileTreeNode.File
+            ) =>
           ports.s3StreamClient
-            .datasetMetadataSource(version)
+            .datasetMetadataSource(file)
             .map {
               case ((source, contentLength)) =>
                 HttpResponse(
@@ -707,6 +739,7 @@ class DatasetHandler(
                   )
                 )
             }
+        case (_, _, _) => ??? // TODO: do something better here
       }
       .recoverWith {
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>

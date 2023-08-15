@@ -10,7 +10,6 @@ import com.pennsieve.discover.{ NoFileException, NoFileVersionException }
 import java.util.{ Base64, UUID }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
-  FileChecksum,
   FileTreeNode,
   PublicDatasetVersion,
   PublicFile,
@@ -37,7 +36,6 @@ final class PublicFileVersionsTable(tag: Tag)
   def size = column[Long]("size")
   def sourcePackageId = column[Option[String]]("source_package_id")
   def sourceFileUUID = column[Option[UUID]]("source_file_uuid")
-  def checksum = column[Option[FileChecksum]]("checksum")
   def s3Key = column[S3Key.File]("s3_key")
   def s3Version = column[String]("s3_version")
   def path = column[LTree]("path")
@@ -53,7 +51,6 @@ final class PublicFileVersionsTable(tag: Tag)
       size,
       sourcePackageId,
       sourceFileUUID,
-      checksum,
       s3Key,
       s3Version,
       path,
@@ -71,7 +68,7 @@ object PublicFileVersionsMapper
     * separated by `.` characters. This helper encodes directories and filenames
     * into base 64.
     */
-  private def convertPathToTree(key: S3Key.File): String = {
+  def convertPathToTree(key: S3Key.File): String = {
     key.value
       .split("/")
       .map(_.getBytes(StandardCharsets.UTF_8))
@@ -319,6 +316,16 @@ object PublicFileVersionsMapper
   //      .filter(_.version === version.version)
   //      .filter(_.datasetId === version.datasetId)
 
+  def create(
+    fileVersion: PublicFileVersion
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    PublicFileVersion,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] = (this returning this) += fileVersion
+
   def createOne(
     version: PublicDatasetVersion,
     file: FileManifest
@@ -329,6 +336,24 @@ object PublicFileVersionsMapper
     NoStream,
     Effect.Write with Effect.Transactional with Effect
   ] = (this returning this) += buildFileVersion(version, file)
+
+  def createAndLink(
+    version: PublicDatasetVersion,
+    file: FileManifest
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    PublicFileVersion,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] =
+    for {
+      fileVersion <- createOne(version, file)
+      _ <- PublicDatasetVersionFilesTableMapper.storeLinks(
+        version,
+        List(fileVersion)
+      )
+    } yield fileVersion
 
   def createMany(
     version: PublicDatasetVersion,

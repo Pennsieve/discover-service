@@ -131,6 +131,7 @@ class DatasetHandlerSpec
       val v1 = TestUtilities.createDatasetV1(ports.db)(
         status = PublishStatus.PublishSucceeded
       )
+      addMetadata(ports.db, v1)
 
       request(v1) ~> addHeader(
         Authorization(
@@ -192,6 +193,7 @@ class DatasetHandlerSpec
       val v1 = TestUtilities.createDatasetV1(ports.db)(
         status = PublishStatus.EmbargoSucceeded
       )
+      addMetadata(ports.db, v1)
 
       request(v1) ~> addHeader(
         ports.authorizationClient
@@ -1308,6 +1310,8 @@ class DatasetHandlerSpec
           status = PublishSucceeded
         )
 
+      addMetadata(ports.db, publicDatasetV1)
+
       Get(
         s"/datasets/${publicDataset.id}/versions/${publicDatasetV1.version}/metadata"
       ) ~> createRoutes() ~> check {
@@ -2174,6 +2178,30 @@ class DatasetHandlerSpec
         .value
 
       response shouldBe DownloadDataUseAgreementResponse.Gone
+    }
+  }
+
+  "5.0 GET /datasets/{datasetId}/versions/{versionId}/files?path={path}" should {
+
+    "return the file with a full s3 path passed" in {
+      val v = TestUtilities.createDatasetV1(ports.db)(
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
+      )
+
+      val f = TestUtilities.createFileVersion(ports.db)(
+        v,
+        path = "A/file1.txt",
+        fileType = FileType.Text,
+        size = 1024,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some("Version98765")
+      )
+
+      Get(
+        s"/datasets/${v.datasetId}/versions/${v.version}/files?path=A/file1.txt"
+      )
+
     }
   }
 }

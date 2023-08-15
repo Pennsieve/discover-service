@@ -16,7 +16,7 @@ import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
 
 final class PublicDatasetVersionFilesTable(tag: Tag)
-    extends Table[PublicDatasetVersionFile](tag, "") {
+    extends Table[PublicDatasetVersionFile](tag, "public_dataset_version_files") {
 
   def datasetId = column[Int]("dataset_id")
   def datasetVersion = column[Int]("dataset_version")
@@ -33,6 +33,21 @@ object PublicDatasetVersionFilesTableMapper
     extends TableQuery[PublicDatasetVersionFilesTable](
       new PublicDatasetVersionFilesTable(_)
     ) {
+
+  def storeLink(
+    version: PublicDatasetVersion,
+    fileVersion: PublicFileVersion
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    PublicDatasetVersionFile,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] = (this returning this) += PublicDatasetVersionFile(
+    datasetId = version.datasetId,
+    datasetVersion = version.version,
+    fileId = fileVersion.id
+  )
 
   def storeLinks(
     version: PublicDatasetVersion,

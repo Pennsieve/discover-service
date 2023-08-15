@@ -5,13 +5,19 @@ package com.pennsieve.discover
 import com.pennsieve.discover.db._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models._
-import com.pennsieve.models.{ Degree, License, PublishStatus }
+import com.pennsieve.models.{
+  Degree,
+  FileManifest,
+  FileType,
+  License,
+  PublishStatus
+}
 import com.pennsieve.test.AwaitableImplicits
+
 import java.nio.file.{ Files, Path }
 import java.util.UUID
 import java.util.Comparator
 import java.time.{ LocalDate, LocalTime, OffsetDateTime, ZoneOffset }
-
 import scala.concurrent.ExecutionContext
 import scala.sys.process._
 import scala.util.Random
@@ -145,6 +151,41 @@ object TestUtilities extends AwaitableImplicits {
       .await
   }
 
+  def metadataFileManifest(version: PublicDatasetVersion): FileManifest =
+    FileManifest(
+      name = DatasetMetadata.metadataFileName(version),
+      path = DatasetMetadata.metadataFileName(version),
+      size = 1234,
+      fileType = FileType.Json,
+      sourcePackageId = None,
+      id = None,
+      s3VersionId = version.migrated match {
+        case true => Some("Fake1234")
+        case false => None
+      }
+    )
+
+  def addMetadata(
+    db: Database,
+    version: PublicDatasetVersion
+  )(implicit
+    executionContext: ExecutionContext
+  ): Unit =
+    version.migrated match {
+      case true =>
+        db.run(
+            PublicFileVersionsMapper
+              .createAndLink(version, metadataFileManifest(version))
+          )
+          .await
+      case false =>
+        db.run(
+            PublicFilesMapper
+              .createMany(version, List(metadataFileManifest(version)))
+          )
+          .await
+    }
+
   def createNewDatasetVersion(
     db: Database
   )(
@@ -266,6 +307,34 @@ object TestUtilities extends AwaitableImplicits {
           size = size,
           s3Key = version.s3Key / path,
           sourcePackageId = sourcePackageId
+        )
+      )
+      .awaitFinite()
+
+  def createFileVersion(
+    db: Database
+  )(
+    version: PublicDatasetVersion,
+    path: String,
+    fileType: FileType,
+    size: Long = 100,
+    sourcePackageId: Option[String] = None,
+    s3Version: Option[String] = None
+  )(implicit
+    executionContext: ExecutionContext
+  ): PublicFileVersion =
+    db.run(
+        PublicFileVersionsMapper.createAndLink(
+          version,
+          FileManifest(
+            name = path.split("/").last,
+            path = path,
+            size = size,
+            fileType = fileType,
+            sourcePackageId = sourcePackageId,
+            id = None,
+            s3VersionId = s3Version
+          )
         )
       )
       .awaitFinite()

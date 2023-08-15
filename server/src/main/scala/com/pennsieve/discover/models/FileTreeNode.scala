@@ -24,32 +24,33 @@ object FileTreeNode {
     s3Bucket: S3Bucket,
     size: Long,
     sourcePackageId: Option[String],
-    createdAt: Option[OffsetDateTime] = None
+    createdAt: Option[OffsetDateTime] = None,
+    s3Version: Option[String] = None
   ) extends FileTreeNode
 
   case class Directory(name: String, path: String, size: Long)
       extends FileTreeNode
 
+  def trimPath(s3Key: S3Key.File, datasetId: Int, version: Int): String =
+    if (s3Key.toString
+        .startsWith(s"${datasetId}/${version}")) {
+      s3Key.toString
+        .replace(s"${datasetId}/${version}/", "")
+    } else {
+      s3Key.toString
+    }
+
   def apply(file: PublicFile, s3Bucket: S3Bucket): FileTreeNode = {
-
-    val path =
-      if (file.s3Key.toString
-          .startsWith(s"${file.datasetId}/${file.version}")) {
-        file.s3Key.toString
-          .replace(s"${file.datasetId}/${file.version}/", "")
-      } else {
-        file.s3Key.toString
-      }
-
     File(
       file.name,
-      path,
+      trimPath(file.s3Key, file.datasetId, file.version),
       utils.getFileType(file.fileType),
       file.s3Key,
       s3Bucket,
       file.size,
       file.sourcePackageId,
-      Some(file.createdAt)
+      Some(file.createdAt),
+      s3Version = None
     )
   }
 
@@ -57,24 +58,16 @@ object FileTreeNode {
     file: PublicFileVersion,
     version: PublicDatasetVersion
   ): FileTreeNode = {
-    val path =
-      if (file.s3Key.toString
-          .startsWith(s"${version.datasetId}/${version.version}")) {
-        file.s3Key.toString
-          .replace(s"${version.datasetId}/${version.version}/", "")
-      } else {
-        file.s3Key.toString
-      }
-
     File(
       file.name,
-      path,
+      trimPath(file.s3Key, version.datasetId, version.version),
       utils.getFileType(file.fileType),
       file.s3Key,
       version.s3Bucket,
       file.size,
       file.sourcePackageId,
-      Some(file.createdAt)
+      Some(file.createdAt),
+      s3Version = Some(file.s3Version)
     )
   }
 }
