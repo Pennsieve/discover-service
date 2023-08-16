@@ -11,7 +11,7 @@ case class FileDownloadDTO(
   s3Bucket: S3Bucket,
   s3Key: S3Key.File,
   size: Long,
-  s3Version: Option[String] = None
+  s3Version: Option[String]
 ) {
   def toDownloadResponseItem(
     s3Client: S3StreamClient,
