@@ -32,7 +32,11 @@ import com.pennsieve.discover.downloads.ZipStream._
 
 class MockS3StreamClient extends S3StreamClient {
 
-  def getPresignedUrlForFile(bucket: S3Bucket, key: S3Key.File): String =
+  def getPresignedUrlForFile(
+    bucket: S3Bucket,
+    key: S3Key.File,
+    version: Option[String]
+  ): String =
     s"https://$bucket.s3.amazonaws.com/$key"
 
   private var nextResponse: Option[List[TestFile]] = None
