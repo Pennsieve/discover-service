@@ -161,7 +161,11 @@ trait S3StreamClient {
     def asList = List(banner, readme, manifest)
   }
 
-  def getPresignedUrlForFile(s3Bucket: S3Bucket, key: S3Key.File): String
+  def getPresignedUrlForFile(
+    s3Bucket: S3Bucket,
+    key: S3Key.File,
+    version: Option[String] = None
+  ): String
 }
 
 class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
@@ -856,7 +860,11 @@ class AlpakkaS3StreamClient(
           )
       )
 
-  def getPresignedUrlForFile(bucket: S3Bucket, key: S3Key.File, version: Option[String] = None): String = {
+  def getPresignedUrlForFile(
+    bucket: S3Bucket,
+    key: S3Key.File,
+    version: Option[String] = None
+  ): String = {
     val objectRequest = version match {
       case Some(version) =>
         GetObjectRequest.builder
