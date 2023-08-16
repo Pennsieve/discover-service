@@ -856,11 +856,21 @@ class AlpakkaS3StreamClient(
           )
       )
 
-  def getPresignedUrlForFile(bucket: S3Bucket, key: S3Key.File): String = {
-    val objectRequest = GetObjectRequest.builder
-      .bucket(bucket.value)
-      .key(key.value)
-      .build
+  def getPresignedUrlForFile(bucket: S3Bucket, key: S3Key.File, version: Option[String] = None): String = {
+    val objectRequest = version match {
+      case Some(version) =>
+        GetObjectRequest.builder
+          .bucket(bucket.value)
+          .key(key.value)
+          .versionId(version)
+          .build
+      case None =>
+        GetObjectRequest.builder
+          .bucket(bucket.value)
+          .key(key.value)
+          .build
+    }
+
     val presignedRequest = GetObjectPresignRequest.builder
       .signatureDuration(Duration.ofNanos(60.minutes.toNanos))
       .getObjectRequest(objectRequest)
