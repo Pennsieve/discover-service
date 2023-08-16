@@ -5,27 +5,20 @@ package com.pennsieve.discover.db
 import akka.Done
 import cats.implicits._
 import com.github.tminglei.slickpg._
-import com.pennsieve.discover.{ NoFileException, NoFileVersionException }
+import com.pennsieve.discover.{NoFileException, NoFileVersionException}
 
-import java.util.{ Base64, UUID }
+import java.util.{Base64, UUID}
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.models.{
-  FileTreeNode,
-  PublicDatasetVersion,
-  PublicFile,
-  PublicFileVersion,
-  S3Bucket,
-  S3Key
-}
-import com.pennsieve.discover.utils.{ getFileType, joinPath }
+import com.pennsieve.discover.models.{FileDownloadDTO, FileTreeNode, PublicDatasetVersion, PublicFile, PublicFileVersion, S3Bucket, S3Key}
+import com.pennsieve.discover.utils.{getFileType, joinPath}
 import com.pennsieve.models.FileManifest
-import slick.dbio.{ DBIOAction, Effect }
+import slick.dbio.{DBIOAction, Effect}
 import slick.jdbc.GetResult
 
 import java.nio.charset.StandardCharsets
 import java.time.OffsetDateTime
-import scala.concurrent.{ ExecutionContext, Future }
-import scala.util.{ Failure, Success }
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 final class PublicFileVersionsTable(tag: Tag)
     extends Table[PublicFileVersion](tag, "public_file_versions") {
@@ -401,35 +394,42 @@ object PublicFileVersionsMapper
     }.transactionally
   }
 
-//  def getFileDownloadsMatchingPaths(
-//                                     version: PublicDatasetVersion,
-//                                     paths: Seq[String]
-//                                   )(implicit
-//                                     ec: ExecutionContext
-//                                   ): DBIOAction[Seq[FileDownloadDTO], NoStream, Effect.Read with Effect] = {
-//
-//    // Assumes that the provided name is equal to the s3key file name
-//    val treePaths =
-//      paths
-//        .map(p => s"${convertPathToTree(version.s3Key / p)}.*")
-//
-//    implicit val fileDownloadGetter: GetResult[FileDownloadDTO] = GetResult(
-//      r => {
-//        val name = r.nextString()
-//        val s3Key = S3Key.File(r.nextString())
-//        val size = r.nextLong()
-//        FileDownloadDTO(version, name, s3Key, size)
-//      }
-//    )
-//
-//    sql"""
-//            SELECT
-//              name, s3_key, size
-//            FROM
-//              public_files as f
-//            WHERE f.path ?? $treePaths::lquery[]
-//        """.as[FileDownloadDTO]
-//  }
+  def getFileDownloadsMatchingPaths(
+                                 version: PublicDatasetVersion,
+                                 paths: Seq[String]
+                               )(implicit
+                                 ec: ExecutionContext
+                               ): DBIOAction[Seq[FileDownloadDTO], NoStream, Effect.Read with Effect] = {
+
+    // Assumes that the provided name is equal to the s3key file name
+    val treePaths =
+      paths
+        .map(p => s"${convertPathToTree(version.s3Key / p)}.*")
+
+    implicit val fileDownloadGetter: GetResult[FileDownloadDTO] = GetResult(
+      r => {
+        val name = r.nextString()
+        val s3Key = S3Key.File(r.nextString())
+        val size = r.nextLong()
+        val s3Version = r.nextString()
+        FileDownloadDTO(version, name, s3Key, size, Some(s3Version))
+      }
+    )
+    val datasetId = version.datasetId
+    val datasetVersion = version.version
+
+    sql"""
+          select pfv.name,
+                 pfv.s3_key,
+                 pfv.size,
+                 pfv.s3_version
+          from discover.public_file_versions pfv
+          join discover.public_dataset_version_files pdvf on (pdvf.file_id = pfv.id)
+          where pdvf.dataset_id = $datasetId
+            and pdvf.dataset_version = $datasetVersion
+            and pfv.path ?? $treePaths::lquery[]
+        """.as[FileDownloadDTO]
+  }
 
   /**
     * Find the files and directories under a given parent node.
