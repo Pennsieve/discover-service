@@ -5,20 +5,28 @@ package com.pennsieve.discover.db
 import akka.Done
 import cats.implicits._
 import com.github.tminglei.slickpg._
-import com.pennsieve.discover.{NoFileException, NoFileVersionException}
+import com.pennsieve.discover.{ NoFileException, NoFileVersionException }
 
-import java.util.{Base64, UUID}
+import java.util.{ Base64, UUID }
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.models.{FileDownloadDTO, FileTreeNode, PublicDatasetVersion, PublicFile, PublicFileVersion, S3Bucket, S3Key}
-import com.pennsieve.discover.utils.{getFileType, joinPath}
+import com.pennsieve.discover.models.{
+  FileDownloadDTO,
+  FileTreeNode,
+  PublicDatasetVersion,
+  PublicFile,
+  PublicFileVersion,
+  S3Bucket,
+  S3Key
+}
+import com.pennsieve.discover.utils.{ getFileType, joinPath }
 import com.pennsieve.models.FileManifest
-import slick.dbio.{DBIOAction, Effect}
+import slick.dbio.{ DBIOAction, Effect }
 import slick.jdbc.GetResult
 
 import java.nio.charset.StandardCharsets
 import java.time.OffsetDateTime
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 final class PublicFileVersionsTable(tag: Tag)
     extends Table[PublicFileVersion](tag, "public_file_versions") {
@@ -395,11 +403,11 @@ object PublicFileVersionsMapper
   }
 
   def getFileDownloadsMatchingPaths(
-                                 version: PublicDatasetVersion,
-                                 paths: Seq[String]
-                               )(implicit
-                                 ec: ExecutionContext
-                               ): DBIOAction[Seq[FileDownloadDTO], NoStream, Effect.Read with Effect] = {
+    version: PublicDatasetVersion,
+    paths: Seq[String]
+  )(implicit
+    ec: ExecutionContext
+  ): DBIOAction[Seq[FileDownloadDTO], NoStream, Effect.Read with Effect] = {
 
     // Assumes that the provided name is equal to the s3key file name
     val treePaths =
