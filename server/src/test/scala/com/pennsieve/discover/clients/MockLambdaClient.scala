@@ -11,7 +11,8 @@ import scala.concurrent.{ ExecutionContext, Future }
 case class LambdaRequest(
   s3KeyPrefix: String,
   publishBucket: String,
-  embargoBucket: String
+  embargoBucket: String,
+  migrated: Boolean
 )
 
 class MockLambdaClient extends LambdaClient {
@@ -21,12 +22,18 @@ class MockLambdaClient extends LambdaClient {
   def runS3Clean(
     s3KeyPrefix: String,
     publishBucket: String,
-    embargoBucket: String
+    embargoBucket: String,
+    migrated: Boolean
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[InvokeResponse] = {
-    this.requests += LambdaRequest(s3KeyPrefix, publishBucket, embargoBucket)
+    this.requests += LambdaRequest(
+      s3KeyPrefix,
+      publishBucket,
+      embargoBucket,
+      migrated
+    )
     Future.successful(InvokeResponse.builder().statusCode(200).build())
   }
 

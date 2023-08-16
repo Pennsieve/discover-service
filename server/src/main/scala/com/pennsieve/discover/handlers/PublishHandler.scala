@@ -678,6 +678,7 @@ class PublishHandler(
       datasetId
     ) { _ =>
       val query = for {
+
         dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(
           organizationId,
           datasetId
@@ -704,6 +705,11 @@ class PublishHandler(
         _ = ports.log.info(
           s"Unpublishing dataset ${dataset.id} versions ${versions.map(_.version)}"
         )
+
+        migrated = versions.get(0) match {
+          case Some(version) => version.migrated
+          case None => false
+        }
 
         // If the last version is embargoed, or failed to publish, remove it entirely
         _ <- PublicDatasetVersionsMapper.rollbackIfNeeded(dataset)
@@ -732,7 +738,8 @@ class PublishHandler(
         _ <- DBIO.from(
           deleteAssetsMulti(
             s3Key = dataset.id.toString,
-            versions.map(_.s3Bucket).toSet
+            versions.map(_.s3Bucket).toSet,
+            migrated
           )
         )
         status <- PublicDatasetVersionsMapper.getDatasetStatus(dataset)
@@ -998,21 +1005,24 @@ class PublishHandler(
   def deleteAssets(
     s3Key: String,
     publishBucket: String,
-    embargoBucket: String
+    embargoBucket: String,
+    migrated: Boolean
   ): Future[InvokeResponse] = {
-    ports.lambdaClient.runS3Clean(s3Key, publishBucket, embargoBucket)
+    ports.lambdaClient.runS3Clean(s3Key, publishBucket, embargoBucket, migrated)
   }
 
   private def deleteAssetsMulti(
     s3Key: String,
-    buckets: Set[S3Bucket]
+    buckets: Set[S3Bucket],
+    migrated: Boolean
   ): Future[Iterator[InvokeResponse]] = {
     val atMostTwoAtATime = buckets.grouped(2)
     Future.sequence(
       atMostTwoAtATime
         .map(_.toList match {
-          case List(S3Bucket(b1), S3Bucket(b2)) => deleteAssets(s3Key, b1, b2)
-          case List(S3Bucket(b)) => deleteAssets(s3Key, b, b)
+          case List(S3Bucket(b1), S3Bucket(b2)) =>
+            deleteAssets(s3Key, b1, b2, migrated)
+          case List(S3Bucket(b)) => deleteAssets(s3Key, b, b, migrated)
           case _ =>
             throw new AssertionError(
               s"${atMostTwoAtATime} shouldn't produce lists with more than two elements!"

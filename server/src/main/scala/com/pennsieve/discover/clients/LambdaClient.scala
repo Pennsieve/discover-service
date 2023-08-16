@@ -25,7 +25,8 @@ trait LambdaClient {
   def runS3Clean(
     s3KeyPrefix: String,
     publishBucket: String,
-    embargoBucket: String
+    embargoBucket: String,
+    migrated: Boolean
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -50,11 +51,16 @@ class AlpakkaLambdaClient(
   def runS3Clean(
     s3KeyPrefix: String,
     publishBucket: String,
-    embargoBucket: String
+    embargoBucket: String,
+    migrated: Boolean
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[InvokeResponse] = {
+    val workflowId = migrated match {
+      case true => "5"
+      case false => "4"
+    }
     val lambdaRequest = InvokeRequest
       .builder()
       .functionName(s3CleanFunction)
@@ -64,7 +70,9 @@ class AlpakkaLambdaClient(
             Map(
               "s3_key_prefix" -> s3KeyPrefix,
               "publish_bucket" -> publishBucket,
-              "embargo_bucket" -> embargoBucket
+              "embargo_bucket" -> embargoBucket,
+              "workflow_id" -> workflowId,
+              "purge_all" -> "true"
             ).asJson.noSpaces
           )
       )
