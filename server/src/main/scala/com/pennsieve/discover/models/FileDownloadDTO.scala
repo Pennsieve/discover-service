@@ -10,7 +10,8 @@ case class FileDownloadDTO(
   path: Seq[String],
   s3Bucket: S3Bucket,
   s3Key: S3Key.File,
-  size: Long
+  size: Long,
+  s3Version: Option[String] = None
 ) {
   def toDownloadResponseItem(
     s3Client: S3StreamClient,
@@ -51,14 +52,16 @@ case object FileDownloadDTO {
     version: PublicDatasetVersion,
     name: String,
     s3Key: S3Key.File,
-    size: Long
+    size: Long,
+    s3Version: Option[String] = None
   ): FileDownloadDTO = {
     FileDownloadDTO(
       name,
       getFilePath(version, s3Key),
       version.s3Bucket,
       s3Key,
-      size
+      size,
+      s3Version = s3Version
     )
   }
 
