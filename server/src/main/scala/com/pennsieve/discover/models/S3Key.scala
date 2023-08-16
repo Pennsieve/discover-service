@@ -82,8 +82,18 @@ object S3Key {
   }
 
   object Revision {
-    def apply(datasetId: Int, version: Int, revision: Int): Revision =
-      Revision(s"$datasetId/$version/revisions/$revision/")
+    def apply(
+      datasetId: Int,
+      version: Int,
+      revision: Int,
+      migrated: Boolean = false
+    ): Revision =
+      migrated match {
+        case true =>
+          Revision(s"$datasetId/revisions/$revision/")
+        case false =>
+          Revision(s"$datasetId/$version/revisions/$revision/")
+      }
 
     implicit val encodeRevision: Encoder[Revision] =
       Encoder.encodeString.contramap[Revision](_.value)
