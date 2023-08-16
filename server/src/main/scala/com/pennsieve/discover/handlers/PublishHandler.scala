@@ -29,7 +29,12 @@ import com.pennsieve.discover.server.publish.{
 import com.pennsieve.discover._
 import com.pennsieve.discover.search.Search
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
-import com.pennsieve.models.{ License, PublishStatus, RelationshipType }
+import com.pennsieve.models.{
+  FileManifest,
+  License,
+  PublishStatus,
+  RelationshipType
+}
 import com.pennsieve.models.PublishStatus.Unpublished
 import io.circe.{ DecodingFailure, Json }
 import slick.dbio.DBIOAction
@@ -497,7 +502,15 @@ class PublishHandler(
           )
         )
 
-        _ <- PublicFilesMapper.createMany(revisedVersion, newFiles.asList)
+        _ <- revisedVersion.migrated match {
+          case true =>
+            PublicFileVersionsMapper.createAndLinkMany(
+              revisedVersion,
+              newFiles.asList
+            )
+          case false =>
+            PublicFilesMapper.createMany(revisedVersion, newFiles.asList)
+        }
 
         _ <- PublicDatasetVersionsMapper.setResultMetadata(
           version = revisedVersion,
