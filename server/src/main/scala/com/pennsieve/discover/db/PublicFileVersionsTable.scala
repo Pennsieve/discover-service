@@ -356,6 +356,24 @@ object PublicFileVersionsMapper
       )
     } yield fileVersion
 
+  def createAndLinkMany(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    Done,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] =
+    DBIO
+      .sequence(
+        files
+          .map(file => createAndLink(version, file))
+      )
+      .map(_ => Done)
+      .transactionally
+
   def createMany(
     version: PublicDatasetVersion,
     files: List[FileManifest]
