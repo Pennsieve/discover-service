@@ -502,7 +502,12 @@ class AlpakkaS3StreamClient(
       `@id` = version.doi
     )
 
-    val key = S3Key.Revision(dataset.id, version.version, revision.revision)
+    val key = S3Key.Revision(
+      dataset.id,
+      version.version,
+      revision.revision,
+      version.migrated
+    )
 
     // Remove the empty file field
     implicit val encoder: Encoder[DatasetMetadataV4_0] =
