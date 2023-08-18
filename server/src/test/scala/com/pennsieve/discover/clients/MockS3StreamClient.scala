@@ -176,6 +176,8 @@ class MockS3StreamClient extends S3StreamClient {
   val publishResults: mutable.Map[S3Key.Version, PublishJobOutput] =
     mutable.Map.empty
 
+  val releaseResults = List.empty[ReleaseAction]
+
   def withNextPublishResult(key: S3Key.Version, result: PublishJobOutput) =
     publishResults += key -> result
 
@@ -185,6 +187,13 @@ class MockS3StreamClient extends S3StreamClient {
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput] = Future(publishResults(version.s3Key))
+
+  def readReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[List[ReleaseAction]] = Future(releaseResults)
 
   def deletePublishJobOutput(
     version: PublicDatasetVersion

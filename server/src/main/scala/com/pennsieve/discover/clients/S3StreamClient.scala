@@ -112,6 +112,13 @@ trait S3StreamClient {
     ec: ExecutionContext
   ): Future[PublishJobOutput]
 
+  def readReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[List[ReleaseAction]]
+
   def deletePublishJobOutput(
     version: PublicDatasetVersion
   )(implicit
@@ -297,6 +304,10 @@ class AlpakkaS3StreamClient(
       case PennsieveSchemaVersion.`4.0` | PennsieveSchemaVersion.`5.0` =>
         version.s3Key / "metadata/schema.json"
     }
+  }
+
+  private def releaseResultKey(version: PublicDatasetVersion): S3Key.File = {
+    version.s3Key / "discover-release-results.json"
   }
 
   // Returns None iff bucket is not external
@@ -786,6 +797,28 @@ class AlpakkaS3StreamClient(
 
       output <- decode[PublishJobOutput](content)
         .fold(Future.failed, Future.successful)
+    } yield output
+
+  def readReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[List[ReleaseAction]] =
+    for {
+      (source, _) <- s3FileSource(
+        version.s3Bucket,
+        releaseResultKey(version),
+        isRequesterPays = true
+      )
+
+      content <- source
+        .runWith(Sink.fold(ByteString.empty)(_ ++ _))
+        .map(_.utf8String)
+
+      output <- decode[List[ReleaseAction]](content)
+        .fold(Future.failed, Future.successful)
+
     } yield output
 
   private def s3Headers(isRequesterPays: Boolean): S3Headers =

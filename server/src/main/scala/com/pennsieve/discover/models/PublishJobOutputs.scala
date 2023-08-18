@@ -29,3 +29,19 @@ object PublishJobOutput {
   implicit val decoder: Decoder[PublishJobOutput] =
     deriveDecoder[PublishJobOutput]
 }
+
+case class ReleaseAction(
+  sourceBucket: String,
+  sourceKey: String,
+  sourceVersion: String,
+  targetBucket: String,
+  targetKey: String,
+  targetVersion: String
+)
+
+object ReleaseAction {
+  implicit val encoder: Encoder[ReleaseAction] =
+    deriveEncoder[ReleaseAction]
+  implicit val decoder: Decoder[ReleaseAction] =
+    deriveDecoder[ReleaseAction]
+}
