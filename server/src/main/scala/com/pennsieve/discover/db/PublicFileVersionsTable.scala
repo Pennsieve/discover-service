@@ -15,6 +15,7 @@ import com.pennsieve.discover.models.{
   PublicDatasetVersion,
   PublicFile,
   PublicFileVersion,
+  ReleaseAction,
   S3Bucket,
   S3Key
 }
@@ -228,6 +229,30 @@ object PublicFileVersionsMapper
       }
   }
 
+  def getFileForVersion(
+    version: PublicDatasetVersion,
+    path: S3Key.File
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[PublicFileVersion, NoStream, Effect.Read with Effect] = {
+    val datasetVersionFiles =
+      PublicDatasetVersionFilesTableMapper
+        .filter(_.datasetId === version.datasetId)
+        .filter(_.datasetVersion === version.version)
+
+    this
+      .join(datasetVersionFiles)
+      .on(_.id === _.fileId)
+      .filter(_._1.s3Key === path)
+      .result
+      .headOption
+      .flatMap {
+        case Some((f, _)) =>
+          DBIO.successful(f)
+        case _ =>
+          DBIO.failed(NoFileException(version.datasetId, version.version, path))
+      }
+  }
   def getFileVersion(
     datasetId: Int,
     s3Key: S3Key.File,
@@ -419,6 +444,56 @@ object PublicFileVersionsMapper
       case Success(s) => DBIO.successful(s)
     }.transactionally
   }
+
+  def setS3Version(
+    fileVersion: PublicFileVersion,
+    s3Version: String
+  )(implicit
+    ec: ExecutionContext
+  ): DBIOAction[
+    PublicFileVersion,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] = {
+    val updated = fileVersion.copy(s3Version = s3Version)
+    this
+      .filter(_.id === fileVersion.id)
+      .update(updated)
+      .map(_ => updated)
+  }
+
+  def updateS3Version(
+    version: PublicDatasetVersion,
+    action: ReleaseAction
+  )(implicit
+    ec: ExecutionContext
+  ): DBIOAction[
+    PublicFileVersion,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] =
+    for {
+      fileVersion <- getFileForVersion(version, S3Key.File(action.sourceKey))
+      updated <- setS3Version(fileVersion, action.targetVersion)
+    } yield updated
+
+  def updateManyS3Versions(
+    version: PublicDatasetVersion,
+    actions: List[ReleaseAction]
+  )(implicit
+    ec: ExecutionContext
+  ): DBIOAction[
+    Done,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] =
+    DBIO
+      .sequence(
+        actions
+          .map(action => updateS3Version(version, action))
+      )
+      .map(_ => Done)
+      .transactionally
 
   def getFileDownloadsMatchingPaths(
     version: PublicDatasetVersion,
