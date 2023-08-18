@@ -112,6 +112,13 @@ trait S3StreamClient {
     ec: ExecutionContext
   ): Future[PublishJobOutput]
 
+  def readReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[List[ReleaseAction]]
+
   def deletePublishJobOutput(
     version: PublicDatasetVersion
   )(implicit
@@ -161,7 +168,11 @@ trait S3StreamClient {
     def asList = List(banner, readme, manifest)
   }
 
-  def getPresignedUrlForFile(s3Bucket: S3Bucket, key: S3Key.File): String
+  def getPresignedUrlForFile(
+    s3Bucket: S3Bucket,
+    key: S3Key.File,
+    version: Option[String] = None
+  ): String
 }
 
 class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
@@ -293,6 +304,10 @@ class AlpakkaS3StreamClient(
       case PennsieveSchemaVersion.`4.0` | PennsieveSchemaVersion.`5.0` =>
         version.s3Key / "metadata/schema.json"
     }
+  }
+
+  private def releaseResultKey(version: PublicDatasetVersion): S3Key.File = {
+    version.s3Key / "discover-release-results.json"
   }
 
   // Returns None iff bucket is not external
@@ -498,7 +513,12 @@ class AlpakkaS3StreamClient(
       `@id` = version.doi
     )
 
-    val key = S3Key.Revision(dataset.id, version.version, revision.revision)
+    val key = S3Key.Revision(
+      dataset.id,
+      version.version,
+      revision.revision,
+      version.migrated
+    )
 
     // Remove the empty file field
     implicit val encoder: Encoder[DatasetMetadataV4_0] =
@@ -779,6 +799,28 @@ class AlpakkaS3StreamClient(
         .fold(Future.failed, Future.successful)
     } yield output
 
+  def readReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[List[ReleaseAction]] =
+    for {
+      (source, _) <- s3FileSource(
+        version.s3Bucket,
+        releaseResultKey(version),
+        isRequesterPays = true
+      )
+
+      content <- source
+        .runWith(Sink.fold(ByteString.empty)(_ ++ _))
+        .map(_.utf8String)
+
+      output <- decode[List[ReleaseAction]](content)
+        .fold(Future.failed, Future.successful)
+
+    } yield output
+
   private def s3Headers(isRequesterPays: Boolean): S3Headers =
     if (!isRequesterPays) S3Headers.empty
     else
@@ -856,11 +898,25 @@ class AlpakkaS3StreamClient(
           )
       )
 
-  def getPresignedUrlForFile(bucket: S3Bucket, key: S3Key.File): String = {
-    val objectRequest = GetObjectRequest.builder
-      .bucket(bucket.value)
-      .key(key.value)
-      .build
+  def getPresignedUrlForFile(
+    bucket: S3Bucket,
+    key: S3Key.File,
+    version: Option[String] = None
+  ): String = {
+    val objectRequest = version match {
+      case Some(version) =>
+        GetObjectRequest.builder
+          .bucket(bucket.value)
+          .key(key.value)
+          .versionId(version)
+          .build
+      case None =>
+        GetObjectRequest.builder
+          .bucket(bucket.value)
+          .key(key.value)
+          .build
+    }
+
     val presignedRequest = GetObjectPresignRequest.builder
       .signatureDuration(Duration.ofNanos(60.minutes.toNanos))
       .getObjectRequest(objectRequest)

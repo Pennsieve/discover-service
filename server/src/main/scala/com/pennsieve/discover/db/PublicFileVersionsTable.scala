@@ -10,10 +10,12 @@ import com.pennsieve.discover.{ NoFileException, NoFileVersionException }
 import java.util.{ Base64, UUID }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
+  FileDownloadDTO,
   FileTreeNode,
   PublicDatasetVersion,
   PublicFile,
   PublicFileVersion,
+  ReleaseAction,
   S3Bucket,
   S3Key
 }
@@ -227,6 +229,30 @@ object PublicFileVersionsMapper
       }
   }
 
+  def getFileForVersion(
+    version: PublicDatasetVersion,
+    path: S3Key.File
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[PublicFileVersion, NoStream, Effect.Read with Effect] = {
+    val datasetVersionFiles =
+      PublicDatasetVersionFilesTableMapper
+        .filter(_.datasetId === version.datasetId)
+        .filter(_.datasetVersion === version.version)
+
+    this
+      .join(datasetVersionFiles)
+      .on(_.id === _.fileId)
+      .filter(_._1.s3Key === path)
+      .result
+      .headOption
+      .flatMap {
+        case Some((f, _)) =>
+          DBIO.successful(f)
+        case _ =>
+          DBIO.failed(NoFileException(version.datasetId, version.version, path))
+      }
+  }
   def getFileVersion(
     datasetId: Int,
     s3Key: S3Key.File,
@@ -355,6 +381,24 @@ object PublicFileVersionsMapper
       )
     } yield fileVersion
 
+  def createAndLinkMany(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    Done,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] =
+    DBIO
+      .sequence(
+        files
+          .map(file => createAndLink(version, file))
+      )
+      .map(_ => Done)
+      .transactionally
+
   def createMany(
     version: PublicDatasetVersion,
     files: List[FileManifest]
@@ -401,35 +445,92 @@ object PublicFileVersionsMapper
     }.transactionally
   }
 
-//  def getFileDownloadsMatchingPaths(
-//                                     version: PublicDatasetVersion,
-//                                     paths: Seq[String]
-//                                   )(implicit
-//                                     ec: ExecutionContext
-//                                   ): DBIOAction[Seq[FileDownloadDTO], NoStream, Effect.Read with Effect] = {
-//
-//    // Assumes that the provided name is equal to the s3key file name
-//    val treePaths =
-//      paths
-//        .map(p => s"${convertPathToTree(version.s3Key / p)}.*")
-//
-//    implicit val fileDownloadGetter: GetResult[FileDownloadDTO] = GetResult(
-//      r => {
-//        val name = r.nextString()
-//        val s3Key = S3Key.File(r.nextString())
-//        val size = r.nextLong()
-//        FileDownloadDTO(version, name, s3Key, size)
-//      }
-//    )
-//
-//    sql"""
-//            SELECT
-//              name, s3_key, size
-//            FROM
-//              public_files as f
-//            WHERE f.path ?? $treePaths::lquery[]
-//        """.as[FileDownloadDTO]
-//  }
+  def setS3Version(
+    fileVersion: PublicFileVersion,
+    s3Version: String
+  )(implicit
+    ec: ExecutionContext
+  ): DBIOAction[
+    PublicFileVersion,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] = {
+    val updated = fileVersion.copy(s3Version = s3Version)
+    this
+      .filter(_.id === fileVersion.id)
+      .update(updated)
+      .map(_ => updated)
+  }
+
+  def updateS3Version(
+    version: PublicDatasetVersion,
+    action: ReleaseAction
+  )(implicit
+    ec: ExecutionContext
+  ): DBIOAction[
+    PublicFileVersion,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] =
+    for {
+      fileVersion <- getFileForVersion(version, S3Key.File(action.sourceKey))
+      updated <- setS3Version(fileVersion, action.targetVersion)
+    } yield updated
+
+  def updateManyS3Versions(
+    version: PublicDatasetVersion,
+    actions: List[ReleaseAction]
+  )(implicit
+    ec: ExecutionContext
+  ): DBIOAction[
+    Done,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] =
+    DBIO
+      .sequence(
+        actions
+          .map(action => updateS3Version(version, action))
+      )
+      .map(_ => Done)
+      .transactionally
+
+  def getFileDownloadsMatchingPaths(
+    version: PublicDatasetVersion,
+    paths: Seq[String]
+  )(implicit
+    ec: ExecutionContext
+  ): DBIOAction[Seq[FileDownloadDTO], NoStream, Effect.Read with Effect] = {
+
+    // Assumes that the provided name is equal to the s3key file name
+    val treePaths =
+      paths
+        .map(p => s"${convertPathToTree(version.s3Key / p)}.*")
+
+    implicit val fileDownloadGetter: GetResult[FileDownloadDTO] = GetResult(
+      r => {
+        val name = r.nextString()
+        val s3Key = S3Key.File(r.nextString())
+        val size = r.nextLong()
+        val s3Version = r.nextString()
+        FileDownloadDTO(version, name, s3Key, size, Some(s3Version))
+      }
+    )
+    val datasetId = version.datasetId
+    val datasetVersion = version.version
+
+    sql"""
+          select pfv.name,
+                 pfv.s3_key,
+                 pfv.size,
+                 pfv.s3_version
+          from discover.public_file_versions pfv
+          join discover.public_dataset_version_files pdvf on (pdvf.file_id = pfv.id)
+          where pdvf.dataset_id = $datasetId
+            and pdvf.dataset_version = $datasetVersion
+            and pfv.path ?? $treePaths::lquery[]
+        """.as[FileDownloadDTO]
+  }
 
   /**
     * Find the files and directories under a given parent node.

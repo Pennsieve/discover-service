@@ -352,6 +352,16 @@ class SQSNotificationHandler(
           .setS3Bucket(version, message.publishBucket)
       )
 
+      // if this is a Publishing 5.0 dataset, then update the S3 Version of the Files
+      _ <- updatedVersion.migrated match {
+        case true =>
+          releaseUpdateFileVersions(version)
+        case false =>
+          Future.successful(())
+      }
+
+      // TODO: if migrated, then delete discover-release-results.json
+
       _ <- ports.pennsieveApiClient
         .putPublishComplete(publishStatus, None)
         .value
@@ -361,6 +371,21 @@ class SQSNotificationHandler(
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
 
     } yield ()
+
+  private def releaseUpdateFileVersions(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    logContext: LogContext
+  ): Future[Unit] = {
+    for {
+      releaseResult <- ports.s3StreamClient.readReleaseResult(version)
+      _ <- ports.db.run(
+        PublicFileVersionsMapper.updateManyS3Versions(version, releaseResult)
+      )
+
+    } yield ()
+  }
 
   private def publishDoi(
     publicDataset: PublicDataset,

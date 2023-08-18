@@ -857,10 +857,15 @@ class DatasetHandler(
           versionId
         )
         _ <- authorizeIfUnderEmbargo(dataset, version)
-        downloadDtos <- PublicFilesMapper.getFileDownloadsMatchingPaths(
-          version,
-          body.paths
-        )
+        downloadDtos <- version.migrated match {
+          case true =>
+            PublicFileVersionsMapper.getFileDownloadsMatchingPaths(
+              version,
+              body.paths
+            )
+          case false =>
+            PublicFilesMapper.getFileDownloadsMatchingPaths(version, body.paths)
+        }
       } yield (downloadDtos, dataset, version)
 
       ports.db

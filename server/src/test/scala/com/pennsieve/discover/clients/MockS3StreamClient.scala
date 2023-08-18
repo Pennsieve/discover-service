@@ -32,7 +32,11 @@ import com.pennsieve.discover.downloads.ZipStream._
 
 class MockS3StreamClient extends S3StreamClient {
 
-  def getPresignedUrlForFile(bucket: S3Bucket, key: S3Key.File): String =
+  def getPresignedUrlForFile(
+    bucket: S3Bucket,
+    key: S3Key.File,
+    version: Option[String]
+  ): String =
     s"https://$bucket.s3.amazonaws.com/$key"
 
   private var nextResponse: Option[List[TestFile]] = None
@@ -172,6 +176,8 @@ class MockS3StreamClient extends S3StreamClient {
   val publishResults: mutable.Map[S3Key.Version, PublishJobOutput] =
     mutable.Map.empty
 
+  val releaseResults = List.empty[ReleaseAction]
+
   def withNextPublishResult(key: S3Key.Version, result: PublishJobOutput) =
     publishResults += key -> result
 
@@ -181,6 +187,13 @@ class MockS3StreamClient extends S3StreamClient {
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[PublishJobOutput] = Future(publishResults(version.s3Key))
+
+  def readReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[List[ReleaseAction]] = Future(releaseResults)
 
   def deletePublishJobOutput(
     version: PublicDatasetVersion

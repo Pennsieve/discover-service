@@ -1493,7 +1493,8 @@ class PublishHandlerSpec
         LambdaRequest(
           publicDataset.id.toString,
           version.s3Bucket.value,
-          version.s3Bucket.value
+          version.s3Bucket.value,
+          false
         )
       )
 
@@ -1577,7 +1578,8 @@ class PublishHandlerSpec
         LambdaRequest(
           publicDataset.id.toString,
           v1.s3Bucket.value,
-          v2.s3Bucket.value
+          v2.s3Bucket.value,
+          false
         )
       )
 
@@ -1698,7 +1700,8 @@ class PublishHandlerSpec
         LambdaRequest(
           publicDataset.id.toString,
           version.s3Bucket.value,
-          version.s3Bucket.value
+          version.s3Bucket.value,
+          false
         )
       )
 
