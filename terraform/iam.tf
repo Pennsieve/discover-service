@@ -163,6 +163,35 @@ data "aws_iam_policy_document" "iam_policy_document" {
   }
 
   statement {
+    sid    = "S3Publish50Bucket"
+    effect = "Allow"
+
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+      "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
+      "s3:ListBucket",
+      "s3:ListBucketVersions"
+      "s3:PutObject",
+      "s3:ListBucketMultipartUploads",
+      "s3:ListMultipartUploadParts",
+      "s3:AbortMultipartUpload",
+    ]
+
+    resources = [
+      data.terraform_remote_state.platform_infrastructure.outputs.discover_publish50_bucket_arn,
+      "${data.terraform_remote_state.platform_infrastructure.outputs.discover_publish50_bucket_arn}/*",
+      data.terraform_remote_state.platform_infrastructure.outputs.discover_embargo50_bucket_arn,
+      "${data.terraform_remote_state.platform_infrastructure.outputs.discover_embargo50_bucket_arn}/*",
+      data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish50_bucket_arn,
+      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish50_bucket_arn}/*",
+      data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_arn,
+      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_arn}/*",
+    ]
+  }
+
+  statement {
     sid    = "S3FrontendBucket"
     effect = "Allow"
 
