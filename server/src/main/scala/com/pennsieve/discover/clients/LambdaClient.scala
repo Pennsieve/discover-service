@@ -72,7 +72,7 @@ class AlpakkaLambdaClient(
               "publish_bucket" -> publishBucket,
               "embargo_bucket" -> embargoBucket,
               "workflow_id" -> workflowId,
-              "purge_all" -> "true"
+              "cleanup_stage" -> "UNPUBLISH"
             ).asJson.noSpaces
           )
       )
