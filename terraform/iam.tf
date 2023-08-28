@@ -158,7 +158,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish_bucket_arn,
       "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish_bucket_arn}/*",
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_arn,
-      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_arn}/*",
+      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_arn}/*"
     ]
   }
 
@@ -172,7 +172,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
       "s3:DeleteObject",
       "s3:DeleteObjectVersion",
       "s3:ListBucket",
-      "s3:ListBucketVersions"
+      "s3:ListBucketVersions",
       "s3:PutObject",
       "s3:ListBucketMultipartUploads",
       "s3:ListMultipartUploadParts",
@@ -187,7 +187,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish50_bucket_arn,
       "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish50_bucket_arn}/*",
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_arn,
-      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_arn}/*",
+      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_arn}/*"
     ]
   }
 
