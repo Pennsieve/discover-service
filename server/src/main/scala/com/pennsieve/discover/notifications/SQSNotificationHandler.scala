@@ -264,11 +264,17 @@ class SQSNotificationHandler(
       _ <- updatedVersion.migrated match {
         case true =>
           // Publishing 5x
+          val manifestFile =
+            metadata.files.filter(_.path.equals("manifest.json")).head
+          val files = manifestFile.copy(
+            s3VersionId = publishResult.manifestVersion
+          ) :: metadata.files.filterNot(_.path.equals("manifest.json"))
+
           updatedVersion.version match {
             case 1 =>
-              publishFirstVersion(updatedVersion, metadata.files)
+              publishFirstVersion(updatedVersion, files)
             case _ =>
-              publishNextVersion(updatedVersion, metadata.files)
+              publishNextVersion(updatedVersion, files)
           }
         case false =>
           // Publishing 4x

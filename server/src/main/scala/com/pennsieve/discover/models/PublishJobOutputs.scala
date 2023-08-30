@@ -20,7 +20,8 @@ import io.circe.syntax._
 case class PublishJobOutput(
   readmeKey: S3Key.File,
   bannerKey: S3Key.File,
-  totalSize: Long
+  totalSize: Long,
+  manifestVersion: Option[String] = None
 )
 
 object PublishJobOutput {
