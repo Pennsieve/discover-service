@@ -284,8 +284,9 @@ class SQSNotificationHandler(
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
 
-      _ <- ports.s3StreamClient
-        .deletePublishJobOutput(updatedVersion)
+      // TODO: delete all intermediate files
+//      _ <- ports.s3StreamClient
+//        .deletePublishJobOutput(updatedVersion)
     } yield ()
 
   private def publishFirstVersion(
