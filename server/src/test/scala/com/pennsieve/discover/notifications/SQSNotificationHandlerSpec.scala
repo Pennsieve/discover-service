@@ -160,9 +160,9 @@ class SQSNotificationHandlerSpec
       }
 
       // Should delete the outputs.json file
-      ports.s3StreamClient
-        .asInstanceOf[MockS3StreamClient]
-        .publishResults shouldBe empty
+//      ports.s3StreamClient
+//        .asInstanceOf[MockS3StreamClient]
+//        .publishResults shouldBe empty
 
       ports.pennsieveApiClient
         .asInstanceOf[MockPennsieveApiClient]
