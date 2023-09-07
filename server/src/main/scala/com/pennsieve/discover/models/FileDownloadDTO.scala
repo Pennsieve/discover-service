@@ -25,7 +25,7 @@ case class FileDownloadDTO(
         })
         .getOrElse(path)
         .toVector,
-      s3Client.getPresignedUrlForFile(s3Bucket, s3Key),
+      s3Client.getPresignedUrlForFile(s3Bucket, s3Key, s3Version),
       size
     )
   }
