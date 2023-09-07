@@ -501,10 +501,19 @@ class DatasetHandler(
       } else {
         pathNoSchemeNoBucket
       }
-      path = if (!noSlashPath.startsWith(s"$datasetId/$versionId")) {
-        s"$datasetId/$versionId/$noSlashPath"
-      } else {
-        noSlashPath
+      path = version.migrated match {
+        case true =>
+          if (!noSlashPath.startsWith(s"$datasetId")) {
+            s"$datasetId/$noSlashPath"
+          } else {
+            noSlashPath
+          }
+        case false =>
+          if (!noSlashPath.startsWith(s"$datasetId/$versionId")) {
+            s"$datasetId/$versionId/$noSlashPath"
+          } else {
+            noSlashPath
+          }
       }
 
       file <- version.migrated match {
