@@ -284,9 +284,15 @@ class SQSNotificationHandler(
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
 
-      // TODO: delete all intermediate files
-//      _ <- ports.s3StreamClient
-//        .deletePublishJobOutput(updatedVersion)
+      // invoke S3 Cleanup Lambda to delete publishing intermediate files
+      _ <- ports.lambdaClient.runS3Clean(
+        updatedVersion.s3Key.value,
+        updatedVersion.s3Bucket.value,
+        updatedVersion.s3Bucket.value,
+        S3CleanupStage.Tidy,
+        updatedVersion.migrated
+      )
+
     } yield ()
 
   private def publishFirstVersion(

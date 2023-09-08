@@ -26,6 +26,7 @@ trait LambdaClient {
     s3KeyPrefix: String,
     publishBucket: String,
     embargoBucket: String,
+    cleanupStage: String,
     migrated: Boolean
   )(implicit
     system: ActorSystem,
@@ -52,6 +53,7 @@ class AlpakkaLambdaClient(
     s3KeyPrefix: String,
     publishBucket: String,
     embargoBucket: String,
+    cleanupStage: String,
     migrated: Boolean
   )(implicit
     system: ActorSystem,
@@ -72,7 +74,7 @@ class AlpakkaLambdaClient(
               "publish_bucket" -> publishBucket,
               "embargo_bucket" -> embargoBucket,
               "workflow_id" -> workflowId,
-              "cleanup_stage" -> "UNPUBLISH"
+              "cleanup_stage" -> cleanupStage
             ).asJson.noSpaces
           )
       )

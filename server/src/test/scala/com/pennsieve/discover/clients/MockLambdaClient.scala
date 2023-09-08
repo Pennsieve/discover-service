@@ -12,6 +12,7 @@ case class LambdaRequest(
   s3KeyPrefix: String,
   publishBucket: String,
   embargoBucket: String,
+  cleanupStage: String,
   migrated: Boolean
 )
 
@@ -23,6 +24,7 @@ class MockLambdaClient extends LambdaClient {
     s3KeyPrefix: String,
     publishBucket: String,
     embargoBucket: String,
+    cleanupStage: String,
     migrated: Boolean
   )(implicit
     system: ActorSystem,
@@ -32,6 +34,7 @@ class MockLambdaClient extends LambdaClient {
       s3KeyPrefix,
       publishBucket,
       embargoBucket,
+      cleanupStage,
       migrated
     )
     Future.successful(InvokeResponse.builder().statusCode(200).build())

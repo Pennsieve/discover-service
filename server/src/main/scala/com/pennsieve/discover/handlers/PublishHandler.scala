@@ -1008,7 +1008,13 @@ class PublishHandler(
     embargoBucket: String,
     migrated: Boolean
   ): Future[InvokeResponse] = {
-    ports.lambdaClient.runS3Clean(s3Key, publishBucket, embargoBucket, migrated)
+    ports.lambdaClient.runS3Clean(
+      s3Key,
+      publishBucket,
+      embargoBucket,
+      S3CleanupStage.Unpublish,
+      migrated
+    )
   }
 
   private def deleteAssetsMulti(
