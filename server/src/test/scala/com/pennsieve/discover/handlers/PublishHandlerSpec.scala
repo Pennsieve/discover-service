@@ -1487,13 +1487,15 @@ class PublishHandlerSpec
 
       response.status shouldBe Unpublished
 
+      // Note: the S3 Clean Lambda is invoked at the end of Publish to "tidy," and at Unpublish time
       ports.lambdaClient
         .asInstanceOf[MockLambdaClient]
-        .requests should contain theSameElementsAs List(
+        .requests should contain atLeastOneElementOf List(
         LambdaRequest(
           publicDataset.id.toString,
           version.s3Bucket.value,
           version.s3Bucket.value,
+          S3CleanupStage.Unpublish,
           false
         )
       )
@@ -1574,11 +1576,12 @@ class PublishHandlerSpec
 
       ports.lambdaClient
         .asInstanceOf[MockLambdaClient]
-        .requests should contain theSameElementsAs List(
+        .requests should contain atLeastOneElementOf List(
         LambdaRequest(
           publicDataset.id.toString,
           v1.s3Bucket.value,
           v2.s3Bucket.value,
+          S3CleanupStage.Unpublish,
           false
         )
       )
@@ -1696,11 +1699,12 @@ class PublishHandlerSpec
 
       ports.lambdaClient
         .asInstanceOf[MockLambdaClient]
-        .requests should contain theSameElementsAs List(
+        .requests should contain atLeastOneElementOf List(
         LambdaRequest(
           publicDataset.id.toString,
           version.s3Bucket.value,
           version.s3Bucket.value,
+          S3CleanupStage.Unpublish,
           false
         )
       )
