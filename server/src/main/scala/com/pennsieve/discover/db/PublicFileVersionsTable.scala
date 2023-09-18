@@ -21,8 +21,9 @@ import com.pennsieve.discover.models.{
 }
 import com.pennsieve.discover.utils.{ getFileType, joinPath }
 import com.pennsieve.models.FileManifest
+import slick.basic.DatabasePublisher
 import slick.dbio.{ DBIOAction, Effect }
-import slick.jdbc.GetResult
+import slick.jdbc.{ GetResult, ResultSetConcurrency, ResultSetType }
 
 import java.nio.charset.StandardCharsets
 import java.time.OffsetDateTime
@@ -64,6 +65,11 @@ final class PublicFileVersionsTable(tag: Tag)
 
 object PublicFileVersionsMapper
     extends TableQuery(new PublicFileVersionsTable(_)) {
+
+  private def datasetVersionFiles(version: PublicDatasetVersion) =
+    PublicDatasetVersionFilesTableMapper
+      .filter(_.datasetId === version.datasetId)
+      .filter(_.datasetVersion === version.version)
 
   /**
     * LTrees can only contain ASCII characters, and levels of the tree are
@@ -149,48 +155,47 @@ object PublicFileVersionsMapper
       sourceFileUUID = fileManifest.id
     )
 
-  // TODO: join with PublicDatasetVersionFiles table and filter
-  // TODO: return PublicFileVersion? (or "unified" PublicFile)
-//  def forVersion(
-//                  version: PublicDatasetVersion
-//                ): Query[PublicFileVersionsTable, PublicFile, Seq] =
-//    this
-//      .filter(_.version === version.version)
-//      .filter(_.datasetId === version.datasetId)
+  def forVersion(
+    version: PublicDatasetVersion
+  ): Query[PublicFileVersionsTable, PublicFileVersion, Seq] =
+    this
+      .join(datasetVersionFiles(version))
+      .on(_.id === _.fileId)
+      .map(_._1)
 
-//  /**
-//    * Create a reactive publisher for all files belonging to this version.
-//    * This can be converted to a stream with `Source.fromPublisher`
-//    *
-//    * The extra statement parameters are needed properly stream from Postgres.
-//    * See https://scala-slick.org/doc/3.2.3/dbio.html#streaming
-//    */
-//  def streamForVersion(
-//                        version: PublicDatasetVersion,
-//                        db: Database
-//                      ): DatabasePublisher[PublicFile] =
-//    db.stream(
-//      PublicFilesMapper
-//        .forVersion(version)
-//        .result
-//        .withStatementParameters(
-//          rsType = ResultSetType.ForwardOnly,
-//          rsConcurrency = ResultSetConcurrency.ReadOnly,
-//          fetchSize = 1000
-//        )
-//        .transactionally
-//    )
-//
+  /**
+    * Create a reactive publisher for all files belonging to this version.
+    * This can be converted to a stream with `Source.fromPublisher`
+    *
+    * The extra statement parameters are needed properly stream from Postgres.
+    * See https://scala-slick.org/doc/3.2.3/dbio.html#streaming
+    */
+  def streamForVersion(
+    version: PublicDatasetVersion,
+    db: Database
+  ): DatabasePublisher[PublicFileVersion] =
+    db.stream(
+      PublicFileVersionsMapper
+        .forVersion(version)
+        .result
+        .withStatementParameters(
+          rsType = ResultSetType.ForwardOnly,
+          rsConcurrency = ResultSetConcurrency.ReadOnly,
+          fetchSize = 1000
+        )
+        .transactionally
+    )
+
 //  def create(
-//              version: PublicDatasetVersion,
-//              name: String,
-//              fileType: String,
-//              size: Long,
-//              s3Key: S3Key.File,
-//              sourcePackageId: Option[String] = None
-//            )(implicit
-//              executionContext: ExecutionContext
-//            ): DBIOAction[
+//    version: PublicDatasetVersion,
+//    name: String,
+//    fileType: String,
+//    size: Long,
+//    s3Key: S3Key.File,
+//    sourcePackageId: Option[String] = None
+//  )(implicit
+//    executionContext: ExecutionContext
+//  ): DBIOAction[
 //    PublicFile,
 //    NoStream,
 //    Effect.Read with Effect.Write with Effect.Transactional with Effect
@@ -203,7 +208,7 @@ object PublicFileVersionsMapper
 //      s3Key = s3Key,
 //      sourcePackageId = sourcePackageId
 //    )
-//
+
   def getFile(
     version: PublicDatasetVersion,
     path: S3Key.File

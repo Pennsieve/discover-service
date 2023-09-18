@@ -580,29 +580,13 @@ class DatasetHandler(
         dataset,
         versionId
       )
-      latest <- PublicDatasetVersionsMapper.getLatestVisibleVersion(dataset)
       _ <- authorizeIfUnderEmbargo(dataset, version)
-    } yield (dataset, version, latest)
+    } yield (dataset, version)
 
     ports.db
       .run(query.transactionally)
       .flatMap {
-        case (
-            dataset: PublicDataset,
-            version: PublicDatasetVersion,
-            latest: Option[PublicDatasetVersion]
-            ) =>
-          if (version.migrated) {
-            latest match {
-              case Some(latest) =>
-                if (version.version != latest.version) {
-                  Future.failed(UnsupportedDownloadVersion())
-                }
-              case None =>
-                Future.failed(UnsupportedDownloadVersion())
-            }
-          }
-
+        case (dataset: PublicDataset, version: PublicDatasetVersion) =>
           if (version.size > ports.config.download.maxSize.toBytes)
             Future.failed(DatasetTooLargeException)
           else
@@ -638,7 +622,7 @@ class DatasetHandler(
             entity = HttpEntity(
               ContentType.Binary(MediaTypes.`application/zip`),
               ports.s3StreamClient
-                .datasetFilesSource(version, zipPrefix)
+                .datasetFilesSource(version, zipPrefix, Some(ports.db))
                 .via(ZipStream())
                 .throttle(
                   cost = ports.config.download.ratePerSecond.toBytes.toInt,
