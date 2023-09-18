@@ -181,7 +181,7 @@ class S3StreamClientSpec
       putObject(bucket, "0/1/files/nested/file3.txt", "file3 data")
 
       val sink = client
-        .datasetFilesSource(version(0, 1, bucket), "dataset")
+        .datasetFilesSource(version(0, 1, bucket), "dataset", None)
         .mapAsync(1) {
           case (path, source) =>
             source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))
@@ -204,7 +204,7 @@ class S3StreamClientSpec
       putObject(bucket, "5/67/files/file7329.txt", "some other stuff")
 
       val sink = client
-        .datasetFilesSource(version(0, 1, bucket), "dataset")
+        .datasetFilesSource(version(0, 1, bucket), "dataset", None)
         .mapAsync(1) {
           case (path, source) =>
             source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))
@@ -235,7 +235,7 @@ class S3StreamClientSpec
       putObject(externalBucket, "0/1/files/nested/file3.txt", "file3 data")
 
       val sink = client
-        .datasetFilesSource(version(0, 1, externalBucket), "dataset")
+        .datasetFilesSource(version(0, 1, externalBucket), "dataset", None)
         .mapAsync(1) {
           case (path, source) =>
             source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))

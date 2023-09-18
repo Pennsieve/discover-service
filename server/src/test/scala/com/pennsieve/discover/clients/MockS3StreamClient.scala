@@ -11,7 +11,6 @@ import akka.stream.alpakka.s3.ListBucketResultContents
 import akka.stream.alpakka.s3.scaladsl.S3
 import akka.actor.ActorSystem
 import akka.util.ByteString
-
 import com.pennsieve.models.{ FileManifest, FileType }
 import com.pennsieve.discover.models._
 import com.pennsieve.test.AwaitableImplicits
@@ -23,12 +22,12 @@ import java.util.Comparator
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.DurationInt
 import scala.sys.process._
-
 import java.nio.file.{ Files, Path, Paths }
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.collection.mutable
 import com.pennsieve.test.AwaitableImplicits
 import com.pennsieve.discover.downloads.ZipStream._
+import com.pennsieve.discover.db.profile.api.Database
 
 class MockS3StreamClient extends S3StreamClient {
 
@@ -47,7 +46,8 @@ class MockS3StreamClient extends S3StreamClient {
 
   def datasetFilesSource(
     version: PublicDatasetVersion,
-    zipPrefix: String
+    zipPrefix: String,
+    db: Option[Database]
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext

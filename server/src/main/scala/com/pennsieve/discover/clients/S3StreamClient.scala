@@ -19,6 +19,8 @@ import akka.stream.alpakka.s3.{
 import akka.stream.alpakka.s3.scaladsl.S3
 import akka.stream.alpakka.csv.scaladsl.{ CsvParsing, CsvToMap }
 import akka.util.ByteString
+import com.pennsieve.discover.db.profile.api.Database
+import com.pennsieve.discover.db.PublicFileVersionsMapper
 import com.pennsieve.discover.{ utils, S3Exception }
 import com.pennsieve.discover.downloads.ZipStream._
 import com.pennsieve.discover.models._
@@ -60,11 +62,30 @@ import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
 
 import scala.jdk.FunctionConverters._
 
+final case class S3StreamObject(
+  bucketName: String,
+  key: String,
+  size: Long,
+  versionId: Option[String] = None
+)
+object S3StreamObject {
+  def apply(o: ListBucketResultContents): S3StreamObject =
+    new S3StreamObject(bucketName = o.bucketName, key = o.key, size = o.size)
+  def apply(v: PublicDatasetVersion, o: PublicFileVersion): S3StreamObject =
+    new S3StreamObject(
+      bucketName = v.s3Bucket.value,
+      key = o.s3Key.value,
+      size = o.size,
+      versionId = Some(o.s3Version)
+    )
+}
+
 trait S3StreamClient {
 
   def datasetFilesSource(
     version: PublicDatasetVersion,
-    zipPrefix: String // folder under which to place files in the zip archive
+    zipPrefix: String, // folder under which to place files in the zip archive
+    db: Option[Database]
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -352,7 +373,26 @@ class AlpakkaS3StreamClient(
     */
   def datasetFilesSource(
     version: PublicDatasetVersion,
-    zipPrefix: String // folder under which to place files in the zip archive
+    zipPrefix: String,
+    db: Option[Database]
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Source[ZipSource, NotUsed] = {
+    logger.info(
+      s"generating dataset files source for datasetId: ${version.datasetId} version: ${version.version}"
+    )
+    version.migrated match {
+      case true =>
+        datasetFilesSource5x(version, zipPrefix, db.get)
+      case false =>
+        datasetFilesSource4x(version, zipPrefix)
+    }
+  }
+
+  def datasetFilesSource4x(
+    version: PublicDatasetVersion,
+    zipPrefix: String
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -367,6 +407,8 @@ class AlpakkaS3StreamClient(
       val zipEntryName =
         joinPath(zipPrefix, s3Object.key.stripPrefix(version.s3Key.value))
 
+      val s3StreamObject = S3StreamObject(s3Object)
+
       // This is a convoluted way to build a source for each file without
       // using mapAsync, which greedily starts to download files without
       // waiting for a pull. This leads to "Substream source cannot be
@@ -375,9 +417,48 @@ class AlpakkaS3StreamClient(
       // downstream. unfoldAsync only evalates the source on pull.
       val byteSource = Source
         .unfoldAsync[DownloadState, Source[ByteString, NotUsed]](Starting) {
-          case Starting => downloadRange(s3Object, 0)
+          case Starting => downloadRange(s3StreamObject, 0)
           case InProgress(nextByte) =>
-            downloadRange(s3Object, nextByte)
+            downloadRange(s3StreamObject, nextByte)
+          case Finished => Future.successful(None)
+        }
+        .flatMapConcat(s => s)
+      (zipEntryName, byteSource)
+    }
+  }
+
+  def datasetFilesSource5x(
+    version: PublicDatasetVersion,
+    zipPrefix: String,
+    db: Database
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Source[ZipSource, NotUsed] = {
+    logger.info(s"Listing s3://${version.s3Bucket}")
+    configuredSource(
+      version.s3Bucket,
+      Source.fromPublisher(
+        PublicFileVersionsMapper.streamForVersion(version, db)
+      )
+    ).map { fileVersion: PublicFileVersion =>
+      logger.info(
+        s"Downloading s3://${version.s3Bucket}/${fileVersion.s3Key} versionId: ${fileVersion.s3Version}"
+      )
+
+      val zipEntryName =
+        joinPath(
+          zipPrefix,
+          fileVersion.s3Key.value.stripPrefix(version.s3Key.value)
+        )
+
+      val s3StreamObject = S3StreamObject(version, fileVersion)
+
+      val byteSource = Source
+        .unfoldAsync[DownloadState, Source[ByteString, NotUsed]](Starting) {
+          case Starting => downloadRange(s3StreamObject, 0)
+          case InProgress(nextByte) =>
+            downloadRange(s3StreamObject, nextByte)
           case Finished => Future.successful(None)
         }
         .flatMapConcat(s => s)
@@ -390,7 +471,7 @@ class AlpakkaS3StreamClient(
     * in the download state machine.
     */
   private def downloadRange(
-    s3Object: ListBucketResultContents,
+    s3Object: S3StreamObject,
     start: Long
   )(implicit
     system: ActorSystem,
@@ -402,7 +483,12 @@ class AlpakkaS3StreamClient(
     ): Source[Option[(Source[ByteString, NotUsed], ObjectMetadata)], NotUsed] =
       configuredSource(
         S3Bucket(s3Object.bucketName),
-        S3.download(s3Object.bucketName, s3Object.key, Some(byteRange))
+        S3.download(
+          s3Object.bucketName,
+          s3Object.key,
+          range = Some(byteRange),
+          versionId = s3Object.versionId
+        )
       )
 
     val (byteRange, nextState) =
