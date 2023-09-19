@@ -331,6 +331,10 @@ class PublishHandler(
       datasetId = Some(datasetId)
     )
 
+    ports.log.info(
+      s"revision: starting for organizationId: ${organizationId} datasetId: ${datasetId}"
+    )
+
     withServiceOwnerAuthorization[ReviseResponse](
       claim,
       organizationId,
@@ -367,6 +371,9 @@ class PublishHandler(
             case Some(version) => DBIO.successful(version)
           }
 
+        _ = ports.log.info(
+          s"revision: getting pre-signed S3 URLs for banner and readme"
+        )
         bannerPresignedUrl <- DBIO.from(
           Either
             .catchNonFatal(Uri(body.bannerPresignedUrl))
@@ -378,6 +385,7 @@ class PublishHandler(
             .fold(Future.failed(_), Future.successful(_))
         )
 
+        _ = ports.log.info(s"revision: updating dataset")
         revisedDataset <- PublicDatasetsMapper.updateDataset(
           dataset,
           name = body.name,
@@ -389,12 +397,15 @@ class PublishHandler(
           tags = body.tags.toList
         )
 
+        _ = ports.log.info(s"revision: updating dataset version")
         revisedVersion <- PublicDatasetVersionsMapper.updateVersion(
           version,
           description = body.description
         )
 
+        _ = ports.log.info(s"revision: creating revision")
         revision <- RevisionsMapper.create(revisedVersion)
+        _ = ports.log.info(s"revision: created revision: ${revision}")
 
         _ <- PublicContributorsMapper.deleteContributorsByDatasetAndVersion(
           dataset,
@@ -486,8 +497,8 @@ class PublishHandler(
             )
         )
 
-        _ = ports.log.debug(
-          s"writing dataset revision metadata for ${revisedDataset.id}"
+        _ = ports.log.info(
+          s"revision: start copying metadata for dataset ${revisedDataset.id} version ${revisedVersion.version}"
         )
         newFiles <- DBIO.from(
           ports.s3StreamClient.writeDatasetRevisionMetadata(
@@ -502,6 +513,13 @@ class PublishHandler(
           )
         )
 
+        _ = ports.log.info(
+          s"revision: finished copying metadata for dataset ${revisedDataset.id} version ${revisedVersion.version}"
+        )
+
+        _ = ports.log.info(
+          s"revision: storing metadata files and linking to dataset version: ${newFiles.asList}"
+        )
         _ <- revisedVersion.migrated match {
           case true =>
             PublicFileVersionsMapper.createAndLinkMany(
@@ -512,6 +530,9 @@ class PublishHandler(
             PublicFilesMapper.createMany(revisedVersion, newFiles.asList)
         }
 
+        _ = ports.log.info(
+          s"revision: setting result metadata for dataset ${revisedDataset.id} version ${revisedVersion.version}"
+        )
         _ <- PublicDatasetVersionsMapper.setResultMetadata(
           version = revisedVersion,
           size = revisedVersion.size + newFiles.asList.map(_.size).sum,
@@ -521,8 +542,8 @@ class PublishHandler(
         )
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 
-        _ = ports.log.debug(
-          s"updating Elasticsearch for revision of dataset ${revisedDataset.id}"
+        _ = ports.log.info(
+          s"revision: updating Elasticsearch for revision of dataset ${revisedDataset.id}"
         )
         // Update ElasticSearch
         _ <- DBIO.from(for {
