@@ -615,7 +615,7 @@ class AlpakkaS3StreamClient(
       Printer.spaces2.copy(dropNullValues = true).print(metadata.asJson)
     )
 
-    logger.debug(s"copying banner to ${version.s3Bucket.value}")
+    logger.debug(s"revision: copying banner to ${version.s3Bucket.value}")
 
     for {
       bannerManifest <- copyPresignedUrlToRevision(
@@ -623,17 +623,19 @@ class AlpakkaS3StreamClient(
         key / newNameSameExtension(bannerPresignedUrl, BANNER),
         version
       )
-      _ = logger.debug(s"copied banner to ${version.s3Bucket.value}")
-      _ = logger.debug(s"copying readme to ${version.s3Bucket.value}")
+      _ = logger.debug(s"revision: copied banner to ${version.s3Bucket.value}")
 
+      _ = logger.debug(s"revision: copying readme to ${version.s3Bucket.value}")
       readmeManifest <- copyPresignedUrlToRevision(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README),
         version
       )
-      _ = logger.debug(s"copied readme to ${version.s3Bucket.value}")
-      _ = logger.debug(s"start upload of manifest to ${version.s3Bucket.value}")
+      _ = logger.debug(s"revision: copied readme to ${version.s3Bucket.value}")
 
+      _ = logger.debug(
+        s"revision: start upload of manifest to ${version.s3Bucket.value}"
+      )
       manifestManifest <- putByteSource(
         Source.single(bytes),
         version.s3Bucket.value,
@@ -650,12 +652,12 @@ class AlpakkaS3StreamClient(
           )
       )
       _ = logger.debug(
-        s"finish upload of manifest to ${version.s3Bucket.value}"
-      )
-      _ = logger.debug(
-        s"copying banner and readme to frontend bucket ${frontendBucket.value}"
+        s"revision: finished upload of manifest to ${version.s3Bucket.value}"
       )
 
+      _ = logger.debug(
+        s"revision: copying banner and readme to frontend bucket ${frontendBucket.value}"
+      )
       _ <- copyPresignedUrlToFrontendBucket(
         bannerPresignedUrl,
         key / newNameSameExtension(bannerPresignedUrl, BANNER)
@@ -665,7 +667,7 @@ class AlpakkaS3StreamClient(
         key / newNameSameExtension(readmePresignedUrl, README)
       )
       _ = logger.debug(
-        s"copied banner and readme to frontend bucket ${frontendBucket.value}"
+        s"revision: copied banner and readme to frontend bucket ${frontendBucket.value}"
       )
 
     } yield
