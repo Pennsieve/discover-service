@@ -644,14 +644,17 @@ class AlpakkaS3StreamClient(
         (key / MANIFEST_FILE).toString,
         isRequesterPays = true
       ).map(
-        _ =>
+        response =>
           FileManifest(
             path = (key / MANIFEST_FILE)
               .removeVersionPrefix(version.s3Key),
             size = bytes.length,
             fileType = FileType.Json,
             None
-          )
+          ).copy(s3VersionId = version.migrated match {
+            case true => Some(response.versionId())
+            case false => None
+          })
       )
       _ = logger.debug(
         s"revision: finished upload of manifest to ${version.s3Bucket.value}"
@@ -749,7 +752,14 @@ class AlpakkaS3StreamClient(
       )
 
       size <- getObjectSize(version.s3Bucket, key)
-      _ = logger.debug(s"got size of file at presigned url ${presignedUrl}")
+      _ = logger.debug(
+        s"got size of S3 object: bucket: ${version.s3Bucket} key: ${key.value} = ${size}"
+      )
+
+      s3Version <- getObjectVersion(version.s3Bucket, key)
+      _ = logger.debug(
+        s"got version of S3 object: bucket: ${version.s3Bucket} key: ${key.value} = ${s3Version}"
+      )
 
     } yield {
       logger.debug(
@@ -762,7 +772,7 @@ class AlpakkaS3StreamClient(
           FilenameUtils.getExtension(key.toString)
         ),
         None
-      )
+      ).copy(s3VersionId = s3Version)
     }
   }
 
@@ -842,6 +852,27 @@ class AlpakkaS3StreamClient(
         .map(metadata => Future.successful(metadata.contentLength))
         .getOrElse(Future.failed(S3Exception(bucket, key)))
     } yield size
+
+  private def getObjectVersion(
+    bucket: S3Bucket,
+    key: S3Key.File
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[Option[String]] =
+    for {
+      maybeMetadata <- S3
+        .getObjectMetadata(
+          bucket.value,
+          key.toString,
+          versionId = None,
+          s3Headers = s3Headers(true)
+        )
+        .runWith(Sink.head)
+      versionId <- maybeMetadata
+        .map(metadata => Future.successful(metadata.versionId))
+        .getOrElse(Future.failed(S3Exception(bucket, key)))
+    } yield versionId
 
   /**
     * Stream the readme file from S3 for a dataset.
