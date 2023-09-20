@@ -312,7 +312,9 @@ class AlpakkaS3StreamClient(
     version: PublicDatasetVersion,
     revision: Option[Revision]
   ): S3Key.File =
-    revision.map(_.s3Key / README_FILE).getOrElse(version.s3Key / README_FILE)
+    revision
+      .map(_.s3Key(version.migrated) / README_FILE)
+      .getOrElse(version.s3Key / README_FILE)
 
   private def outputKey(version: PublicDatasetVersion): S3Key.File =
     version.s3Key / "outputs.json"
