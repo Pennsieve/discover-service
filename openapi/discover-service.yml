@@ -1399,6 +1399,8 @@ components:
             createdAt:
               type: string
               format: date-time
+            s3Version:
+              type: string
 
     Directory:
       description: A directory containing files in the dataset
