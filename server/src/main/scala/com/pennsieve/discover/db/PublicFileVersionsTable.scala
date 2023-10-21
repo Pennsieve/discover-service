@@ -585,7 +585,7 @@ object PublicFileVersionsMapper
     val result = sql"""
      WITH
        files AS (
-         SELECT name, file_type, s3_key, size, f.source_package_id
+         SELECT name, file_type, s3_key, size, f.source_package_id, s3_version
          FROM public_file_versions AS f
          JOIN public_dataset_version_files v ON v.file_id = f.id
          WHERE f.path ~ $leafChildSelector::lquery
@@ -594,14 +594,15 @@ object PublicFileVersionsMapper
        ),
 
        directories AS (
-         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id
+         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id, q.s3_version
          FROM (
            SELECT
              split_part(f.s3_key, '/', nlevel($parent::ltree) + 1) AS name,
              null::text AS file_type,
              null::text AS s3_key,
              size,
-             null::text AS source_package_id
+             null::text AS source_package_id,
+             null::text AS s3_version
            FROM public_file_versions AS f
            JOIN public_dataset_version_files v ON v.file_id = f.id
            WHERE NOT f.path ~ $leafChildSelector::lquery
@@ -610,7 +611,7 @@ object PublicFileVersionsMapper
              AND v.dataset_id = $datasetId
              AND v.dataset_version = $datasetVersion
          ) as q
-         GROUP BY q.name, q.file_type, q.s3_key, q.source_package_id
+         GROUP BY q.name, q.file_type, q.s3_key, q.source_package_id, s3_version
        ),
 
        -- Compute the total number of file + directory results, stored in the `size` column
@@ -620,7 +621,8 @@ object PublicFileVersionsMapper
            null::text AS file_type,
            null::text AS s3_key,
            (SELECT COALESCE(COUNT(*), 0) FROM files) + (SELECT COALESCE(COUNT(*), 0) FROM directories) AS size,
-           null::text AS source_package_id
+           null::text AS source_package_id,
+           null::text AS s3_version
        )
      (
        SELECT 'count', * FROM total_count
@@ -675,7 +677,8 @@ object PublicFileVersionsMapper
                 s3Key = S3Key.File(r.nextString()),
                 s3Bucket = bucket,
                 size = r.nextLong(),
-                sourcePackageId = r.nextStringOption()
+                sourcePackageId = r.nextStringOption(),
+                s3Version = r.nextStringOption()
               )
           )
         case "directory" =>
