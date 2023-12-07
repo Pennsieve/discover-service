@@ -22,9 +22,6 @@ final case class PublicDatasetVersion(
   // S3 paths in Discover website bucket
   banner: Option[S3Key.File] = None,
   readme: Option[S3Key.File] = None,
-  // Step Function ARNs
-  executionArn: Option[String] = None,
-  releaseExecutionArn: Option[String] = None,
   embargoReleaseDate: Option[LocalDate] = None,
   fileDownloadsCounter: Int = 0,
   datasetDownloadsCounter: Int = 0,

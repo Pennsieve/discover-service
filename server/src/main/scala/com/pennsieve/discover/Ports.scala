@@ -23,9 +23,7 @@ import com.pennsieve.discover.clients.{
   PennsieveApiClientImpl,
   S3StreamClient,
   SearchClient,
-  StepFunctionsClient,
-  VictorOpsClient,
-  VictorOpsSNSClient
+  StepFunctionsClient
 }
 import com.pennsieve.service.utilities.{
   ContextLogger,
@@ -51,7 +49,6 @@ case class Ports(
   searchClient: SearchClient,
   pennsieveApiClient: PennsieveApiClient,
   authorizationClient: AuthorizationClient,
-  victorOpsClient: VictorOpsClient,
   sqsClient: SqsAsyncClient,
   athenaClient: AthenaClient
 ) {
@@ -136,9 +133,6 @@ object Ports {
         HttpClient()
       )
 
-    val victorOpsClient: VictorOpsClient =
-      new VictorOpsSNSClient(config.sns.alertTopic, config.sns.region)
-
     val sqsClient: SqsAsyncClient = SqsAsyncClient
       .builder()
       .httpClientBuilder(NettyNioAsyncHttpClient.builder())
@@ -161,7 +155,6 @@ object Ports {
       searchClient,
       pennsieveApiClient,
       authorizationClient,
-      victorOpsClient,
       sqsClient,
       athenaClient
     )
