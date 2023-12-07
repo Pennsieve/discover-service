@@ -346,7 +346,6 @@ class SQSNotificationHandler(
         .value
         .flatMap(_.fold(Future.failed, Future.successful))
 
-      _ <- ports.victorOpsClient.sendAlert(version, notification)
     } yield ()
   }
 
@@ -478,16 +477,6 @@ class SQSNotificationHandler(
               .startRelease(
                 sourceOrganizationId = dataset.sourceOrganizationId,
                 sourceDatasetId = dataset.sourceDatasetId
-              )
-              .leftSemiflatMap(
-                e =>
-                  ports.victorOpsClient
-                    .sendFailedToStartReleaseAlert(
-                      dataset,
-                      version,
-                      e.getMessage
-                    )
-                    .map(_ => e)
               )
         }
         .foldF(Future.failed(_), Future.successful(_))

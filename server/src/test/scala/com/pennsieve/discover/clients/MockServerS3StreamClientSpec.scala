@@ -219,7 +219,6 @@ class MockServerS3StreamClientSpec
       schemaVersion = PennsieveSchemaVersion.latest,
       banner = None,
       readme = None,
-      executionArn = None,
       embargoReleaseDate = None,
       createdAt = OffsetDateTime.now,
       updatedAt = OffsetDateTime.now

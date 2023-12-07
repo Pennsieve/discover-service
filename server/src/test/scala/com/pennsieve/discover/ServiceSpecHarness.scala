@@ -147,8 +147,6 @@ trait ServiceSpecHarness
     val authorizationClient: AuthorizationClient =
       new MockAuthorizationClient(config.jwt.key)
 
-    val victorOpsClient = new MockVictorOpsClient()
-
     val sqsClient = SqsAsyncClient
       .builder()
       .httpClientBuilder(NettyNioAsyncHttpClient.builder())
@@ -164,7 +162,6 @@ trait ServiceSpecHarness
       searchClient = searchClient,
       pennsieveApiClient = pennsieveApiClient,
       authorizationClient = authorizationClient,
-      victorOpsClient = victorOpsClient,
       sqsClient = sqsClient,
       athenaClient = athenaClient
     )
@@ -199,11 +196,6 @@ trait ServiceSpecHarness
     ports.doiClient
       .asInstanceOf[MockDoiClient]
       .dois
-      .clear()
-
-    ports.victorOpsClient
-      .asInstanceOf[MockVictorOpsClient]
-      .sentAlerts
       .clear()
 
     ports.searchClient

@@ -50,14 +50,12 @@ final class PublicDatasetVersionsTable(tag: Tag)
   def status = column[PublishStatus]("status")
   def doi = column[String]("doi")
   def schemaVersion = column[PennsieveSchemaVersion]("schema_version")
-  // banner and readme live in a public assets bucket and in the publish
-  // bucket, and are accesible via the `assetsUrl` Cloudfront distribution:
+  // banner, readme and changelog live in a public assets bucket and in the publish
+  // bucket, and are accessible via the `assetsUrl` Cloudfront distribution:
   // (assets.discover.pennsieve.*)
   def banner = column[Option[S3Key.File]]("banner")
   def readme = column[Option[S3Key.File]]("readme")
-
-  def executionArn = column[Option[String]]("execution_arn")
-  def releaseExecutionArn = column[Option[String]]("release_execution_arn")
+  def changelog = column[Option[S3Key.File]]("changelog")
 
   def embargoReleaseDate = column[Option[LocalDate]]("embargo_release_date")
   def createdAt = column[OffsetDateTime]("created_at")
@@ -67,7 +65,6 @@ final class PublicDatasetVersionsTable(tag: Tag)
   def datasetDownloadsCounter = column[Int]("dataset_downloads_counter")
 
   def migrated = column[Boolean]("migrated")
-  def changelog = column[Option[S3Key.File]]("changelog")
 
   def pk =
     primaryKey("public_dataset_versions_pk", (datasetId, version))
@@ -89,8 +86,6 @@ final class PublicDatasetVersionsTable(tag: Tag)
       banner,
       readme,
       changelog,
-      executionArn,
-      releaseExecutionArn,
       embargoReleaseDate,
       fileDownloadsCounter,
       datasetDownloadsCounter,
@@ -658,11 +653,13 @@ object PublicDatasetVersionsMapper
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[Unit, NoStream, Effect.Read with Effect.Write] =
-    this
-      .filter(_.datasetId === version.datasetId)
-      .filter(_.version === version.version)
-      .map(_.executionArn)
-      .update(Some(executionArn))
+    PublishingJobsMapper
+      .create(
+        version.datasetId,
+        version.version,
+        PublishingJobType.PUBLISH,
+        executionArn
+      )
       .map(_ => ())
 
   def setReleaseExecutionArn(
@@ -671,11 +668,13 @@ object PublicDatasetVersionsMapper
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[Unit, NoStream, Effect.Read with Effect.Write] =
-    this
-      .filter(_.datasetId === version.datasetId)
-      .filter(_.version === version.version)
-      .map(_.releaseExecutionArn)
-      .update(Some(releaseExecutionArn))
+    PublishingJobsMapper
+      .create(
+        version.datasetId,
+        version.version,
+        PublishingJobType.RELEASE,
+        releaseExecutionArn
+      )
       .map(_ => ())
 
   def create(
