@@ -147,8 +147,6 @@ trait ServiceSpecHarness
     val authorizationClient: AuthorizationClient =
       new MockAuthorizationClient(config.jwt.key)
 
-    val victorOpsClient = new MockVictorOpsClient()
-
     val sqsClient = SqsAsyncClient
       .builder()
       .httpClientBuilder(NettyNioAsyncHttpClient.builder())

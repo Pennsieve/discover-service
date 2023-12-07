@@ -56,9 +56,6 @@ final class PublicDatasetVersionsTable(tag: Tag)
   def banner = column[Option[S3Key.File]]("banner")
   def readme = column[Option[S3Key.File]]("readme")
 
-  def executionArn = column[Option[String]]("execution_arn")
-  def releaseExecutionArn = column[Option[String]]("release_execution_arn")
-
   def embargoReleaseDate = column[Option[LocalDate]]("embargo_release_date")
   def createdAt = column[OffsetDateTime]("created_at")
   def updatedAt = column[OffsetDateTime]("updated_at")
@@ -87,8 +84,6 @@ final class PublicDatasetVersionsTable(tag: Tag)
       schemaVersion,
       banner,
       readme,
-      executionArn,
-      releaseExecutionArn,
       embargoReleaseDate,
       fileDownloadsCounter,
       datasetDownloadsCounter,
@@ -654,11 +649,13 @@ object PublicDatasetVersionsMapper
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[Unit, NoStream, Effect.Read with Effect.Write] =
-    this
-      .filter(_.datasetId === version.datasetId)
-      .filter(_.version === version.version)
-      .map(_.executionArn)
-      .update(Some(executionArn))
+    PublishingJobsMapper
+      .create(
+        version.datasetId,
+        version.version,
+        PublishingJobType.PUBLISH,
+        executionArn
+      )
       .map(_ => ())
 
   def setReleaseExecutionArn(
@@ -667,11 +664,13 @@ object PublicDatasetVersionsMapper
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[Unit, NoStream, Effect.Read with Effect.Write] =
-    this
-      .filter(_.datasetId === version.datasetId)
-      .filter(_.version === version.version)
-      .map(_.releaseExecutionArn)
-      .update(Some(releaseExecutionArn))
+    PublishingJobsMapper
+      .create(
+        version.datasetId,
+        version.version,
+        PublishingJobType.RELEASE,
+        releaseExecutionArn
+      )
       .map(_ => ())
 
   def create(
