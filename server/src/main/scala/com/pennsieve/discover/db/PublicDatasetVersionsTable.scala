@@ -67,6 +67,7 @@ final class PublicDatasetVersionsTable(tag: Tag)
   def datasetDownloadsCounter = column[Int]("dataset_downloads_counter")
 
   def migrated = column[Boolean]("migrated")
+  def changelog = column[Option[S3Key.File]]("changelog")
 
   def pk =
     primaryKey("public_dataset_versions_pk", (datasetId, version))
@@ -87,6 +88,7 @@ final class PublicDatasetVersionsTable(tag: Tag)
       schemaVersion,
       banner,
       readme,
+      changelog,
       executionArn,
       releaseExecutionArn,
       embargoReleaseDate,
@@ -611,7 +613,8 @@ object PublicDatasetVersionsMapper
     size: Long,
     fileCount: Long,
     readme: S3Key.File,
-    banner: S3Key.File
+    banner: S3Key.File,
+    changelog: S3Key.File
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[PublicDatasetVersion, NoStream, Effect.Read with Effect.Write] =
@@ -625,7 +628,8 @@ object PublicDatasetVersionsMapper
               size = size,
               fileCount = fileCount,
               readme = Some(readme),
-              banner = Some(banner)
+              banner = Some(banner),
+              changelog = Some(changelog)
             )
         )
 

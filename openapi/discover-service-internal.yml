@@ -630,6 +630,7 @@ components:
         - ownerOrcid
         - bannerPresignedUrl
         - readmePresignedUrl
+        - changelogPresignedUrl
       properties:
         name:
           type: string
@@ -666,6 +667,8 @@ components:
         bannerPresignedUrl:
           type: string
         readmePresignedUrl:
+          type: string
+        changelogPresignedUrl:
           type: string
 
     DatasetPublishStatus:

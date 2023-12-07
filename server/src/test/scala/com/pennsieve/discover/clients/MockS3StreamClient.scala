@@ -129,7 +129,8 @@ class MockS3StreamClient extends S3StreamClient {
     collections: List[PublicCollection],
     externalPublications: List[PublicExternalPublication],
     bannerPresignedUrl: Uri,
-    readmePresignedUrl: Uri
+    readmePresignedUrl: Uri,
+    changelogPresignedUrl: Uri
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -153,6 +154,12 @@ class MockS3StreamClient extends S3StreamClient {
           path = s"revisions/${revision.revision}/banner.jpg",
           size = 100,
           fileType = FileType.JPEG,
+          None
+        ),
+        changelog = FileManifest(
+          path = s"revisions/${revision.revision}/changelog.md",
+          size = 100,
+          fileType = FileType.Markdown,
           None
         )
       )

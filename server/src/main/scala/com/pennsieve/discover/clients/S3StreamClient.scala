@@ -175,7 +175,8 @@ trait S3StreamClient {
     collections: List[PublicCollection],
     externalPublications: List[PublicExternalPublication],
     bannerPresignedUrl: Uri,
-    readmePresignedUrl: Uri
+    readmePresignedUrl: Uri,
+    changelogPresignedUrl: Uri
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -184,7 +185,8 @@ trait S3StreamClient {
   case class NewFiles(
     banner: FileManifest,
     readme: FileManifest,
-    manifest: FileManifest
+    manifest: FileManifest,
+    changelog: FileManifest
   ) {
     def asList = List(banner, readme, manifest)
   }
@@ -288,6 +290,7 @@ class AlpakkaS3StreamClient(
   private val README_FILE = "readme.md"
   private val BANNER = "banner"
   private val README = "readme"
+  private val CHANGELOG = "changelog"
 
   private val chunkSizeBytes: Long = chunkSize.toBytes.toLong
 
@@ -560,7 +563,8 @@ class AlpakkaS3StreamClient(
     collections: List[PublicCollection],
     externalPublications: List[PublicExternalPublication],
     bannerPresignedUrl: Uri,
-    readmePresignedUrl: Uri
+    readmePresignedUrl: Uri,
+    changelogPresignedUrl: Uri
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
@@ -636,6 +640,18 @@ class AlpakkaS3StreamClient(
       _ = logger.debug(s"revision: copied readme to ${version.s3Bucket.value}")
 
       _ = logger.debug(
+        s"revision: copying changelog to ${version.s3Bucket.value}"
+      )
+      changelogManifest <- copyPresignedUrlToRevision(
+        changelogPresignedUrl,
+        key / newNameSameExtension(changelogPresignedUrl, CHANGELOG),
+        version
+      )
+      _ = logger.debug(
+        s"revision: copied changelog to ${version.s3Bucket.value}"
+      )
+
+      _ = logger.debug(
         s"revision: start upload of manifest to ${version.s3Bucket.value}"
       )
       manifestManifest <- putByteSource(
@@ -661,7 +677,7 @@ class AlpakkaS3StreamClient(
       )
 
       _ = logger.debug(
-        s"revision: copying banner and readme to frontend bucket ${frontendBucket.value}"
+        s"revision: copying banner, readme and changelog to frontend bucket ${frontendBucket.value}"
       )
       _ <- copyPresignedUrlToFrontendBucket(
         bannerPresignedUrl,
@@ -671,15 +687,20 @@ class AlpakkaS3StreamClient(
         readmePresignedUrl,
         key / newNameSameExtension(readmePresignedUrl, README)
       )
+      _ <- copyPresignedUrlToFrontendBucket(
+        changelogPresignedUrl,
+        key / newNameSameExtension(changelogPresignedUrl, CHANGELOG)
+      )
       _ = logger.debug(
-        s"revision: copied banner and readme to frontend bucket ${frontendBucket.value}"
+        s"revision: copied banner, readme and changelog to frontend bucket ${frontendBucket.value}"
       )
 
     } yield
       NewFiles(
         manifest = manifestManifest,
         readme = readmeManifest,
-        banner = bannerManifest
+        banner = bannerManifest,
+        changelog = changelogManifest
       )
   }
 

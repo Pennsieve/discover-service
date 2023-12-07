@@ -87,6 +87,18 @@ object PublicDatasetDTO {
               )
           )
       )
+      .withFieldComputed(
+        _.changelog,
+        _ =>
+          version.changelog.map(
+            key =>
+              joinPath(
+                config.assetsUrl,
+                config.s3.assetsKeyPrefix,
+                key.toString
+              )
+          )
+      )
       .withFieldComputed(_.sponsorship, _ => sponsorship)
       // TODO: pennsieveSchemaVersion can be non-optional once ElasticSearch has
       // been reindexed in production so that all datasets have a schema
