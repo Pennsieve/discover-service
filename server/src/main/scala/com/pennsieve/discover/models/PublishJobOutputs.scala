@@ -20,6 +20,7 @@ import io.circe.syntax._
 case class PublishJobOutput(
   readmeKey: S3Key.File,
   bannerKey: S3Key.File,
+  changelogKey: S3Key.File,
   totalSize: Long,
   manifestVersion: Option[String] = None
 )
