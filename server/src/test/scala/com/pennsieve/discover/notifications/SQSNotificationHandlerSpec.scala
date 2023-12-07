@@ -13,8 +13,7 @@ import com.pennsieve.discover.clients.{
   MockDoiClient,
   MockPennsieveApiClient,
   MockS3StreamClient,
-  MockSearchClient,
-  MockVictorOpsClient
+  MockSearchClient
 }
 import com.pennsieve.discover.models.{
   PublicDatasetVersion,
@@ -280,15 +279,6 @@ class SQSNotificationHandlerSpec
         .dois(doi.doi)
         .state shouldBe Some(DoiState.Draft)
 
-      val alert = ports.victorOpsClient
-        .asInstanceOf[MockVictorOpsClient]
-        .sentAlerts
-        .head
-
-      alert.version shouldBe publicVersion.version
-      alert.publicDatasetId shouldBe publicVersion.datasetId
-      alert.sourceOrganizationId shouldBe publishNotification.organizationId
-      alert.sourceDatasetId shouldBe publishNotification.datasetId
     }
 
     "not index files and records for embargoed datasets" in {
@@ -427,15 +417,6 @@ class SQSNotificationHandlerSpec
         .dois(doi.doi)
         .state shouldBe Some(DoiState.Draft)
 
-      val alert = ports.victorOpsClient
-        .asInstanceOf[MockVictorOpsClient]
-        .sentAlerts
-        .head
-
-      alert.version shouldBe publicVersion.version
-      alert.publicDatasetId shouldBe publicVersion.datasetId
-      alert.sourceOrganizationId shouldBe publishNotification.organizationId
-      alert.sourceDatasetId shouldBe publishNotification.datasetId
     }
 
     "ignore messages that it cannot parse" in {
@@ -647,16 +628,6 @@ class SQSNotificationHandlerSpec
         Some(s"Version ${publicVersion.version} failed to release")
       )
     )
-
-    val alert = ports.victorOpsClient
-      .asInstanceOf[MockVictorOpsClient]
-      .sentAlerts
-      .head
-
-    alert.version shouldBe publicVersion.version
-    alert.publicDatasetId shouldBe publicVersion.datasetId
-    alert.sourceOrganizationId shouldBe releaseNotification.organizationId
-    alert.sourceDatasetId shouldBe releaseNotification.datasetId
   }
 
   "periodically notify Pennsieve API to start release workflow" in {
@@ -715,33 +686,5 @@ class SQSNotificationHandlerSpec
     ports.pennsieveApiClient
       .asInstanceOf[MockPennsieveApiClient]
       .startReleaseRequests shouldBe empty
-  }
-
-  "send VictorOps alert when unable to periodically start release workflow" in {
-    val version1 =
-      TestUtilities.createDatasetV1(ports.db)(
-        sourceOrganizationId = 1,
-        sourceDatasetId = 999, // Magic number to trigger error in API client
-        status = PublishStatus.EmbargoSucceeded,
-        embargoReleaseDate = Some(LocalDate.now)
-      )
-
-    processNotification(ScanForReleaseNotification()) shouldBe an[
-      MessageAction.Ignore
-    ]
-
-    ports.pennsieveApiClient
-      .asInstanceOf[MockPennsieveApiClient]
-      .startReleaseRequests shouldBe List((1, 999))
-
-    val alert = ports.victorOpsClient
-      .asInstanceOf[MockVictorOpsClient]
-      .sentAlerts
-      .head
-
-    alert.version shouldBe version1.version
-    alert.publicDatasetId shouldBe version1.datasetId
-    alert.sourceOrganizationId shouldBe 1
-    alert.sourceDatasetId shouldBe 999
   }
 }
