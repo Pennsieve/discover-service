@@ -308,6 +308,7 @@ class S3StreamClientSpec
         PublishJobOutput(
           S3Key.Version(0, 1) / "readme.md",
           S3Key.Version(0, 1) / "banner.jpg",
+          S3Key.Version(0, 1) / "changelog.md",
           totalSize = 76543
         )
       putObject(bucket, "0/1/outputs.json", tempResult.asJson.toString)
@@ -459,7 +460,7 @@ class S3StreamClientSpec
   }
 
   "S3 write revision " should {
-    "write metadata, banner, and readme to revisions folder" in {
+    "write metadata, banner, readme and changelog to revisions folder" in {
       val (client, publishBucket, frontendBucket) = createClient()
 
       val datasetAssetsBucket = "dataset-assets-bucket"
@@ -487,6 +488,17 @@ class S3StreamClientSpec
         "5669a776-d369-4692-ba1a-9f60fcabbf03/readme.md"
       )
 
+      putObject(
+        datasetAssetsBucket,
+        "c63407a6-9d8b-4e59-92ce-fd4dad96b795/changelog.md",
+        getResource("/changelog.md")
+      )
+
+      val changelogPresignedUrl = getPresignedUrl(
+        datasetAssetsBucket,
+        "c63407a6-9d8b-4e59-92ce-fd4dad96b795/changelog.md"
+      )
+
       val newFiles = client
         .writeDatasetRevisionMetadata(
           dataset(3),
@@ -496,7 +508,8 @@ class S3StreamClientSpec
           collections(3, 4),
           externalPublications(3, 4),
           bannerPresignedUrl = bannerPresignedUrl,
-          readmePresignedUrl = readmePresignedUrl
+          readmePresignedUrl = readmePresignedUrl,
+          changelogPresignedUrl = changelogPresignedUrl
         )
         .awaitFinite()
 
@@ -518,6 +531,12 @@ class S3StreamClientSpec
           size = 902,
           fileType = FileType.Json,
           None
+        ),
+        changelog = FileManifest(
+          path = "revisions/5/changelog.md",
+          size = 72,
+          fileType = FileType.Markdown,
+          None
         )
       )
       val readme = getObject(publishBucket, "3/4/revisions/5/readme.md")
@@ -525,6 +544,9 @@ class S3StreamClientSpec
 
       val banner = getObject(publishBucket, "3/4/revisions/5/banner.jpg")
       banner shouldBe readResourceContents("/banner.jpg")
+
+      val changelog = getObject(publishBucket, "3/4/revisions/5/changelog.md")
+      changelog shouldBe readResourceContents("/changelog.md")
 
       val manifest = StandardCharsets.UTF_8
         .decode(getObject(publishBucket, "3/4/revisions/5/manifest.json"))

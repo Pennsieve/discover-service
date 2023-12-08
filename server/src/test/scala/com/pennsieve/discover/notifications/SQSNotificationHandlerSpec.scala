@@ -109,6 +109,7 @@ class SQSNotificationHandlerSpec
           PublishJobOutput(
             readmeKey = publicDatasetV1.s3Key / "readme.md",
             bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
             totalSize = 76543
           )
         )
@@ -306,6 +307,7 @@ class SQSNotificationHandlerSpec
           PublishJobOutput(
             readmeKey = publicDatasetV1.s3Key / "readme.md",
             bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
             totalSize = 76543
           )
         )

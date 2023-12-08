@@ -186,6 +186,8 @@ class PublishHandlerSpec
       "https://s3.amazonaws.localhost/dev-dataset-assets-use1/banner.jpg",
     readmePresignedUrl =
       "https://s3.amazonaws.localhost/dev-dataset-assets-use1/readme.md",
+    changelogPresignedUrl =
+      "https://s3.amazonaws.localhost/dev-dataset-assets-use1/changelog.md",
     collections = Some(
       Vector[InternalCollection](
         new InternalCollection(id = 1, name = "An Amazing Collection")
@@ -222,6 +224,7 @@ class PublishHandlerSpec
         PublishJobOutput(
           readmeKey = version.s3Key / "readme.md",
           bannerKey = version.s3Key / "banner.jpg",
+          changelogKey = version.s3Key / "changelog.md",
           totalSize = 76543
         )
       )
