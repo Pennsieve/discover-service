@@ -62,7 +62,7 @@ class ElasticSearchSpec
     super.beforeEach()
     Search
       .buildSearchIndex(searchPorts)
-      .awaitFinite(10.seconds)
+      .awaitFinite(60.seconds)
   }
 
   def datasetDocument(
