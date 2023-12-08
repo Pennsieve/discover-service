@@ -50,11 +50,12 @@ final class PublicDatasetVersionsTable(tag: Tag)
   def status = column[PublishStatus]("status")
   def doi = column[String]("doi")
   def schemaVersion = column[PennsieveSchemaVersion]("schema_version")
-  // banner and readme live in a public assets bucket and in the publish
-  // bucket, and are accesible via the `assetsUrl` Cloudfront distribution:
+  // banner, readme and changelog live in a public assets bucket and in the publish
+  // bucket, and are accessible via the `assetsUrl` Cloudfront distribution:
   // (assets.discover.pennsieve.*)
   def banner = column[Option[S3Key.File]]("banner")
   def readme = column[Option[S3Key.File]]("readme")
+  def changelog = column[Option[S3Key.File]]("changelog")
 
   def embargoReleaseDate = column[Option[LocalDate]]("embargo_release_date")
   def createdAt = column[OffsetDateTime]("created_at")
@@ -84,6 +85,7 @@ final class PublicDatasetVersionsTable(tag: Tag)
       schemaVersion,
       banner,
       readme,
+      changelog,
       embargoReleaseDate,
       fileDownloadsCounter,
       datasetDownloadsCounter,
@@ -606,7 +608,8 @@ object PublicDatasetVersionsMapper
     size: Long,
     fileCount: Long,
     readme: S3Key.File,
-    banner: S3Key.File
+    banner: S3Key.File,
+    changelog: S3Key.File
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[PublicDatasetVersion, NoStream, Effect.Read with Effect.Write] =
@@ -620,7 +623,8 @@ object PublicDatasetVersionsMapper
               size = size,
               fileCount = fileCount,
               readme = Some(readme),
-              banner = Some(banner)
+              banner = Some(banner),
+              changelog = Some(changelog)
             )
         )
 

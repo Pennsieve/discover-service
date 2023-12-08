@@ -384,6 +384,11 @@ class PublishHandler(
             .catchNonFatal(Uri(body.readmePresignedUrl))
             .fold(Future.failed(_), Future.successful(_))
         )
+        changelogPresignedUrl <- DBIO.from(
+          Either
+            .catchNonFatal(Uri(body.changelogPresignedUrl))
+            .fold(Future.failed(_), Future.successful(_))
+        )
 
         _ = ports.log.info(s"revision: updating dataset")
         revisedDataset <- PublicDatasetsMapper.updateDataset(
@@ -509,7 +514,8 @@ class PublishHandler(
             collections,
             externalPublications,
             bannerPresignedUrl = bannerPresignedUrl,
-            readmePresignedUrl = readmePresignedUrl
+            readmePresignedUrl = readmePresignedUrl,
+            changelogPresignedUrl = changelogPresignedUrl
           )
         )
 
@@ -538,7 +544,8 @@ class PublishHandler(
           size = revisedVersion.size + newFiles.asList.map(_.size).sum,
           fileCount = revisedVersion.fileCount + newFiles.asList.length,
           readme = revisedVersion.s3Key / newFiles.readme.path,
-          banner = revisedVersion.s3Key / newFiles.banner.path
+          banner = revisedVersion.s3Key / newFiles.banner.path,
+          changelog = revisedVersion.s3Key / newFiles.changelog.path
         )
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 

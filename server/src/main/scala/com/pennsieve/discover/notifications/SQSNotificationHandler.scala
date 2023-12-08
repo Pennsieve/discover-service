@@ -244,7 +244,8 @@ class SQSNotificationHandler(
           size = publishResult.totalSize,
           fileCount = metadata.files.length,
           readme = publishResult.readmeKey,
-          banner = publishResult.bannerKey
+          banner = publishResult.bannerKey,
+          changelog = publishResult.changelogKey
         )
       )
       _ <- ports.pennsieveApiClient
