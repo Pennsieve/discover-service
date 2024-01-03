@@ -323,5 +323,87 @@ class PublicFilesMapperSpec
       )
       run(PublicFilesMapper.forVersion(version).length.result) shouldBe 100000
     }
+
+    "insert and find a file that would contain a '/' in it's base64 path encoding " in {
+      // We use base64 to encode path components as Postgres ltrees. However, Postgres does not
+      // allow '/' or '+' in ltree labels and these are legal base64. So we replace '+' with '_' and '/' with '__'.
+      // Underscore is not in the base64 alphabet, so this should be unambiguous.
+      val version = TestUtilities.createDatasetV1(ports.db)()
+
+      val expectedName = "0mmSD.mat"
+      val expectedSize = 100
+      val expectedPath =
+        "files/Jacobians/µa_0.035_mm-1___µs_15_mm-1_/0mmSD.mat"
+      val expectedS3Key = version.s3Key / expectedPath
+      val expectedPackageId = Some("N:package:3")
+      run(
+        PublicFilesMapper.create(
+          version,
+          expectedName,
+          "CSV",
+          expectedSize,
+          expectedS3Key,
+          expectedPackageId
+        )
+      )
+
+      run(PublicFilesMapper.childrenOf(version, None)) shouldBe (
+        (
+          TotalCount(1),
+          Seq(FileTreeNode.Directory("files", "files", expectedSize))
+        )
+      )
+
+      run(PublicFilesMapper.childrenOf(version, Some("files"))) shouldBe (
+        (
+          TotalCount(1),
+          Seq(
+            FileTreeNode.Directory("Jacobians", "files/Jacobians", expectedSize)
+          )
+        )
+      )
+
+      run(PublicFilesMapper.childrenOf(version, Some("files/Jacobians"))) shouldBe (
+        (
+          TotalCount(1),
+          Seq(
+            FileTreeNode.Directory(
+              "µa_0.035_mm-1___µs_15_mm-1_",
+              "files/Jacobians/µa_0.035_mm-1___µs_15_mm-1_",
+              expectedSize
+            )
+          )
+        )
+      )
+
+      run(
+        PublicFilesMapper.childrenOf(
+          version,
+          Some("files/Jacobians/µa_0.035_mm-1___µs_15_mm-1_")
+        )
+      ) shouldBe (
+        (
+          TotalCount(1),
+          Seq(
+            FileTreeNode.File(
+              expectedName,
+              expectedPath,
+              FileType.CSV,
+              expectedS3Key,
+              publishBucket,
+              expectedSize,
+              expectedPackageId
+            )
+          )
+        )
+      )
+
+      run(
+        PublicFilesMapper
+          .getFileDownloadsMatchingPaths(version, Seq(expectedPath))
+      ) shouldBe {
+        Seq(FileDownloadDTO(version, expectedName, expectedS3Key, expectedSize))
+      }
+    }
   }
 }
