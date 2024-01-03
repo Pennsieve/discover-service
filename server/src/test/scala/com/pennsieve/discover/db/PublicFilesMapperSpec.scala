@@ -325,9 +325,10 @@ class PublicFilesMapperSpec
     }
 
     "insert and find a file that would contain a '/' in it's base64 path encoding " in {
-      // We use base64 to encode path components as Postgres ltrees. However, Postgres does not
-      // allow '/' or '+' in ltree labels and these are legal base64. So we replace '+' with '_' and '/' with '__'.
-      // Underscore is not in the base64 alphabet, so this should be unambiguous.
+      // The path component containing 'µ' was chosen because in our initial method
+      // of ltree label creation it's label contained a '/' which Postgres does not allow
+      // in labels. This test verifies that the new method of ltree label creation avoids
+      // the '/' and results in a ltree path that still leaves the file findable.
       val version = TestUtilities.createDatasetV1(ports.db)()
 
       val expectedName = "0mmSD.mat"
