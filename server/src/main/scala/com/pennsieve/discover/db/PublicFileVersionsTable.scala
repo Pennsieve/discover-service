@@ -7,7 +7,7 @@ import cats.implicits._
 import com.github.tminglei.slickpg._
 import com.pennsieve.discover.{ NoFileException, NoFileVersionException }
 
-import java.util.{ Base64, UUID }
+import java.util.UUID
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
   FileDownloadDTO,
@@ -80,7 +80,7 @@ object PublicFileVersionsMapper
     key.value
       .split("/")
       .map(_.getBytes(StandardCharsets.UTF_8))
-      .map(Base64.getEncoder().withoutPadding().encodeToString(_))
+      .map(pgSafeBase64)
       .mkString(".")
   }
 

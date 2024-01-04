@@ -30,7 +30,6 @@ import slick.jdbc.{
   SetParameter
 }
 
-import java.util.Base64
 import java.nio.charset.StandardCharsets
 import scala.concurrent.ExecutionContext
 
@@ -87,7 +86,7 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     key.value
       .split("/")
       .map(_.getBytes(StandardCharsets.UTF_8))
-      .map(Base64.getEncoder().withoutPadding().encodeToString(_))
+      .map(pgSafeBase64)
       .mkString(".")
   }
 
