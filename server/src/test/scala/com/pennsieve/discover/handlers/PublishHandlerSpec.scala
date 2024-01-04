@@ -939,12 +939,15 @@ class PublishHandlerSpec
 
       revisedVersion.status shouldBe PublishSucceeded
       revisedVersion.description shouldBe "Brief and succint."
-      revisedVersion.size shouldBe (76543 + 300) // From publish notification + new files
+      revisedVersion.size shouldBe (76543 + 400) // From publish notification + new files
       revisedVersion.banner shouldBe Some(
         revisedVersion.s3Key / s"revisions/${revision.revision}/banner.jpg"
       )
       revisedVersion.readme shouldBe Some(
         revisedVersion.s3Key / s"revisions/${revision.revision}/readme.md"
+      )
+      revisedVersion.changelog shouldBe Some(
+        revisedVersion.s3Key / s"revisions/${revision.revision}/changelog.md"
       )
 
       // Updates contributors table
@@ -1013,7 +1016,8 @@ class PublishHandlerSpec
             _.s3Key inSet List(
               revisedVersion.s3Key / s"revisions/${revision.revision}/manifest.json",
               revisedVersion.s3Key / s"revisions/${revision.revision}/readme.md",
-              revisedVersion.s3Key / s"revisions/${revision.revision}/banner.jpg"
+              revisedVersion.s3Key / s"revisions/${revision.revision}/banner.jpg",
+              revisedVersion.s3Key / s"revisions/${revision.revision}/changelog.md"
             )
           )
           .sortBy(_.name)
@@ -1022,6 +1026,7 @@ class PublishHandlerSpec
 
       createdFiles.map(f => (f.name, f.fileType)) shouldBe List(
         ("banner.jpg", "JPEG"),
+        ("changelog.md", "Markdown"),
         ("manifest.json", "Json"),
         ("readme.md", "Markdown")
       )

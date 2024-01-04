@@ -188,7 +188,7 @@ trait S3StreamClient {
     manifest: FileManifest,
     changelog: FileManifest
   ) {
-    def asList = List(banner, readme, manifest)
+    def asList = List(banner, readme, manifest, changelog)
   }
 
   def getPresignedUrlForFile(
