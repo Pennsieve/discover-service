@@ -140,7 +140,8 @@ class PublishHandlerSpec
     ownerOrcid = ownerOrcid,
     organizationNodeId = organizationNodeId,
     organizationName = organizationName,
-    datasetNodeId = datasetNodeId
+    datasetNodeId = datasetNodeId,
+    workflowId = Some(4)
   )
 
   val customBucketRequestBody: definitions.PublishRequest =
@@ -1339,7 +1340,7 @@ class PublishHandlerSpec
             datasetId = datasetId,
             version = version.version,
             s3Key = version.s3Key,
-            publishBucket = config.s3.publishBucket,
+            publishBucket = config.s3.publish50Bucket,
             embargoBucket = version.s3Bucket
           )
       }
