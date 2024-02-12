@@ -20,7 +20,7 @@ import com.pennsieve.discover.models.{
   S3Key
 }
 import com.pennsieve.discover.utils.{ getFileType, joinPath }
-import com.pennsieve.models.FileManifest
+import com.pennsieve.models.{ FileManifest, PublishStatus }
 import slick.basic.DatabasePublisher
 import slick.dbio.{ DBIOAction, Effect }
 import slick.jdbc.{ GetResult, ResultSetConcurrency, ResultSetType }
@@ -278,52 +278,54 @@ object PublicFileVersionsMapper
           DBIO.successful((fileVersion))
       }
 
-  //
-//  def getFileFromSourcePackageId(
-//                                  sourcePackageId: String,
-//                                  limit: Int,
-//                                  offset: Int
-//                                )(implicit
-//                                  executionContext: ExecutionContext
-//                                ): DBIOAction[
-//    (Long, Option[Int], List[(PublicFile, S3Bucket)]),
-//    NoStream,
-//    Effect.Read with Effect
-//  ] = {
-//    val latestDatasetVersions =
-//      PublicDatasetVersionsMapper.getLatestDatasetVersions(
-//        PublishStatus.PublishSucceeded
-//      )
-//
-//    val allMatchingFiles = this
-//      .join(latestDatasetVersions)
-//      .join(PublicDatasetsMapper)
-//      .on {
-//        case ((file, datasetVersion), dataset) =>
-//          file.datasetId === datasetVersion.datasetId && datasetVersion.datasetId === dataset.id && file.version === datasetVersion.version
-//      }
-//      .filter(_._1._1.sourcePackageId === sourcePackageId)
-//
-//    for {
-//      totalCount <- allMatchingFiles.length.result.map(_.toLong)
-//
-//      // These should all be the same
-//      organizationId <- allMatchingFiles
-//        .map(_._2.sourceOrganizationId)
-//        .result
-//        .headOption
-//
-//      files <- allMatchingFiles
-//        .sortBy(_._1._1.name)
-//        .drop(offset)
-//        .take(limit)
-//        .map(x => (x._1._1, x._1._2.s3Bucket))
-//        .result
-//        .map(_.toList)
-//
-//    } yield (totalCount, organizationId, files)
-//  }
-//
+  def getFileFromSourcePackageId(
+    sourcePackageId: String,
+    limit: Int,
+    offset: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    (Long, Option[Int], List[(PublicFileVersion, S3Bucket)]),
+    NoStream,
+    Effect.Read with Effect
+  ] = {
+    val latestDatasetVersions =
+      PublicDatasetVersionsMapper.getLatestDatasetVersions(
+        PublishStatus.PublishSucceeded
+      )
+
+    val allMatchingFiles = this
+      .join(PublicDatasetVersionFilesTableMapper)
+      .join(latestDatasetVersions)
+      .join(PublicDatasetsMapper)
+      .on {
+        case (((file, joinTable), version), dataset) =>
+          file.id === joinTable.fileId &&
+            joinTable.datasetId === version.datasetId &&
+            joinTable.datasetVersion === version.version &&
+            dataset.id === version.datasetId
+      }
+      .filter(_._1._1._1.sourcePackageId === sourcePackageId)
+
+    for {
+      totalCount <- allMatchingFiles.length.result.map(_.toLong)
+
+      // These should all be the same
+      organizationId <- allMatchingFiles
+        .map(_._2.sourceOrganizationId)
+        .result
+        .headOption
+
+      files <- allMatchingFiles
+        .sortBy(_._1._1._1.name)
+        .drop(offset)
+        .take(limit)
+        .map(x => (x._1._1._1, x._1._2.s3Bucket))
+        .result
+        .map(_.toList)
+
+    } yield (totalCount, organizationId, files)
+  }
 
   def getAll(
     datasetId: Int
