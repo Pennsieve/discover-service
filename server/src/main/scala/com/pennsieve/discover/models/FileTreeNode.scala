@@ -40,6 +40,15 @@ object FileTreeNode {
       s3Key.toString
     }
 
+  def trimPath(s3Key: S3Key.File, datasetId: Int): String =
+    if (s3Key.toString
+        .startsWith(s"${datasetId}")) {
+      s3Key.toString
+        .replace(s"${datasetId}/", "")
+    } else {
+      s3Key.toString
+    }
+
   def apply(file: PublicFile, s3Bucket: S3Bucket): FileTreeNode = {
     File(
       file.name,
@@ -51,6 +60,20 @@ object FileTreeNode {
       file.sourcePackageId,
       Some(file.createdAt),
       s3Version = None
+    )
+  }
+
+  def apply(file: PublicFileVersion, s3Bucket: S3Bucket): FileTreeNode = {
+    File(
+      file.name,
+      trimPath(file.s3Key, file.datasetId),
+      utils.getFileType(file.fileType),
+      file.s3Key,
+      s3Bucket,
+      file.size,
+      file.sourcePackageId,
+      Some(file.createdAt),
+      s3Version = Some(file.s3Version)
     )
   }
 
