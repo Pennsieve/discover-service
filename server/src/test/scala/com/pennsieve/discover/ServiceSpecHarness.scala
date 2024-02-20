@@ -98,7 +98,7 @@ trait ServiceSpecHarness
         publishLogsBucket = S3Bucket("publish-log-bucket"),
         accessLogsPath = "/logs/s3",
         chunkSize = 20.megabytes,
-        publish50Bucket = S3Bucket("publish-bucket-05"),
+        publish50Bucket = S3Bucket("publish-bucket-50"),
         embargo50Bucket = S3Bucket("embargo-bucket-50")
       ),
       sqs = SQSConfiguration(

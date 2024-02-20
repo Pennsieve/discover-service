@@ -197,7 +197,8 @@ object TestUtilities extends AwaitableImplicits {
     recordCount: Long = 10L,
     status: PublishStatus = PublishStatus.PublishInProgress,
     doi: String = randomString(),
-    embargoReleaseDate: Option[LocalDate] = None
+    embargoReleaseDate: Option[LocalDate] = None,
+    migrated: Boolean = false
   )(implicit
     executionContext: ExecutionContext
   ): PublicDatasetVersion = {
@@ -219,7 +220,8 @@ object TestUtilities extends AwaitableImplicits {
           schemaVersion = PennsieveSchemaVersion.`4.0`,
           banner = Some(S3Key.File("path-to-banner")),
           readme = Some(S3Key.File("path-to-readme")),
-          embargoReleaseDate = embargoReleaseDate
+          embargoReleaseDate = embargoReleaseDate,
+          migrated = migrated
         )
       )
       .await
