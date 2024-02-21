@@ -25,7 +25,7 @@ node("executor") {
         stage("Test") {
             withCredentials([pennsieveNexusCreds]) {
                 try {
-                    sh "$sbt coverageOn +test"
+                    sh "$sbtSetDockerApi coverageOn +test"
                 } finally {
                     junit '**/target/test-reports/*.xml'
                 }
