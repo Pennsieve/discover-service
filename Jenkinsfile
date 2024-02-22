@@ -7,7 +7,6 @@ node("executor") {
     def imageTag = "${env.BUILD_NUMBER}-${commitHash}"
 
     def sbt = "sbt -Dsbt.log.noformat=true -Dversion=$imageTag"
-    def sbtSetDockerApi = "$sbt -DDOCKER_API_VERSION='1.41'"
 
     def pennsieveNexusCreds = usernamePassword(
         credentialsId: "pennsieve-nexus-ci-login",
@@ -25,7 +24,7 @@ node("executor") {
         stage("Test") {
             withCredentials([pennsieveNexusCreds]) {
                 try {
-                    sh "$sbtSetDockerApi coverageOn +test"
+                    sh "$sbt coverageOn +test"
                 } finally {
                     junit '**/target/test-reports/*.xml'
                 }

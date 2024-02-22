@@ -7,7 +7,8 @@ import akka.http.scaladsl.model.Uri
 import com.pennsieve.discover.models._
 import com.pennsieve.discover.{
   DockerMockServerService,
-  ExternalPublishBucketConfiguration
+  ExternalPublishBucketConfiguration,
+  TestUtilities
 }
 import com.pennsieve.models._
 import com.pennsieve.test.AwaitableImplicits
@@ -78,11 +79,7 @@ class MockServerS3StreamClientSpec
     system.dispatcher
 
   override implicit val dockerFactory: DockerFactory =
-    try new SpotifyDockerFactory(DefaultDockerClient.fromEnv().build())
-    catch {
-      case _: DockerException =>
-        throw new DockerException("Docker may not be running")
-    }
+    TestUtilities.dockerFactoryApiVersion141
 
   lazy val s3Presigner: S3Presigner = S3Presigner
     .builder()
