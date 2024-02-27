@@ -33,14 +33,16 @@ class ServerRoutesSpec
 
       val v1 = TestUtilities.createDatasetV1(ports.db)(
         sourceOrganizationId = expectedOrgId,
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
-        sourcePackageId = Some(expectedPackageId)
+        FileType.Text,
+        sourcePackageId = Some(expectedPackageId),
+        s3Version = Some("fake-s3-version-id")
       )
 
       FileTreeWithOrgPage(
@@ -58,7 +60,8 @@ class ServerRoutesSpec
             createdAt = Some(f1.createdAt),
             fileType = FileType.Text,
             packageType = PackageType.Text,
-            icon = utils.getIcon(FileType.Text)
+            icon = utils.getIcon(FileType.Text),
+            s3Version = Some(f1.s3Version)
           )
         )
       )

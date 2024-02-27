@@ -91,7 +91,9 @@ case class S3Configuration(
   assetsKeyPrefix: String,
   embargoBucket: S3Bucket,
   accessLogsPath: String,
-  chunkSize: Information = 20.megabytes
+  chunkSize: Information = 20.megabytes,
+  publish50Bucket: S3Bucket,
+  embargo50Bucket: S3Bucket
 )
 
 case class DownloadConfiguration(

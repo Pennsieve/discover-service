@@ -10,7 +10,7 @@ import com.pennsieve.discover.server.file.{
   FileHandler => GuardrailHandler,
   FileResource => GuardrailResource
 }
-import com.pennsieve.discover.db.PublicFilesMapper
+import com.pennsieve.discover.db.{ PublicFileVersionsMapper, PublicFilesMapper }
 import com.pennsieve.discover.logging.{
   logRequestAndResponse,
   DiscoverLogContext
@@ -44,13 +44,11 @@ class FileHandler(
   ): Future[GuardrailResource.GetFileFromSourcePackageIdResponse] = {
 
     val query = for {
-
-      response <- PublicFilesMapper.getFileFromSourcePackageId(
+      response <- PublicFileVersionsMapper.getFileFromSourcePackageId(
         sourcePackageId,
         limit = limit.getOrElse(defaultFileLimit),
         offset = offset.getOrElse(defaultFileOffset)
       )
-
     } yield response
 
     ports.db

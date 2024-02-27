@@ -7,6 +7,7 @@ node("executor") {
     def imageTag = "${env.BUILD_NUMBER}-${commitHash}"
 
     def sbt = "sbt -Dsbt.log.noformat=true -Dversion=$imageTag"
+
     def pennsieveNexusCreds = usernamePassword(
         credentialsId: "pennsieve-nexus-ci-login",
         usernameVariable: "PENNSIEVE_NEXUS_USER",

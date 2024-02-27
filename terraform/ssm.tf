@@ -102,6 +102,18 @@ resource "aws_ssm_parameter" "s3_embargo_bucket" {
   value = data.terraform_remote_state.platform_infrastructure.outputs.discover_embargo_bucket_id
 }
 
+resource "aws_ssm_parameter" "s3_publish_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/s3-publish-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.discover_publish50_bucket_id
+}
+
+resource "aws_ssm_parameter" "s3_embargo_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/s3-embargo-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.discover_embargo50_bucket_id
+}
+
 resource "aws_ssm_parameter" "s3_frontend_bucket" {
   name  = "/${var.environment_name}/${var.service_name}/s3-frontend-bucket"
   type  = "String"
@@ -245,6 +257,18 @@ resource "aws_ssm_parameter" "sparc_embargo_bucket" {
   name  = "/${var.environment_name}/${var.service_name}/sparc-embargo-bucket"
   type  = "String"
   value = data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_id
+}
+
+resource "aws_ssm_parameter" "sparc_publish_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/sparc-publish-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish50_bucket_id
+}
+
+resource "aws_ssm_parameter" "sparc_embargo_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/sparc-embargo-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_id
 }
 
 resource "aws_ssm_parameter" "sparc_bucket_role_arn" {

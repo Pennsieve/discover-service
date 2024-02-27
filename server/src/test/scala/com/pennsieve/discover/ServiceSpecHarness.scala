@@ -61,12 +61,7 @@ trait ServiceSpecHarness
 
   // provide a dockerFactory
   override implicit val dockerFactory: DockerFactory =
-    try new SpotifyDockerFactory(DefaultDockerClient.fromEnv().build())
-    catch {
-      case _: DockerException =>
-        throw new DockerException("Docker may not be running")
-    }
-
+    TestUtilities.dockerFactoryApiVersion141
   implicit val config: Config =
     Config(
       host = "0.0.0.0",
@@ -97,7 +92,9 @@ trait ServiceSpecHarness
         embargoBucket = S3Bucket("embargo-bucket"),
         publishLogsBucket = S3Bucket("publish-log-bucket"),
         accessLogsPath = "/logs/s3",
-        chunkSize = 20.megabytes
+        chunkSize = 20.megabytes,
+        publish50Bucket = S3Bucket("publish-bucket-50"),
+        embargo50Bucket = S3Bucket("embargo-bucket-50")
       ),
       sqs = SQSConfiguration(
         queueUrl = "http://localhost:9324/queue/test-queue",

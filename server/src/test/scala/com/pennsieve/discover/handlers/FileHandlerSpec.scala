@@ -41,33 +41,38 @@ class FileHandlerSpec
       val expectedOrgId = 3
       val v1 = TestUtilities.createDatasetV1(ports.db)(
         sourceOrganizationId = expectedOrgId,
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
       val v2 = TestUtilities.createNewDatasetVersion(ports.db)(
         id = v1.datasetId,
-        status = PublishSucceeded
+        status = PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v2,
         "A/file1.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some("s3-version-of-1")
       )
 
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v2,
         "A/file2.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some("s3-version-of-2")
       )
 
-      val f3 = TestUtilities.createFile(ports.db)(
+      val f3 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file3.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some("s3-version-of-3")
       )
 
       val response = fileClient
@@ -89,7 +94,8 @@ class FileHandlerSpec
             createdAt = Some(f1.createdAt),
             fileType = FileType.Text,
             packageType = PackageType.Text,
-            icon = utils.getIcon(FileType.Text)
+            icon = utils.getIcon(FileType.Text),
+            s3Version = Some(f1.s3Version)
           ),
           client.definitions.File(
             name = f2.name,
@@ -100,7 +106,8 @@ class FileHandlerSpec
             createdAt = Some(f2.createdAt),
             fileType = FileType.Text,
             packageType = PackageType.Text,
-            icon = utils.getIcon(FileType.Text)
+            icon = utils.getIcon(FileType.Text),
+            s3Version = Some(f2.s3Version)
           )
         )
       )
@@ -112,28 +119,32 @@ class FileHandlerSpec
       val expectedOrgId = 4
       val v1 = TestUtilities.createDatasetV1(ports.db)(
         sourceOrganizationId = expectedOrgId,
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some("s3-version-of-1")
       )
 
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file2.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some("s3-version-of-2")
       )
 
-      val f3 = TestUtilities.createFile(ports.db)(
+      val f3 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file3.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some("s3-version-of-3")
       )
 
       val response = fileClient
@@ -159,7 +170,8 @@ class FileHandlerSpec
             createdAt = Some(f2.createdAt),
             fileType = FileType.Text,
             packageType = PackageType.Text,
-            icon = utils.getIcon(FileType.Text)
+            icon = utils.getIcon(FileType.Text),
+            s3Version = Some(f2.s3Version)
           ),
           client.definitions.File(
             name = f3.name,
@@ -170,7 +182,8 @@ class FileHandlerSpec
             createdAt = Some(f3.createdAt),
             fileType = FileType.Text,
             packageType = PackageType.Text,
-            icon = utils.getIcon(FileType.Text)
+            icon = utils.getIcon(FileType.Text),
+            s3Version = Some(f3.s3Version)
           )
         )
       )

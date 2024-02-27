@@ -13,6 +13,10 @@ import com.pennsieve.models.{
   PublishStatus
 }
 import com.pennsieve.test.AwaitableImplicits
+import com.spotify.docker.client.DefaultDockerClient
+import com.spotify.docker.client.exceptions.DockerException
+import com.whisk.docker.DockerFactory
+import com.whisk.docker.impl.spotify.SpotifyDockerFactory
 
 import java.nio.file.{ Files, Path }
 import java.util.UUID
@@ -197,7 +201,8 @@ object TestUtilities extends AwaitableImplicits {
     recordCount: Long = 10L,
     status: PublishStatus = PublishStatus.PublishInProgress,
     doi: String = randomString(),
-    embargoReleaseDate: Option[LocalDate] = None
+    embargoReleaseDate: Option[LocalDate] = None,
+    migrated: Boolean = false
   )(implicit
     executionContext: ExecutionContext
   ): PublicDatasetVersion = {
@@ -219,7 +224,8 @@ object TestUtilities extends AwaitableImplicits {
           schemaVersion = PennsieveSchemaVersion.`4.0`,
           banner = Some(S3Key.File("path-to-banner")),
           readme = Some(S3Key.File("path-to-readme")),
-          embargoReleaseDate = embargoReleaseDate
+          embargoReleaseDate = embargoReleaseDate,
+          migrated = migrated
         )
       )
       .await
@@ -372,5 +378,26 @@ object TestUtilities extends AwaitableImplicits {
         )
       )
       .await
+  }
+
+  /**
+    * Our tests use a Whisk library, that in turn uses a Spotify library, to manage
+    * docker containers created for tests. The Spotify part of this is no longer updated and breaks
+    * for newer versions of the Docker API. This creates a DockerFactory set to create clients that
+    * use a version of the API that works for us.
+    *
+    * @return a Spotify Docker client that will use version 1.41 of the Docker API
+    */
+  def dockerFactoryApiVersion141: DockerFactory = {
+    try new SpotifyDockerFactory(
+      DefaultDockerClient
+        .fromEnv()
+        .apiVersion("v1.41")
+        .build()
+    )
+    catch {
+      case _: DockerException =>
+        throw new DockerException("Docker may not be running")
+    }
   }
 }

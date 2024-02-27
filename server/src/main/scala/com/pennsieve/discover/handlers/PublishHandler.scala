@@ -64,17 +64,48 @@ class PublishHandler(
 
   val defaultPublishBucket = ports.config.s3.publishBucket
   val defaultEmbargoBucket = ports.config.s3.embargoBucket
+  val defaultPublish50Bucket = ports.config.s3.publish50Bucket
+  val defaultEmbargo50Bucket = ports.config.s3.embargo50Bucket
 
   type PublishResponse = GuardrailResource.PublishResponse
 
+  def getDefaultBucket(
+    workflowId: Option[Long],
+    bucket4: S3Bucket,
+    bucket5: S3Bucket
+  ) =
+    workflowId match {
+      case Some(workflowId) =>
+        workflowId match {
+          case 4 => bucket4
+          case _ => bucket5
+        }
+      case None => bucket5
+    }
+
   private def resolveBucketConfig(
-    bucketConfig: Option[BucketConfig]
+    bucketConfig: Option[BucketConfig],
+    workflowId: Option[Long]
   ): (S3Bucket, S3Bucket) = {
     (
       bucketConfig
         .map(c => S3Bucket(c.publish))
-        .getOrElse(defaultPublishBucket),
-      bucketConfig.map(c => S3Bucket(c.embargo)).getOrElse(defaultEmbargoBucket)
+        .getOrElse(
+          getDefaultBucket(
+            workflowId,
+            defaultPublishBucket,
+            defaultPublish50Bucket
+          )
+        ),
+      bucketConfig
+        .map(c => S3Bucket(c.embargo))
+        .getOrElse(
+          getDefaultBucket(
+            workflowId,
+            defaultEmbargoBucket,
+            defaultEmbargo50Bucket
+          )
+        )
     )
   }
 
@@ -96,7 +127,8 @@ class PublishHandler(
 
     val shouldEmbargo = embargo.getOrElse(false)
 
-    val (publishBucket, embargoBucket) = resolveBucketConfig(body.bucketConfig)
+    val (publishBucket, embargoBucket) =
+      resolveBucketConfig(body.bucketConfig, body.workflowId)
 
     val targetS3Bucket = if (shouldEmbargo) embargoBucket else publishBucket
 
@@ -611,7 +643,7 @@ class PublishHandler(
       datasetId
     ) { _ =>
       val (publishBucket, _) =
-        resolveBucketConfig(body.bucketConfig)
+        resolveBucketConfig(body.bucketConfig, None)
       // Ignoring embargo bucket in bucketConfig because it may not be where the dataset was embargoed.
       // eg., It may have been embargoed before custom buckets were configured for the organization.
       // The correct embargo bucket will be in the most current PublicDatasetVersion obtained below.
