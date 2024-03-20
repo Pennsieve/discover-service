@@ -61,6 +61,7 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
 
 import scala.jdk.FunctionConverters._
+import scala.util.{ Failure, Success }
 
 final case class S3StreamObject(
   bucketName: String,
@@ -948,7 +949,7 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[List[ReleaseAction]] =
     for {
-      (source, _) <- s3FileSource(
+      (source, _) <- s3FileSource2(
         version.s3Bucket,
         releaseResultKey(version),
         isRequesterPays = true
@@ -991,6 +992,34 @@ class AlpakkaS3StreamClient(
         case None =>
           Future.failed(S3Exception(bucket, fileKey))
       }
+  }
+
+  def s3FileSource2(
+    bucket: S3Bucket,
+    fileKey: S3Key.File,
+    isRequesterPays: Boolean = false,
+    s3Version: Option[String] = None
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(Source[ByteString, NotUsed], Long)] = {
+    val s3Source: Source[ByteString, Future[ObjectMetadata]] = S3.getObject(
+      bucket.value,
+      fileKey.value,
+      range = None,
+      versionId = s3Version,
+      s3Headers = s3Headers(isRequesterPays)
+    )
+
+    val (metadataFuture, dataFuture) =
+      s3Source.toMat(Sink.head)(Keep.both).run()
+
+    (metadataFuture.value.get, dataFuture.value.get) match {
+      case (Success(objectMetadata), Success(data)) =>
+        Future.successful((Source.single(data), objectMetadata.contentLength))
+      case (_, _) =>
+        Future.failed(S3Exception(bucket, fileKey))
+    }
   }
 
   /**
