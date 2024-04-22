@@ -63,14 +63,14 @@ class AthenaClientImpl(val pennsieveTable: String, val sparcTable: String)
     // 'REST.GET.BUCKET' operations which are not dataset downloads and do not contain a dataset_id.
     // Likewise, we also remove rows where the requester column contains 's3clean' as those are linked to
     // unpublish actions.
-    sqls"""SELECT regexp_extract(request_uri,'.*prefix=(\d+)(?:%2F|\/)(\d+)(:?%2F|\/).*', 1) AS dataset_id,
-         |     regexp_extract(request_uri, '.*prefix=(\d+)(?:%2F|\/)(\d+)(:?%2F|\/).*', 2) AS version,
+    sqls"""SELECT regexp_extract(request_uri,'.*prefix=(\d+)(?:%2F|\/).*', 1) AS dataset_id,
+         |     0 AS version,
          |     date_parse(requestdatetime, '%d/%b/%Y:%H:%i:%S +%f') as dl_date,
          |     requestid
          |FROM $escapedTableName
          |WHERE operation = 'REST.GET.BUCKET'
          |        AND requester NOT LIKE '%s3clean%'
-         |        AND regexp_extract(request_uri, '.*prefix=(\d+)(:?%2F|\/)(\d+)(:?%2F|\/).*', 1) is NOT null
+         |        AND regexp_extract(request_uri, '.*prefix=(\d+)(:?%2F|\/).*', 1) is NOT null
          |        AND date_parse(requestdatetime, '%d/%b/%Y:%H:%i:%S +%f') >= date_parse(${startDate.toString}, '%Y-%m-%d')
          |        AND date_parse(requestdatetime, '%d/%b/%Y:%H:%i:%S +%f') < date_parse(${endDate.toString}, '%Y-%m-%d')""".stripMargin
   }
