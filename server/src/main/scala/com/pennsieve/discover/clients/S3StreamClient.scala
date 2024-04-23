@@ -486,10 +486,10 @@ class AlpakkaS3StreamClient(
 
     def configuredDownloadSource(
       byteRange: ByteRange.Slice
-    ): Source[Option[(Source[ByteString, NotUsed], ObjectMetadata)], NotUsed] =
+    ): Source[ByteString, Future[ObjectMetadata]] =
       configuredSource(
         S3Bucket(s3Object.bucketName),
-        S3.download(
+        S3.getObject(
           s3Object.bucketName,
           s3Object.key,
           range = Some(byteRange),
@@ -506,21 +506,16 @@ class AlpakkaS3StreamClient(
           InProgress(start + chunkSizeBytes)
         )
 
-    configuredDownloadSource(byteRange)
-      .recoverWithRetries(attempts = 2, {
-        case e: TcpIdleTimeoutException =>
-          logger.error("TCP Idle Timeout", e)
-          configuredDownloadSource(byteRange)
-      })
-      .runWith(Sink.head)
-      .flatMap {
-        case Some((source, _)) =>
-          Future.successful(Some((nextState, source)))
-        case None =>
-          Future.failed(
-            S3Exception(S3Bucket(s3Object.bucketName), S3Key.File(s3Object.key))
-          )
-      }
+    try {
+      val source = configuredDownloadSource(byteRange)
+        .mapMaterializedValue(_ => NotUsed)
+      Future.successful(Some((nextState, source)))
+    } catch {
+      case _: Throwable =>
+        Future.failed(
+          S3Exception(S3Bucket(s3Object.bucketName), S3Key.File(s3Object.key))
+        )
+    }
   }
 
   /**
