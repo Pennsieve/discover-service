@@ -45,6 +45,7 @@ final class PublicFileVersionsTable(tag: Tag)
   def createdAt = column[OffsetDateTime]("created_at")
   def updatedAt = column[OffsetDateTime]("updated_at")
   def datasetId = column[Int]("dataset_id")
+  def sha256 = column[Option[String]]("sha256")
 
   def * =
     (
@@ -59,7 +60,8 @@ final class PublicFileVersionsTable(tag: Tag)
       path,
       createdAt,
       updatedAt,
-      datasetId
+      datasetId,
+      sha256
     ).mapTo[PublicFileVersion]
 }
 
@@ -126,7 +128,8 @@ object PublicFileVersionsMapper
     s3Key: S3Key.File,
     s3Version: String,
     sourcePackageId: Option[String],
-    sourceFileUUID: Option[UUID]
+    sourceFileUUID: Option[UUID],
+    sha256: Option[String]
   ): PublicFileVersion =
     PublicFileVersion(
       name = name,
@@ -137,7 +140,8 @@ object PublicFileVersionsMapper
       s3Key = s3Key,
       s3Version = s3Version,
       path = LTree(PublicFileVersionsMapper.convertPathToTree(s3Key)),
-      datasetId = datasetId
+      datasetId = datasetId,
+      sha256 = sha256
     )
 
   private def buildFileVersion(
@@ -152,7 +156,8 @@ object PublicFileVersionsMapper
       s3Key = version.s3Key / fileManifest.path,
       s3Version = fileManifest.s3VersionId.getOrElse("missing"),
       sourcePackageId = fileManifest.sourcePackageId,
-      sourceFileUUID = fileManifest.id
+      sourceFileUUID = fileManifest.id,
+      sha256 = fileManifest.sha256
     )
 
   def forVersion(
@@ -530,7 +535,8 @@ object PublicFileVersionsMapper
           select pfv.name,
                  pfv.s3_key,
                  pfv.size,
-                 pfv.s3_version
+                 pfv.s3_version,
+                 pfv.sha256
           from discover.public_file_versions pfv
           join discover.public_dataset_version_files pdvf on (pdvf.file_id = pfv.id)
           where pdvf.dataset_id = $datasetId
@@ -587,7 +593,7 @@ object PublicFileVersionsMapper
     val result = sql"""
      WITH
        files AS (
-         SELECT name, file_type, s3_key, size, f.source_package_id, s3_version
+         SELECT name, file_type, s3_key, size, f.source_package_id, s3_version, sha256
          FROM public_file_versions AS f
          JOIN public_dataset_version_files v ON v.file_id = f.id
          WHERE f.path ~ $leafChildSelector::lquery
@@ -596,7 +602,7 @@ object PublicFileVersionsMapper
        ),
 
        directories AS (
-         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id, q.s3_version
+         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id, q.s3_version, q.sha256
          FROM (
            SELECT
              split_part(f.s3_key, '/', nlevel($parent::ltree) + 1) AS name,
@@ -604,7 +610,8 @@ object PublicFileVersionsMapper
              null::text AS s3_key,
              size,
              null::text AS source_package_id,
-             null::text AS s3_version
+             null::text AS s3_version,
+             null::text AS sha256
            FROM public_file_versions AS f
            JOIN public_dataset_version_files v ON v.file_id = f.id
            WHERE NOT f.path ~ $leafChildSelector::lquery
@@ -624,7 +631,8 @@ object PublicFileVersionsMapper
            null::text AS s3_key,
            (SELECT COALESCE(COUNT(*), 0) FROM files) + (SELECT COALESCE(COUNT(*), 0) FROM directories) AS size,
            null::text AS source_package_id,
-           null::text AS s3_version
+           null::text AS s3_version,
+           null::text AS sha256
        )
      (
        SELECT 'count', * FROM total_count
@@ -680,7 +688,8 @@ object PublicFileVersionsMapper
                 s3Bucket = bucket,
                 size = r.nextLong(),
                 sourcePackageId = r.nextStringOption(),
-                s3Version = r.nextStringOption()
+                s3Version = r.nextStringOption(),
+                sha256 = r.nextStringOption()
               )
           )
         case "directory" =>

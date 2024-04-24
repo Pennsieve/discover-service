@@ -11,7 +11,8 @@ case class FileDownloadDTO(
   s3Bucket: S3Bucket,
   s3Key: S3Key.File,
   size: Long,
-  s3Version: Option[String]
+  s3Version: Option[String],
+  sha256: Option[String]
 ) {
   def toDownloadResponseItem(
     s3Client: S3StreamClient,
@@ -26,7 +27,8 @@ case class FileDownloadDTO(
         .getOrElse(path)
         .toVector,
       s3Client.getPresignedUrlForFile(s3Bucket, s3Key, s3Version),
-      size
+      size,
+      sha256
     )
   }
 
@@ -53,7 +55,8 @@ case object FileDownloadDTO {
     name: String,
     s3Key: S3Key.File,
     size: Long,
-    s3Version: Option[String] = None
+    s3Version: Option[String] = None,
+    sha256: Option[String] = None
   ): FileDownloadDTO = {
     FileDownloadDTO(
       name,
@@ -61,7 +64,8 @@ case object FileDownloadDTO {
       version.s3Bucket,
       s3Key,
       size,
-      s3Version = s3Version
+      s3Version = s3Version,
+      sha256 = sha256
     )
   }
 
