@@ -497,6 +497,10 @@ class AlpakkaS3StreamClient(
         )
       )
 
+    def downloadRangeSource(byteRange: ByteRange.Slice) =
+      configuredDownloadSource(byteRange)
+        .mapMaterializedValue(_ => NotUsed)
+
     val (byteRange, nextState) =
       if ((start + chunkSizeBytes) >= s3Object.size)
         (ByteRange(start, s3Object.size), Finished)
@@ -507,8 +511,12 @@ class AlpakkaS3StreamClient(
         )
 
     try {
-      val source = configuredDownloadSource(byteRange)
-        .mapMaterializedValue(_ => NotUsed)
+      val source = downloadRangeSource(byteRange)
+        .recoverWithRetries(attempts = 2, {
+          case e: TcpIdleTimeoutException =>
+            logger.error("TCP Idle Timeout", e)
+            downloadRangeSource(byteRange)
+        })
       Future.successful(Some((nextState, source)))
     } catch {
       case _: Throwable =>
