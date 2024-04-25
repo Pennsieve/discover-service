@@ -8,6 +8,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.pennsieve.discover.{ utils, ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.client.sync.SyncClient
+import com.pennsieve.discover.clients.MockAthenaClient
 import com.pennsieve.discover.models.{ DatasetDownload, DownloadOrigin }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -137,6 +138,69 @@ class SyncHandlerSpec
             Some(DownloadOrigin.AWSRequesterPayer),
             Some("REQID2"),
             reqId2DownloadTimeInLocal
+          )
+        )
+    }
+
+    "skip Athena results with datasetID == 0 and set real version for a result with version == 0" in {
+      val ds1 = TestUtilities.createDatasetV1(ports.db)()
+      val ds1V2 = TestUtilities.createNewDatasetVersion(ports.db)(ds1.datasetId)
+
+      ports.athenaClient
+        .asInstanceOf[MockAthenaClient]
+        .datasetDownloadsForRange = Some(
+        List(
+          DatasetDownload(
+            ds1.datasetId,
+            ds1.version,
+            Some(DownloadOrigin.AWSRequesterPayer),
+            Some("REQID1"),
+            OffsetDateTime.of(2020, 11, 10, 10, 3, 1, 0, ZoneOffset.UTC)
+          ),
+          DatasetDownload(
+            ds1.datasetId,
+            0,
+            Some(DownloadOrigin.AWSRequesterPayer),
+            Some("REQID2"),
+            OffsetDateTime.of(2020, 11, 10, 10, 3, 6, 0, ZoneOffset.UTC)
+          ),
+          DatasetDownload(
+            0,
+            1,
+            Some(DownloadOrigin.AWSRequesterPayer),
+            Some("REQID3"),
+            OffsetDateTime.of(2020, 11, 10, 10, 3, 12, 0, ZoneOffset.UTC)
+          )
+        )
+      )
+
+      syncClient
+        .syncAthenaDownloads(
+          LocalDate.of(2020, 11, 10),
+          LocalDate.of(2020, 11, 11)
+        )
+        .await
+
+      val responseMetrics = TestUtilities.getDatasetDownloads(ports.db)(
+        LocalDate.of(2020, 11, 10),
+        LocalDate.of(2020, 11, 11)
+      )
+
+      responseMetrics shouldBe
+        List(
+          DatasetDownload(
+            ds1.datasetId,
+            ds1.version,
+            Some(DownloadOrigin.AWSRequesterPayer),
+            Some("REQID1"),
+            OffsetDateTime.of(2020, 11, 10, 10, 3, 1, 0, ZoneOffset.UTC)
+          ),
+          DatasetDownload(
+            ds1.datasetId,
+            ds1V2.version,
+            Some(DownloadOrigin.AWSRequesterPayer),
+            Some("REQID2"),
+            OffsetDateTime.of(2020, 11, 10, 10, 3, 6, 0, ZoneOffset.UTC)
           )
         )
     }
