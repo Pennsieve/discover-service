@@ -208,6 +208,10 @@ trait ServiceSpecHarness
       .requests
       .clear()
 
+    ports.athenaClient
+      .asInstanceOf[MockAthenaClient]
+      .reset()
+
     // Clear dataset tables
     ports.db
       .run(for {
