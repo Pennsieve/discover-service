@@ -1408,6 +1408,8 @@ components:
               format: date-time
             s3Version:
               type: string
+            sha256:
+              type: string
 
     Directory:
       description: A directory containing files in the dataset
@@ -1564,6 +1566,8 @@ components:
           type: string
         size:
           type: number
+        sha256:
+          type: string
 
     DataUseAgreementDTO:
       type: object

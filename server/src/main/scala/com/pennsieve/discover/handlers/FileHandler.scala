@@ -57,6 +57,9 @@ class FileHandler(
         case (total, _, Nil) =>
           GuardrailResource.GetFileFromSourcePackageIdResponse
             .NotFound(sourcePackageId)
+        case (_, None, _) =>
+          GuardrailResource.GetFileFromSourcePackageIdResponse
+            .NotFound(sourcePackageId)
         case (total, Some(organizationId), files) =>
           GuardrailResource.GetFileFromSourcePackageIdResponse
             .OK(
