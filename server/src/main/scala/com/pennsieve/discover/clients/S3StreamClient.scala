@@ -61,6 +61,7 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
 
 import scala.jdk.FunctionConverters._
+import scala.util.{ Failure, Success }
 
 final case class S3StreamObject(
   bucketName: String,
@@ -485,16 +486,20 @@ class AlpakkaS3StreamClient(
 
     def configuredDownloadSource(
       byteRange: ByteRange.Slice
-    ): Source[Option[(Source[ByteString, NotUsed], ObjectMetadata)], NotUsed] =
+    ): Source[ByteString, Future[ObjectMetadata]] =
       configuredSource(
         S3Bucket(s3Object.bucketName),
-        S3.download(
+        S3.getObject(
           s3Object.bucketName,
           s3Object.key,
           range = Some(byteRange),
           versionId = s3Object.versionId
         )
       )
+
+    def downloadRangeSource(byteRange: ByteRange.Slice) =
+      configuredDownloadSource(byteRange)
+        .mapMaterializedValue(_ => NotUsed)
 
     val (byteRange, nextState) =
       if ((start + chunkSizeBytes) >= s3Object.size)
@@ -505,21 +510,20 @@ class AlpakkaS3StreamClient(
           InProgress(start + chunkSizeBytes)
         )
 
-    configuredDownloadSource(byteRange)
-      .recoverWithRetries(attempts = 2, {
-        case e: TcpIdleTimeoutException =>
-          logger.error("TCP Idle Timeout", e)
-          configuredDownloadSource(byteRange)
-      })
-      .runWith(Sink.head)
-      .flatMap {
-        case Some((source, _)) =>
-          Future.successful(Some((nextState, source)))
-        case None =>
-          Future.failed(
-            S3Exception(S3Bucket(s3Object.bucketName), S3Key.File(s3Object.key))
-          )
-      }
+    try {
+      val source = downloadRangeSource(byteRange)
+        .recoverWithRetries(attempts = 2, {
+          case e: TcpIdleTimeoutException =>
+            logger.error("TCP Idle Timeout", e)
+            downloadRangeSource(byteRange)
+        })
+      Future.successful(Some((nextState, source)))
+    } catch {
+      case _: Throwable =>
+        Future.failed(
+          S3Exception(S3Bucket(s3Object.bucketName), S3Key.File(s3Object.key))
+        )
+    }
   }
 
   /**
@@ -977,20 +981,26 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] = {
-    S3.download(
-        bucket.value,
-        fileKey.value,
-        range = None,
-        versionId = s3Version,
-        s3Headers = s3Headers(isRequesterPays)
+    val s3Source: Source[ByteString, Future[ObjectMetadata]] = S3.getObject(
+      bucket.value,
+      fileKey.value,
+      range = None,
+      versionId = s3Version,
+      s3Headers = s3Headers(isRequesterPays)
+    )
+
+    val (metadataFuture, dataFuture) =
+      s3Source.toMat(Sink.head)(Keep.both).run()
+
+    for {
+      metadata <- metadataFuture.recoverWith(
+        _ => Future.failed(S3Exception(bucket, fileKey))
       )
-      .runWith(Sink.head)
-      .flatMap {
-        case Some((source, content)) =>
-          Future.successful((source, content.getContentLength))
-        case None =>
-          Future.failed(S3Exception(bucket, fileKey))
-      }
+      data <- dataFuture.recoverWith(
+        _ => Future.failed(S3Exception(bucket, fileKey))
+      )
+    } yield (Source.single(data), metadata.contentLength)
+
   }
 
   /**
