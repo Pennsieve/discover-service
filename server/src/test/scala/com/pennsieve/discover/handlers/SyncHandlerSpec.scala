@@ -115,18 +115,9 @@ class SyncHandlerSpec
         LocalDate.of(2020, 11, 11)
       )
 
-      // I believe the DB connection returns these values in the local time offset.
-      // Without the conversion to the local offset this test was failing locally on developer machines,
-      // but passing in CI where the system timezone is UTC.
-      val reqId2DownloadTimeInUTC =
+      val reqId2DownloadTimeInLocal = convertToLocalOffset(
         OffsetDateTime.of(2020, 11, 10, 19, 3, 1, 0, ZoneOffset.UTC)
-      val localOffset =
-        ZoneId
-          .systemDefault()
-          .getRules()
-          .getOffset(reqId2DownloadTimeInUTC.toInstant)
-      val reqId2DownloadTimeInLocal =
-        reqId2DownloadTimeInUTC.withOffsetSameInstant(localOffset)
+      )
 
       responseMetrics shouldBe
         List(
@@ -146,33 +137,30 @@ class SyncHandlerSpec
       val ds1 = TestUtilities.createDatasetV1(ports.db)()
       val ds1V2 = TestUtilities.createNewDatasetVersion(ports.db)(ds1.datasetId)
 
+      val req1 = DatasetDownload(
+        ds1.datasetId,
+        ds1.version,
+        Some(DownloadOrigin.AWSRequesterPayer),
+        Some("REQID1"),
+        OffsetDateTime.of(2020, 11, 10, 10, 3, 1, 0, ZoneOffset.UTC)
+      )
+      val req2 = DatasetDownload(
+        ds1.datasetId,
+        0,
+        Some(DownloadOrigin.AWSRequesterPayer),
+        Some("REQID2"),
+        OffsetDateTime.of(2020, 11, 10, 10, 3, 6, 0, ZoneOffset.UTC)
+      )
+      val req3 = DatasetDownload(
+        0,
+        1,
+        Some(DownloadOrigin.AWSRequesterPayer),
+        Some("REQID3"),
+        OffsetDateTime.of(2020, 11, 10, 10, 3, 12, 0, ZoneOffset.UTC)
+      )
       ports.athenaClient
         .asInstanceOf[MockAthenaClient]
-        .datasetDownloadsForRange = Some(
-        List(
-          DatasetDownload(
-            ds1.datasetId,
-            ds1.version,
-            Some(DownloadOrigin.AWSRequesterPayer),
-            Some("REQID1"),
-            OffsetDateTime.of(2020, 11, 10, 10, 3, 1, 0, ZoneOffset.UTC)
-          ),
-          DatasetDownload(
-            ds1.datasetId,
-            0,
-            Some(DownloadOrigin.AWSRequesterPayer),
-            Some("REQID2"),
-            OffsetDateTime.of(2020, 11, 10, 10, 3, 6, 0, ZoneOffset.UTC)
-          ),
-          DatasetDownload(
-            0,
-            1,
-            Some(DownloadOrigin.AWSRequesterPayer),
-            Some("REQID3"),
-            OffsetDateTime.of(2020, 11, 10, 10, 3, 12, 0, ZoneOffset.UTC)
-          )
-        )
-      )
+        .datasetDownloadsForRange = Some(List(req1, req2, req3))
 
       syncClient
         .syncAthenaDownloads(
@@ -188,21 +176,24 @@ class SyncHandlerSpec
 
       responseMetrics shouldBe
         List(
-          DatasetDownload(
-            ds1.datasetId,
-            ds1.version,
-            Some(DownloadOrigin.AWSRequesterPayer),
-            Some("REQID1"),
-            OffsetDateTime.of(2020, 11, 10, 10, 3, 1, 0, ZoneOffset.UTC)
-          ),
-          DatasetDownload(
-            ds1.datasetId,
-            ds1V2.version,
-            Some(DownloadOrigin.AWSRequesterPayer),
-            Some("REQID2"),
-            OffsetDateTime.of(2020, 11, 10, 10, 3, 6, 0, ZoneOffset.UTC)
+          req1.copy(downloadedAt = convertToLocalOffset(req1.downloadedAt)),
+          req2.copy(
+            version = ds1V2.version,
+            downloadedAt = convertToLocalOffset(req2.downloadedAt)
           )
         )
     }
+  }
+
+  // I believe the DB connection returns the downloadedAt values in DatasetDownloads in the local time offset.
+  // Without the conversion to the local offset tests were failing locally on developer machines,
+  // but passing in CI where the system timezone is UTC.
+  def convertToLocalOffset(utcTime: OffsetDateTime): OffsetDateTime = {
+    val localOffset =
+      ZoneId
+        .systemDefault()
+        .getRules()
+        .getOffset(utcTime.toInstant)
+    utcTime.withOffsetSameInstant(localOffset)
   }
 }
