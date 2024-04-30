@@ -116,7 +116,7 @@ class SyncHandlerSpec
       )
 
       val reqId2DownloadTimeInLocal = convertToLocalOffset(
-        OffsetDateTime.of(2020, 11, 10, 19, 3, 1, 0, ZoneOffset.UTC)
+        OffsetDateTime.of(2020, 11, 10, 19, 3, 1, 0, ZoneOffset.UTC) // this is the downloadedAt time of req2 which the MockAthenaClient will return
       )
 
       responseMetrics shouldBe
@@ -146,13 +146,13 @@ class SyncHandlerSpec
       )
       val req2 = DatasetDownload(
         ds1.datasetId,
-        0,
+        0, // this should be replaced by ds1V2.version when it is inserted into Postgres
         Some(DownloadOrigin.AWSRequesterPayer),
         Some("REQID2"),
         OffsetDateTime.of(2020, 11, 10, 10, 3, 6, 0, ZoneOffset.UTC)
       )
       val req3 = DatasetDownload(
-        0,
+        0, // this 0 means that it should be ignored since it cannot be inserted into Postgres (violates foreign key constraint)
         1,
         Some(DownloadOrigin.AWSRequesterPayer),
         Some("REQID3"),
