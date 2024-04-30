@@ -620,7 +620,7 @@ object PublicFileVersionsMapper
              AND v.dataset_id = $datasetId
              AND v.dataset_version = $datasetVersion
          ) as q
-         GROUP BY q.name, q.file_type, q.s3_key, q.source_package_id, s3_version
+         GROUP BY q.name, q.file_type, q.s3_key, q.source_package_id, s3_version, q.sha256
        ),
 
        -- Compute the total number of file + directory results, stored in the `size` column
