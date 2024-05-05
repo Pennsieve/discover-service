@@ -13,6 +13,8 @@ object DoiRedirect {
       getSPARCUrl(publicDataset.id, publicVersion.version)
     } else if (publicDataset.sourceOrganizationName == "RE-JOIN" && publicDiscoverUrl == "https://discover.pennsieve.io") {
       getSPARCUrl(publicDataset.id, publicVersion.version)
+    } else if (publicDataset.sourceOrganizationName == "HEAL PRECISION" && publicDiscoverUrl == "https://discover.pennsieve.io") {
+      getSPARCUrl(publicDataset.id, publicVersion.version)
     } else {
       getDiscoverUrl(publicDiscoverUrl, publicDataset.id, publicVersion.version)
     }
@@ -23,6 +25,8 @@ object DoiRedirect {
       Some("SPARC Consortium")
     } else if (publicDataset.sourceOrganizationName == "RE-JOIN") {
       Some("RE-JOIN Consortium")
+    } else if (publicDataset.sourceOrganizationName == "HEAL PRECISION") {
+      Some("HEAL PRECISION Consortium")
     } else {
       Some("Pennsieve Discover")
     }
