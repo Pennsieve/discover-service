@@ -248,6 +248,34 @@ class S3StreamClientSpec
       )
       sink.expectComplete()
     }
+
+    "generate stream for big files in S3 bucket" in {
+      val chunkSize = 4.kilobytes
+      val (client, bucket, _) = createClient(chunkSize = chunkSize)
+
+      val dataSize: Int = (13.5 * chunkSize).value.toInt
+      val data1 = Random.alphanumeric.filter(_.isDigit).take(dataSize).mkString
+      val data2 = Random.alphanumeric.filter(_.isDigit).take(dataSize).mkString
+      // Data is even multiple of chunk size
+      putObject(bucket, "0/1/files/big-file-1.txt", data1)
+      putObject(bucket, "0/1/files/big-file-2.txt", data2)
+
+      val sink = client
+        .datasetFilesSource(version(0, 1, bucket), "dataset", None)
+        .mapAsync(1) {
+          case (path, source) =>
+            source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))
+        }
+        .toMat(TestSink.probe)(Keep.right)
+        .run()
+
+      sink.request(n = 100)
+      sink.expectNextUnordered(
+        ("dataset/files/big-file-1.txt", ByteString(data1)),
+        ("dataset/files/big-file-2.txt", ByteString(data2))
+      )
+      sink.expectComplete()
+    }
   }
 
   "S3 metadata source" should {

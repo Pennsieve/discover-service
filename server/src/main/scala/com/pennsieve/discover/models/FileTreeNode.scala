@@ -25,7 +25,8 @@ object FileTreeNode {
     size: Long,
     sourcePackageId: Option[String],
     createdAt: Option[OffsetDateTime] = None,
-    s3Version: Option[String] = None
+    s3Version: Option[String] = None,
+    sha256: Option[String] = None
   ) extends FileTreeNode
 
   case class Directory(name: String, path: String, size: Long)
@@ -59,7 +60,8 @@ object FileTreeNode {
       file.size,
       file.sourcePackageId,
       Some(file.createdAt),
-      s3Version = None
+      s3Version = None,
+      sha256 = None
     )
   }
 
@@ -73,7 +75,8 @@ object FileTreeNode {
       file.size,
       file.sourcePackageId,
       Some(file.createdAt),
-      s3Version = Some(file.s3Version)
+      s3Version = Some(file.s3Version),
+      sha256 = file.sha256
     )
   }
 
@@ -90,7 +93,8 @@ object FileTreeNode {
       file.size,
       file.sourcePackageId,
       Some(file.createdAt),
-      s3Version = Some(file.s3Version)
+      s3Version = Some(file.s3Version),
+      sha256 = file.sha256
     )
   }
 }

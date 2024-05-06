@@ -18,7 +18,8 @@ case class PublicFileVersion(
   path: LTree,
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
-  datasetId: Int
+  datasetId: Int,
+  sha256: Option[String] = None
 )
 
 object PublicFileVersion {
