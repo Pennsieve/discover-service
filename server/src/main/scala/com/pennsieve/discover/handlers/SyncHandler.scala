@@ -77,7 +77,6 @@ class SyncHandler(
     val athenaDownloads =
       ports.athenaClient
         .getDatasetDownloadsForRange(startDate, realEndDate)
-        .filter(_.datasetId != 0) // prod and non-prod buckets have a /0 folder for testing, but which do not map to real datasets in the platform
     ports.log.info(
       s"got ${athenaDownloads.size} downloads from Athena; since start: ${sinceMillis(startNanos)} ms"
     )
