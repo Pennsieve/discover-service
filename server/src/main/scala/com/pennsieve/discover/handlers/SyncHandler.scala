@@ -51,13 +51,16 @@ class SyncHandler(
 
   private def lookupVersion(
     dd: DatasetDownload
-  ): DBIOAction[DatasetDownload, NoStream, Effect.Read] = {
+  ): DBIOAction[Option[DatasetDownload], NoStream, Effect.Read] = {
     if (dd.version != 0) {
-      DBIOAction.successful(dd)
+      DBIOAction.successful(Some(dd))
     } else {
       PublicDatasetVersionsMapper
         .getLatestVersion(dd.datasetId)
-        .map(v => dd.copy(version = v.map(_.version).getOrElse(0)))
+        .map {
+          case Some(dvv) => Some(dd.copy(version = dvv.version))
+          case None => None
+        }
     }
   }
 
@@ -95,7 +98,7 @@ class SyncHandler(
       )
 
       cleanDownloads = utils.cleanAthenaDownloads(
-        versionedAthenaDownloads,
+        versionedAthenaDownloads.flatten,
         databaseDownloads
       )
 

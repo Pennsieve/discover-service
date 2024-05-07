@@ -12,6 +12,7 @@ import com.pennsieve.discover.clients.MockAthenaClient
 import com.pennsieve.discover.models.{ DatasetDownload, DownloadOrigin }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.EitherValues._
 
 class SyncHandlerSpec
     extends AnyWordSpec
@@ -158,9 +159,16 @@ class SyncHandlerSpec
         Some("REQID3"),
         OffsetDateTime.of(2020, 11, 10, 10, 3, 12, 0, ZoneOffset.UTC)
       )
+      val req4 = DatasetDownload(
+        153, // There is no dataset with id == 153 in the DB, so this should be skipped, and syncAthenaDownloads should return a Right
+        0,
+        Some(DownloadOrigin.AWSRequesterPayer),
+        Some("REQID4"),
+        OffsetDateTime.of(2020, 11, 10, 10, 8, 12, 0, ZoneOffset.UTC)
+      )
       ports.athenaClient
         .asInstanceOf[MockAthenaClient]
-        .datasetDownloadsForRange = Some(List(req1, req2, req3))
+        .datasetDownloadsForRange = Some(List(req1, req2, req3, req4))
 
       syncClient
         .syncAthenaDownloads(
@@ -168,6 +176,7 @@ class SyncHandlerSpec
           LocalDate.of(2020, 11, 11)
         )
         .await
+        .value
 
       val responseMetrics = TestUtilities.getDatasetDownloads(ports.db)(
         LocalDate.of(2020, 11, 10),
