@@ -20,9 +20,13 @@ import com.pennsieve.discover.server.sync.{
 }
 
 import scala.concurrent.{ ExecutionContext, Future }
-import com.pennsieve.discover.db.DatasetDownloadsMapper
+import com.pennsieve.discover.db.{
+  DatasetDownloadsMapper,
+  PublicDatasetVersionsMapper
+}
 import com.pennsieve.discover.models.{ DatasetDownload, DownloadOrigin }
 import com.pennsieve.service.utilities.LogContext
+import slick.dbio.{ DBIOAction, Effect, NoStream }
 
 import java.util.UUID
 
@@ -45,6 +49,18 @@ class SyncHandler(
   def sinceMillis(startNanos: Long): Double =
     (System.nanoTime() - startNanos) / 1e6
 
+  private def lookupVersion(
+    dd: DatasetDownload
+  ): DBIOAction[DatasetDownload, NoStream, Effect.Read] = {
+    if (dd.version != 0) {
+      DBIOAction.successful(dd)
+    } else {
+      PublicDatasetVersionsMapper
+        .getLatestVersion(dd.datasetId)
+        .map(v => dd.copy(version = v.map(_.version).getOrElse(0)))
+    }
+  }
+
   override def syncAthenaDownloads(
     respond: GuardrailResource.SyncAthenaDownloadsResponse.type
   )(
@@ -56,7 +72,9 @@ class SyncHandler(
     val startNanos = System.nanoTime()
     val realEndDate = endDate.plusDays(1)
     val athenaDownloads =
-      ports.athenaClient.getDatasetDownloadsForRange(startDate, realEndDate)
+      ports.athenaClient
+        .getDatasetDownloadsForRange(startDate, realEndDate)
+        .filter(_.datasetId != 0) // prod and non-prod buckets have a /0 folder for testing, but which do not map to real datasets in the platform
     ports.log.info(
       s"got ${athenaDownloads.size} downloads from Athena; since start: ${sinceMillis(startNanos)} ms"
     )
@@ -72,8 +90,12 @@ class SyncHandler(
         s"got ${databaseDownloads.size} downloads from Postgres"
       )
 
+      versionedAthenaDownloads <- DBIO.sequence(
+        athenaDownloads.map(lookupVersion)
+      )
+
       cleanDownloads = utils.cleanAthenaDownloads(
-        athenaDownloads,
+        versionedAthenaDownloads,
         databaseDownloads
       )
 
@@ -100,6 +122,7 @@ class SyncHandler(
     ports.log.info(s"completed Athena sync in ${sinceMillis(startNanos)} ms")
     response
   }
+
 }
 
 object SyncHandler {
