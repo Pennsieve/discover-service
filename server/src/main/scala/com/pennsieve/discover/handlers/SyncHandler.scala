@@ -51,13 +51,16 @@ class SyncHandler(
 
   private def lookupVersion(
     dd: DatasetDownload
-  ): DBIOAction[DatasetDownload, NoStream, Effect.Read] = {
+  ): DBIOAction[Option[DatasetDownload], NoStream, Effect.Read] = {
     if (dd.version != 0) {
-      DBIOAction.successful(dd)
+      DBIOAction.successful(Some(dd))
     } else {
       PublicDatasetVersionsMapper
         .getLatestVersion(dd.datasetId)
-        .map(v => dd.copy(version = v.map(_.version).getOrElse(0)))
+        .map {
+          case Some(dvv) => Some(dd.copy(version = dvv.version))
+          case None => None
+        }
     }
   }
 
@@ -74,7 +77,6 @@ class SyncHandler(
     val athenaDownloads =
       ports.athenaClient
         .getDatasetDownloadsForRange(startDate, realEndDate)
-        .filter(_.datasetId != 0) // prod and non-prod buckets have a /0 folder for testing, but which do not map to real datasets in the platform
     ports.log.info(
       s"got ${athenaDownloads.size} downloads from Athena; since start: ${sinceMillis(startNanos)} ms"
     )
@@ -95,7 +97,7 @@ class SyncHandler(
       )
 
       cleanDownloads = utils.cleanAthenaDownloads(
-        versionedAthenaDownloads,
+        versionedAthenaDownloads.flatten,
         databaseDownloads
       )
 
