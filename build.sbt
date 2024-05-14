@@ -191,20 +191,12 @@ lazy val server = project
     docker / dockerfile := {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
-      new Dockerfile {
-        from("pennsieve/java-cloudwrap:10-jre-slim-0.5.9")
+      new SecureDockerfile("pennsieve/java-cloudwrap:10-jre-slim-0.5.9") {
         copy(artifact, artifactTargetPath, chown = "pennsieve:pennsieve")
         copy(
           baseDirectory.value / "bin" / "run.sh",
           "/app/run.sh",
           chown = "pennsieve:pennsieve"
-        )
-        run("mkdir", "-p", "/home/pennsieve/.postgresql")
-        run(
-          "wget",
-          "-qO",
-          "/home/pennsieve/.postgresql/root.crt",
-          "https://s3.amazonaws.com/rds-downloads/rds-ca-2019-root.pem"
         )
         run(
           "wget",
@@ -287,16 +279,8 @@ lazy val syncElasticSearch = project
     docker / dockerfile := {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
-      new Dockerfile {
-        from("pennsieve/java-cloudwrap:8-jre-alpine-0.5.9")
+      new SecureDockerfile("pennsieve/java-cloudwrap:8-jre-alpine-0.5.9") {
         copy(artifact, artifactTargetPath, chown = "pennsieve:pennsieve")
-        run("mkdir", "-p", "/home/pennsieve/.postgresql")
-        run(
-          "wget",
-          "-qO",
-          "/home/pennsieve/.postgresql/root.crt",
-          "https://s3.amazonaws.com/rds-downloads/rds-ca-2019-root.pem"
-        )
         // Reuse discover-service tag so this container has access to service's environment
         cmd(
           "--service",
