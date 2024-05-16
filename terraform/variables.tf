@@ -35,6 +35,10 @@ variable "sparc_glue_catalog" {
   default = "sparc_glue_catalog"
 }
 
+variable "rejoin_glue_catalog" {
+  default = "rejoin_glue_catalog"
+}
+
 locals {
   java_opts = [
     "-javaagent:/app/newrelic.jar",

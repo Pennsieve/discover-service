@@ -187,7 +187,15 @@ data "aws_iam_policy_document" "iam_policy_document" {
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish50_bucket_arn,
       "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish50_bucket_arn}/*",
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_arn,
-      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_arn}/*"
+      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo50_bucket_arn}/*",
+      data.terraform_remote_state.platform_infrastructure.outputs.rejoin_publish50_bucket_arn,
+      "${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_publish50_bucket_arn}/*",
+      data.terraform_remote_state.platform_infrastructure.outputs.rejoin_embargo50_bucket_arn,
+      "${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_embargo50_bucket_arn}/*",
+      data.terraform_remote_state.platform_infrastructure.outputs.precision_publish50_bucket_arn,
+      "${data.terraform_remote_state.platform_infrastructure.outputs.precision_publish50_bucket_arn}/*",
+      data.terraform_remote_state.platform_infrastructure.outputs.precision_embargo50_bucket_arn,
+      "${data.terraform_remote_state.platform_infrastructure.outputs.precision_embargo50_bucket_arn}/*"
     ]
   }
 
@@ -222,7 +230,10 @@ data "aws_iam_policy_document" "iam_policy_document" {
     sid       = "AssumeSPARCPublishBucketRole"
     effect    = "Allow"
     actions   = ["sts:AssumeRole"]
-    resources = [data.terraform_remote_state.platform_infrastructure.outputs.sparc_bucket_role_arn]
+    resources = [
+      data.terraform_remote_state.platform_infrastructure.outputs.sparc_bucket_role_arn,
+      data.terraform_remote_state.platform_infrastructure.outputs.rejoin_bucket_role_arn
+    ]
   }
 
   statement {
