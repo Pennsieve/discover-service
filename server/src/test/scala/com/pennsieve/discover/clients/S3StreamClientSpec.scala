@@ -295,6 +295,38 @@ class S3StreamClientSpec
 
       contentLength shouldBe 24
     }
+
+    "get manifest.json from S3 bucket" in {
+      val (client, bucket, _) = createClient()
+
+      val metadataContent = "{\"name\": \"Test Dataset\"}"
+
+      putObject(bucket, "0/1/manifest.json", "{\"name\": \"Test Dataset\"}")
+
+      val (content, contentLength) = client
+        .datasetMetadata(version(0, 1, bucket))
+        .awaitFinite()
+
+      content shouldEqual ByteString(metadataContent)
+      contentLength shouldBe 24
+    }
+
+    "get large manifest.json from S3 bucket" in {
+      val (client, bucket, _) = createClient()
+
+      val metadataContentLength = Random.between(192 * 1024, 256 * 1024)
+      val metadataContent =
+        Random.alphanumeric.take(metadataContentLength).mkString
+
+      putObject(bucket, "0/1/manifest.json", metadataContent)
+
+      val (content, contentLength) = client
+        .datasetMetadata(version(0, 1, bucket))
+        .awaitFinite()
+
+      content shouldEqual ByteString(metadataContent)
+      contentLength shouldBe metadataContentLength
+    }
   }
 
   "S3 readme source" should {
