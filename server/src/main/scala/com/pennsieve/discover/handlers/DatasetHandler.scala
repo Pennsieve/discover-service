@@ -716,20 +716,16 @@ class DatasetHandler(
       .run(query.transactionally)
       .flatMap {
         case (
-            dataset: PublicDataset,
-            version: PublicDatasetVersion,
+            _: PublicDataset,
+            _: PublicDatasetVersion,
             file: FileTreeNode.File
             ) =>
           ports.s3StreamClient
-            .datasetMetadataSource(file)
+            .datasetMetadata(file)
             .map {
-              case ((source, contentLength)) =>
+              case ((content, contentLength)) =>
                 HttpResponse(
-                  entity = HttpEntity(
-                    ContentTypes.`application/json`,
-                    contentLength,
-                    source
-                  )
+                  entity = HttpEntity(ContentTypes.`application/json`, content)
                 )
             }
         case (_, _, _) => ??? // TODO: do something better here

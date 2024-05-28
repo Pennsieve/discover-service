@@ -106,6 +106,13 @@ trait S3StreamClient {
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)]
 
+  def datasetMetadata(
+    file: FileTreeNode.File
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(ByteString, Long)]
+
   def datasetRecordSource(
     dataset: PublicDataset,
     version: PublicDatasetVersion
@@ -552,6 +559,32 @@ class AlpakkaS3StreamClient(
       isRequesterPays = true,
       file.s3Version
     )
+  }
+
+  def datasetMetadata(
+    file: FileTreeNode.File
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(ByteString, Long)] = {
+    val getObjectRequestBuilder = GetObjectRequest
+      .builder()
+      .bucket(file.s3Bucket.value)
+      .key(file.s3Key.value)
+      .requestPayer(RequestPayer.REQUESTER)
+
+    val getObjectRequest = file.s3Version match {
+      case Some(s3Version) =>
+        getObjectRequestBuilder
+          .versionId(s3Version)
+          .build()
+      case None =>
+        getObjectRequestBuilder.build()
+    }
+
+    val getObjectResponse = s3Client.getObjectAsBytes(getObjectRequest)
+    val byteString = ByteString(getObjectResponse.asByteArray())
+    Future.successful((byteString, byteString.length.toLong))
   }
 
   /**
