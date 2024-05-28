@@ -107,6 +107,13 @@ trait S3StreamClient {
   ): Future[(Source[ByteString, NotUsed], Long)]
 
   def datasetMetadata(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(ByteString, Long)]
+
+  def datasetMetadata(
     file: FileTreeNode.File
   )(implicit
     system: ActorSystem,
@@ -558,6 +565,32 @@ class AlpakkaS3StreamClient(
       file.s3Key,
       isRequesterPays = true,
       file.s3Version
+    )
+  }
+
+  /**
+    * get the manifest.json file from S3 for a dataset.
+    */
+  def datasetMetadata(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(ByteString, Long)] = {
+    // Note: this will get the latest that is on S3 for the Dataset Version
+    datasetMetadata(
+      FileTreeNode.File(
+        name = MANIFEST_FILE,
+        path = MANIFEST_FILE,
+        fileType = FileType.Json,
+        s3Key = metadataKey(version),
+        s3Bucket = version.s3Bucket,
+        size = -1,
+        sourcePackageId = None,
+        createdAt = None,
+        s3Version = None,
+        sha256 = None
+      )
     )
   }
 

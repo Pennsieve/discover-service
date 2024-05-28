@@ -117,6 +117,29 @@ class MockS3StreamClient extends S3StreamClient {
     )
 
   def datasetMetadata(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[(ByteString, Long)] = {
+    // Note: this will get the latest that is on S3 for the Dataset Version
+    datasetMetadata(
+      FileTreeNode.File(
+        name = "manifest.json",
+        path = "manifest.json",
+        fileType = FileType.Json,
+        s3Key = version.s3Key / "manifest.json",
+        s3Bucket = version.s3Bucket,
+        size = -1,
+        sourcePackageId = None,
+        createdAt = None,
+        s3Version = None,
+        sha256 = None
+      )
+    )
+  }
+
+  def datasetMetadata(
     file: FileTreeNode.File
   )(implicit
     system: ActorSystem,
