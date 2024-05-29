@@ -29,6 +29,7 @@ import com.pennsieve.discover.db.{
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.discover.server.definitions.DatasetPublishStatus
 import com.pennsieve.discover.TestUtilities
+import com.pennsieve.discover.notifications.SQSNotificationType.INDEX
 import com.pennsieve.doi.client.definitions._
 import com.sksamuel.elastic4s.circe._
 import io.circe.syntax._
@@ -689,4 +690,24 @@ class SQSNotificationHandlerSpec
       .asInstanceOf[MockPennsieveApiClient]
       .startReleaseRequests shouldBe empty
   }
+
+  "Discover Service SQS Queue Handler" should {
+    "index a published dataset" in {
+      val datasetVersion = TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = 1,
+        sourceDatasetId = 3,
+        status = PublishStatus.PublishSucceeded
+      )
+
+      processNotification(
+        IndexDatasetRequest(
+          jobType = INDEX,
+          datasetId = datasetVersion.version,
+          version = datasetVersion.version
+        )
+      ) shouldBe an[MessageAction.Delete]
+
+    }
+  }
+
 }
