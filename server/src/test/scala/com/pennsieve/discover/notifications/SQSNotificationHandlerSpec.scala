@@ -702,7 +702,7 @@ class SQSNotificationHandlerSpec
       processNotification(
         IndexDatasetRequest(
           jobType = INDEX,
-          datasetId = datasetVersion.version,
+          datasetId = datasetVersion.datasetId,
           version = datasetVersion.version
         )
       ) shouldBe an[MessageAction.Delete]
