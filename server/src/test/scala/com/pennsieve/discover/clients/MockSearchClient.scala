@@ -52,7 +52,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     collections: List[PublicCollection],
     externalPublications: List[PublicExternalPublication],
     sponsorship: Option[Sponsorship],
-    files: Source[PublicFile, NotUsed],
+    files: Source[PublicFileVersion, NotUsed],
     records: Source[Record, NotUsed],
     datasetIndex: Option[Index] = None,
     fileIndex: Option[Index] = None,
