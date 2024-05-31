@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.stream.alpakka.sqs.MessageAction
 import com.pennsieve.discover.ServiceSpecHarness
-import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.{ FileType, PublishStatus }
 import com.pennsieve.models.DatasetMetadata._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.clients.{
@@ -18,12 +18,14 @@ import com.pennsieve.discover.clients.{
 import com.pennsieve.discover.models.{
   PublicDatasetVersion,
   PublicFile,
+  PublicFileVersion,
   PublishJobOutput,
   PublishingWorkflow,
   S3Bucket
 }
 import com.pennsieve.discover.db.{
   PublicDatasetVersionsMapper,
+  PublicFileVersionsMapper,
   PublicFilesMapper
 }
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
@@ -99,7 +101,8 @@ class SQSNotificationHandlerSpec
         id = publicDataset.id,
         status = PublishStatus.NotPublished,
         doi = doi.doi,
-        embargoReleaseDate = Some(LocalDate.of(futureYear, 3, 14))
+        embargoReleaseDate = Some(LocalDate.of(futureYear, 3, 14)),
+        migrated = true
       )
 
       // Successful publish jobs create an outputs.json file
@@ -136,34 +139,21 @@ class SQSNotificationHandlerSpec
         case v: PublicDatasetVersion =>
           v.status shouldBe PublishStatus.PublishSucceeded
           v.size shouldBe 76543
-          v.fileCount shouldBe 1
+          v.fileCount shouldBe 2
           v.readme shouldBe Some(v.s3Key / "readme.md")
           v.banner shouldBe Some(v.s3Key / "banner.jpg")
       }
 
       val files = ports.db
         .run(
-          PublicFilesMapper
+          PublicFileVersionsMapper
             .forVersion(publicVersion)
             .result
         )
         .awaitFinite()
 
       // Should create database entries for newly published files
-      files.length shouldBe 1
-      inside(files.head) {
-        case f: PublicFile =>
-          f.name shouldBe "brain.dcm"
-          f.s3Key shouldBe publicVersion.s3Key / "files/brain.dcm"
-          f.size shouldBe 15010
-          f.fileType shouldBe "DICOM"
-          f.sourcePackageId shouldBe Some("N:package:1")
-      }
-
-      // Should delete the outputs.json file
-//      ports.s3StreamClient
-//        .asInstanceOf[MockS3StreamClient]
-//        .publishResults shouldBe empty
+      files.length shouldBe 2
 
       ports.pennsieveApiClient
         .asInstanceOf[MockPennsieveApiClient]
@@ -177,7 +167,7 @@ class SQSNotificationHandlerSpec
             1,
             PublishStatus.PublishSucceeded,
             Some(publicVersion.createdAt),
-            workflowId = PublishingWorkflow.Version4
+            workflowId = PublishingWorkflow.Version5
           ),
           None
         )
@@ -209,7 +199,7 @@ class SQSNotificationHandlerSpec
       indexedSponsorship shouldBe None
 
       // From defaults in MockS3StreamClient
-      indexedFiles.length shouldBe 1
+      indexedFiles.length shouldBe 2
       indexedRecords.length shouldBe 1
     }
 

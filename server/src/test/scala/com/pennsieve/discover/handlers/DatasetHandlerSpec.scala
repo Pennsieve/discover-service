@@ -1599,26 +1599,30 @@ class DatasetHandlerSpec
 
     "return toplevel files" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some(defaultS3VersionId)
       )
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file2.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some(defaultS3VersionId)
       )
-      val f3 = TestUtilities.createFile(ports.db)(
+      val f3 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "file3.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:2")
+        FileType.Text,
+        sourcePackageId = Some("N:package:2"),
+        s3Version = Some(defaultS3VersionId)
       )
 
       val response =
@@ -1640,7 +1644,8 @@ class DatasetHandlerSpec
                 s"s3://bucket/${f3.s3Key}",
                 PackageType.Text,
                 Icon.Text,
-                Some("N:package:2")
+                Some("N:package:2"),
+                s3Version = Some(defaultS3VersionId)
               )
           )
         )
@@ -1649,26 +1654,30 @@ class DatasetHandlerSpec
 
     "drop into a subdirectory" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some(defaultS3VersionId)
       )
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file2.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some(defaultS3VersionId)
       )
-      val f3 = TestUtilities.createFile(ports.db)(
+      val f3 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "file3.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:2")
+        FileType.Text,
+        sourcePackageId = Some("N:package:2"),
+        s3Version = Some(defaultS3VersionId)
       )
 
       val response =
@@ -1692,7 +1701,8 @@ class DatasetHandlerSpec
                 s"s3://bucket/${f1.s3Key}",
                 PackageType.Text,
                 Icon.Text,
-                Some("N:package:1")
+                Some("N:package:1"),
+                s3Version = Some(defaultS3VersionId)
               ),
             client.definitions
               .File(
@@ -1703,7 +1713,8 @@ class DatasetHandlerSpec
                 s"s3://bucket/${f2.s3Key}",
                 PackageType.Text,
                 Icon.Text,
-                Some("N:package:1")
+                Some("N:package:1"),
+                s3Version = Some(defaultS3VersionId)
               )
           )
         )
@@ -1726,32 +1737,37 @@ class DatasetHandlerSpec
 
     "return all files for a dataset" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some(defaultS3VersionId)
       )
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file2.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some(defaultS3VersionId)
       )
-      val f3 = TestUtilities.createFile(ports.db)(
+      val f3 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "file3.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:2")
+        FileType.Text,
+        sourcePackageId = Some("N:package:2"),
+        s3Version = Some(defaultS3VersionId)
       )
-      val f4 = TestUtilities.createFile(ports.db)(
+      val f4 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/B/file4.txt",
-        "TEXT",
-        sourcePackageId = Some("N:package:1")
+        FileType.Text,
+        sourcePackageId = Some("N:package:1"),
+        s3Version = Some(defaultS3VersionId)
       )
 
       val response =
@@ -1810,31 +1826,32 @@ class DatasetHandlerSpec
 
     "return the children AND grandchildren of a subdirectory" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1")
       )
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file2.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1")
       )
-      val f3 = TestUtilities.createFile(ports.db)(
+      val f3 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "file3.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:2")
       )
-      val f4 = TestUtilities.createFile(ports.db)(
+      val f4 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/B/file4.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1")
       )
 
@@ -1878,25 +1895,26 @@ class DatasetHandlerSpec
 
     "return only a specified file" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1")
       )
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file2.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1")
       )
-      val f3 = TestUtilities.createFile(ports.db)(
+      val f3 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "file3.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:2")
       )
 
@@ -1928,31 +1946,32 @@ class DatasetHandlerSpec
 
     "omit the root path from the returned paths if specified" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1")
       )
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file2.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1")
       )
-      val f3 = TestUtilities.createFile(ports.db)(
+      val f3 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "file3.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:2")
       )
-      val f4 = TestUtilities.createFile(ports.db)(
+      val f4 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/B/file4.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1")
       )
 
@@ -2021,7 +2040,8 @@ class DatasetHandlerSpec
 
     "return bad request if any path does not begin with the root path" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
       val response =
@@ -2041,20 +2061,21 @@ class DatasetHandlerSpec
 
     "return forbidden if the total size is too large" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
-      val f1 = TestUtilities.createFile(ports.db)(
+      val f1 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file1.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1"),
         size = Megabytes(260).toBytes.toLong // test limit is 512
       )
-      val f2 = TestUtilities.createFile(ports.db)(
+      val f2 = TestUtilities.createFileVersion(ports.db)(
         v1,
         "A/file2.txt",
-        "TEXT",
+        FileType.Text,
         sourcePackageId = Some("N:package:1"),
         size = Megabytes(260).toBytes.toLong // test limit is 512
       )
