@@ -94,6 +94,30 @@ class SQSNotificationHandler(
               Future.successful(MessageAction.Ignore(sqsMessage))
           }
 
+      case Right(message: IndexDatasetRequest) =>
+        implicit val logContext: LogContext =
+          DiscoverLogContext(
+            publicDatasetId = Some(message.datasetId),
+            publicDatasetVersion = Some(message.version)
+          )
+        ports.log.info(s"IndexDatasetRequest ${message}")
+
+        val query = for {
+          dataset <- PublicDatasetsMapper.getDataset(message.datasetId)
+
+          version <- PublicDatasetVersionsMapper.getVersion(
+            dataset.id,
+            message.version
+          )
+        } yield (dataset, version)
+
+        for {
+          (dataset, version) <- ports.db.run(query)
+
+          // Add dataset to search index
+          _ <- Search.indexDataset(dataset, version, ports)
+        } yield MessageAction.Delete(sqsMessage)
+
       case Right(message: JobDoneNotification) =>
         implicit val logContext: LogContext =
           DiscoverLogContext(

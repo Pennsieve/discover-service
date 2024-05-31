@@ -88,6 +88,11 @@ class MockS3StreamClient extends S3StreamClient {
   "@context" : "http://purl.org/dc/terms",
   "pennsieveSchemaVersion" : "3.0",
   "files" : [
+      {
+      "path" : "manifest.json",
+      "size" : 1234,
+      "fileType" : "Json"
+    },
     {
       "path" : "files/brain.dcm",
       "size" : 15010,

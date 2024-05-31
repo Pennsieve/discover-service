@@ -128,10 +128,10 @@ object Search extends StrictLogging {
       (contributors, collections, externalPublications, sponsorship, revision) <- ports.db
         .run(PublicDatasetVersionsMapper.getDatasetDetails(dataset, version))
 
-      files = if (version.underEmbargo) Source.empty[PublicFile]
+      files = if (version.underEmbargo) Source.empty[PublicFileVersion]
       else
         Source.fromPublisher(
-          PublicFilesMapper
+          PublicFileVersionsMapper
             .streamForVersion(version, ports.db)
         )
 
