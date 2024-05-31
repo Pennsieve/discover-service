@@ -86,7 +86,7 @@ object FileTreeNode {
   ): FileTreeNode = {
     File(
       file.name,
-      trimPath(file.s3Key, version.datasetId, version.version),
+      trimPath(file.s3Key, version.datasetId),
       utils.getFileType(file.fileType),
       file.s3Key,
       version.s3Bucket,
