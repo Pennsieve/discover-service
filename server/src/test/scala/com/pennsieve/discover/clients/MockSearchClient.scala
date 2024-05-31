@@ -27,7 +27,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
       PublicDatasetVersion,
       Option[Revision],
       Option[Sponsorship],
-      List[PublicFile],
+      List[PublicFileVersion],
       List[Record]
     )
   ] =
@@ -38,7 +38,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
           PublicDatasetVersion,
           Option[Revision],
           Option[Sponsorship],
-          List[PublicFile],
+          List[PublicFileVersion],
           List[Record]
         )
       ]

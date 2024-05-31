@@ -129,7 +129,8 @@ class DatasetHandlerSpec
 
     "optionally validate a JWT" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
       addMetadata(ports.db, v1)
 
@@ -191,7 +192,8 @@ class DatasetHandlerSpec
 
     "return 200 if the dataset is under embargo and user is authorized" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.EmbargoSucceeded
+        status = PublishStatus.EmbargoSucceeded,
+        migrated = true
       )
       addMetadata(ports.db, v1)
 
@@ -1354,7 +1356,8 @@ class DatasetHandlerSpec
 
     "return the file with a full s3 path passed" in {
       val v = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
       val f = TestUtilities.createFile(ports.db)(
@@ -1383,13 +1386,15 @@ class DatasetHandlerSpec
           createdAt = Some(f.createdAt),
           fileType = FileType.Text,
           packageType = PackageType.Text,
-          icon = utils.getIcon(FileType.Text)
+          icon = utils.getIcon(FileType.Text),
+          s3Version = Some(defaultS3VersionId)
         )
       )
     }
     "return the file with a s3 path without scheme and bucket" in {
       val v = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
       val f = TestUtilities.createFile(ports.db)(
@@ -1414,14 +1419,16 @@ class DatasetHandlerSpec
           createdAt = Some(f.createdAt),
           fileType = FileType.Text,
           packageType = PackageType.Text,
-          icon = utils.getIcon(FileType.Text)
+          icon = utils.getIcon(FileType.Text),
+          s3Version = Some(defaultS3VersionId)
         )
       )
     }
 
     "return the file with a s3 path without scheme and bucket and ignore the '/' begining a path" in {
       val v = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
       val f = TestUtilities.createFile(ports.db)(
@@ -1446,14 +1453,16 @@ class DatasetHandlerSpec
           createdAt = Some(f.createdAt),
           fileType = FileType.Text,
           packageType = PackageType.Text,
-          icon = utils.getIcon(FileType.Text)
+          icon = utils.getIcon(FileType.Text),
+          s3Version = Some(defaultS3VersionId)
         )
       )
     }
 
     "return the file with a s3 path without the datasetId and versionId parts" in {
       val v = TestUtilities.createDatasetV1(ports.db)(
-        status = PublishStatus.PublishSucceeded
+        status = PublishStatus.PublishSucceeded,
+        migrated = true
       )
 
       val f = TestUtilities.createFile(ports.db)(
@@ -1478,7 +1487,8 @@ class DatasetHandlerSpec
           createdAt = Some(f.createdAt),
           fileType = FileType.Text,
           packageType = PackageType.Text,
-          icon = utils.getIcon(FileType.Text)
+          icon = utils.getIcon(FileType.Text),
+          s3Version = Some(defaultS3VersionId)
         )
       )
     }
