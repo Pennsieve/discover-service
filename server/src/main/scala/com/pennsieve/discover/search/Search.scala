@@ -114,7 +114,8 @@ object Search extends StrictLogging {
     ports: Ports,
     datasetIndex: Option[Index] = None,
     fileIndex: Option[Index] = None,
-    recordIndex: Option[Index] = None
+    recordIndex: Option[Index] = None,
+    overwrite: Boolean = false
   )(implicit
     executionContext: ExecutionContext,
     system: ActorSystem,
@@ -157,7 +158,8 @@ object Search extends StrictLogging {
           records,
           datasetIndex = datasetIndex,
           fileIndex = fileIndex,
-          recordIndex = recordIndex
+          recordIndex = recordIndex,
+          overwrite = overwrite
         )
 
     } yield Done

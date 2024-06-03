@@ -9,7 +9,7 @@ import akka.stream.scaladsl._
 import com.pennsieve.discover.Config
 import com.pennsieve.discover.models._
 import com.pennsieve.models.FileManifest
-import com.sksamuel.elastic4s.ElasticDsl._
+import com.sksamuel.elastic4s.ElasticDsl.{ deleteByQuery, _ }
 import com.sksamuel.elastic4s.analysis.LanguageAnalyzers
 import com.sksamuel.elastic4s.{
   ElasticClient,
@@ -126,7 +126,8 @@ trait SearchClient {
     records: Source[Record, NotUsed],
     datasetIndex: Option[Index] = None,
     fileIndex: Option[Index] = None,
-    recordIndex: Option[Index] = None
+    recordIndex: Option[Index] = None,
+    overwrite: Boolean = false
   )(implicit
     executionContext: ExecutionContext,
     system: ActorSystem
@@ -295,7 +296,8 @@ class AwsElasticSearchClient(
     records: Source[Record, NotUsed],
     datasetIndex: Option[Index] = None,
     fileIndex: Option[Index] = None,
-    recordIndex: Option[Index] = None
+    recordIndex: Option[Index] = None,
+    overwrite: Boolean = false
   )(implicit
     executionContext: ExecutionContext,
     system: ActorSystem
@@ -314,6 +316,11 @@ class AwsElasticSearchClient(
 
     for {
       _ <- insertDataset(datasetDocument, datasetIndex)
+
+      _ <- overwrite match {
+        case true => prepareForOverwrite(dataset.id, version.version)
+        case false => Future.successful(())
+      }
 
       _ <- insertFileStream(
         files.map(FileDocument(_, datasetDocument)),
@@ -535,6 +542,37 @@ class AwsElasticSearchClient(
     }
 
     execute(deleteByQuery(index.getOrElse(recordAlias), query))
+  }
+
+  def prepareForOverwrite(
+    datasetId: Int,
+    version: Int,
+    filesIndex: Option[Index] = None,
+    recordsIndex: Option[Index] = None
+  ): Future[Unit] = {
+    val filesQuery = boolQuery()
+      .must(
+        termQuery("dataset.id", datasetId),
+        termQuery("dataset.version", version)
+      )
+    val recordsQuery = boolQuery()
+      .must(
+        termQuery("record.datasetId", datasetId),
+        termQuery("record.version", version)
+      )
+    for {
+      // remove files
+      _ <- execute(
+        deleteByQuery(filesIndex.getOrElse(fileAlias), filesQuery)
+          .refresh(deleteByQueryRefreshPolicy)
+      ).map(_ => Done)
+
+      // remove records
+      _ <- execute(
+        deleteByQuery(recordsIndex.getOrElse(recordAlias), recordsQuery)
+          .refresh(deleteByQueryRefreshPolicy)
+      ).map(_ => Done)
+    } yield ()
   }
 
   /**
