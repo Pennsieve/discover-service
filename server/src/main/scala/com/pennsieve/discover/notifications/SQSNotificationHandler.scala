@@ -115,7 +115,7 @@ class SQSNotificationHandler(
           (dataset, version) <- ports.db.run(query)
 
           // Add dataset to search index
-          _ <- Search.indexDataset(dataset, version, ports)
+          _ <- Search.indexDataset(dataset, version, ports, overwrite = true)
         } yield MessageAction.Delete(sqsMessage)
 
       case Right(message: JobDoneNotification) =>
