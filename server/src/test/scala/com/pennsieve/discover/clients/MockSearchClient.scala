@@ -56,7 +56,8 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     records: Source[Record, NotUsed],
     datasetIndex: Option[Index] = None,
     fileIndex: Option[Index] = None,
-    recordIndex: Option[Index] = None
+    recordIndex: Option[Index] = None,
+    overwrite: Boolean = false
   )(implicit
     executionContext: ExecutionContext,
     system: ActorSystem
