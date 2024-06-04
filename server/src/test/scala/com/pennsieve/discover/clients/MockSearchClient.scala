@@ -27,7 +27,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
       PublicDatasetVersion,
       Option[Revision],
       Option[Sponsorship],
-      List[PublicFile],
+      List[PublicFileVersion],
       List[Record]
     )
   ] =
@@ -38,7 +38,7 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
           PublicDatasetVersion,
           Option[Revision],
           Option[Sponsorship],
-          List[PublicFile],
+          List[PublicFileVersion],
           List[Record]
         )
       ]
@@ -52,11 +52,12 @@ class MockSearchClient extends SearchClient with AwaitableImplicits {
     collections: List[PublicCollection],
     externalPublications: List[PublicExternalPublication],
     sponsorship: Option[Sponsorship],
-    files: Source[PublicFile, NotUsed],
+    files: Source[PublicFileVersion, NotUsed],
     records: Source[Record, NotUsed],
     datasetIndex: Option[Index] = None,
     fileIndex: Option[Index] = None,
-    recordIndex: Option[Index] = None
+    recordIndex: Option[Index] = None,
+    overwrite: Boolean = false
   )(implicit
     executionContext: ExecutionContext,
     system: ActorSystem

@@ -3,6 +3,7 @@
 package com.pennsieve.discover.notifications
 
 import com.pennsieve.discover.models.S3Bucket
+import com.pennsieve.discover.notifications.SQSNotificationType.INDEX
 import com.pennsieve.models.PublishStatus
 import io.circe.parser.decode
 import org.scalatest.Suite
@@ -116,6 +117,21 @@ class SQSNotificationSpec extends AnyWordSpec with Suite with Matchers {
           |}""".stripMargin
 
       decode[SQSNotification](json) shouldBe Right(ScanForReleaseNotification())
+    }
+  }
+
+  "IndexDatasetRequest" should {
+    "decode notification from SQS" in {
+      val json =
+        """{
+          |  "job_type": "INDEX",
+          |  "dataset_id": 1,
+          |  "version": 1
+          |}""".stripMargin
+
+      decode[SQSNotification](json) shouldBe Right(
+        IndexDatasetRequest(jobType = INDEX, datasetId = 1, version = 1)
+      )
     }
   }
 }

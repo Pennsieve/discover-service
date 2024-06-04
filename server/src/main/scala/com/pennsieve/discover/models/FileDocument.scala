@@ -47,4 +47,19 @@ object FileDocument {
       ),
       datasetDocument.dataset
     )
+
+  def apply(
+    file: PublicFileVersion,
+    datasetDocument: DatasetDocument
+  ): FileDocument =
+    FileDocument(
+      FileManifest(
+        path = file.s3Key
+          .removeVersionPrefix(S3Key.Version(file.datasetId, -1, true)),
+        size = file.size,
+        fileType = getFileType(file.fileType),
+        sourcePackageId = file.sourcePackageId
+      ),
+      datasetDocument.dataset
+    )
 }

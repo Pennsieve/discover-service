@@ -114,7 +114,8 @@ object Search extends StrictLogging {
     ports: Ports,
     datasetIndex: Option[Index] = None,
     fileIndex: Option[Index] = None,
-    recordIndex: Option[Index] = None
+    recordIndex: Option[Index] = None,
+    overwrite: Boolean = false
   )(implicit
     executionContext: ExecutionContext,
     system: ActorSystem,
@@ -128,10 +129,10 @@ object Search extends StrictLogging {
       (contributors, collections, externalPublications, sponsorship, revision) <- ports.db
         .run(PublicDatasetVersionsMapper.getDatasetDetails(dataset, version))
 
-      files = if (version.underEmbargo) Source.empty[PublicFile]
+      files = if (version.underEmbargo) Source.empty[PublicFileVersion]
       else
         Source.fromPublisher(
-          PublicFilesMapper
+          PublicFileVersionsMapper
             .streamForVersion(version, ports.db)
         )
 
@@ -157,7 +158,8 @@ object Search extends StrictLogging {
           records,
           datasetIndex = datasetIndex,
           fileIndex = fileIndex,
-          recordIndex = recordIndex
+          recordIndex = recordIndex,
+          overwrite = overwrite
         )
 
     } yield Done

@@ -28,6 +28,8 @@ import scala.util.Random
 
 object TestUtilities extends AwaitableImplicits {
 
+  val defaultS3VersionId = "::S3VersionId::"
+
   /**
     * Create a temporary directory, and clean it up after the test is done.
     */
@@ -304,15 +306,20 @@ object TestUtilities extends AwaitableImplicits {
     sourcePackageId: Option[String] = None
   )(implicit
     executionContext: ExecutionContext
-  ): PublicFile =
+  ): PublicFileVersion =
     db.run(
-        PublicFilesMapper.create(
+        PublicFileVersionsMapper.createAndLink(
           version = version,
-          name = path.split("/").last,
-          fileType = fileType,
-          size = size,
-          s3Key = version.s3Key / path,
-          sourcePackageId = sourcePackageId
+          FileManifest(
+            path = path,
+            size = size,
+            fileType = FileType.Text,
+            sourcePackageId = None,
+            s3VersionId = version.migrated match {
+              case true => Some(defaultS3VersionId)
+              case false => None
+            }
+          )
         )
       )
       .awaitFinite()
