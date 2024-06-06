@@ -123,5 +123,6 @@ case class ExternalPublishBucketConfiguration(bucket: S3Bucket, roleArn: Arn)
 
 case class AthenaConfig(
   pennsieveBucketAccessTable: String,
-  sparcBucketAccessTable: String
+  sparcBucketAccessTable: String,
+  rejoinBucketAccessTable: String
 )

@@ -276,6 +276,37 @@ resource "aws_ssm_parameter" "sparc_bucket_role_arn" {
   type  = "String"
   value = data.terraform_remote_state.platform_infrastructure.outputs.sparc_bucket_role_arn
 }
+//    RE-JOIN
+resource "aws_ssm_parameter" "rejoin_publish_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/rejoin-publish-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.rejoin_publish50_bucket_id
+}
+
+resource "aws_ssm_parameter" "rejoin_embargo_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/rejoin-embargo-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.rejoin_embargo50_bucket_id
+}
+
+resource "aws_ssm_parameter" "rejoin_bucket_role_arn" {
+  name  = "/${var.environment_name}/${var.service_name}/rejoin-bucket-role-arn"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.rejoin_bucket_role_arn
+}
+//    Precision
+resource "aws_ssm_parameter" "precision_publish_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/precision-publish-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.precision_publish50_bucket_id
+}
+
+resource "aws_ssm_parameter" "precision_embargo_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/precision-embargo-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.precision_embargo50_bucket_id
+}
+
 
 // ATHENA CONFIGURATION
 resource "aws_ssm_parameter" "pennsieve_bucket_access_glue_table" {
@@ -288,6 +319,12 @@ resource "aws_ssm_parameter" "sparc_bucket_access_glue_table" {
   name  = "/${var.environment_name}/${var.service_name}/sparc-bucket-access-glue-table"
   type  = "String"
   value = "${var.sparc_glue_catalog}.${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_db}.${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_table}"
+}
+
+resource "aws_ssm_parameter" "rejoin_bucket_access_glue_table" {
+  name  = "/${var.environment_name}/${var.service_name}/rejoin-bucket-access-glue-table"
+  type  = "String"
+  value = "${var.sparc_glue_catalog}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_table}"
 }
 
 // SNS CONFIGURATION

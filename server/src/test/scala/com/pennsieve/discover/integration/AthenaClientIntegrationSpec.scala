@@ -30,7 +30,8 @@ class AthenaClientIntegrationSpec
 
       val athenaClient: AthenaClient = new AthenaClientImpl(
         pennsieveTable = config.athena.pennsieveBucketAccessTable,
-        sparcTable = config.athena.sparcBucketAccessTable
+        sparcTable = config.athena.sparcBucketAccessTable,
+        rejoinTable = config.athena.rejoinBucketAccessTable
       )
 
       val athenaDownloads = athenaClient.getDatasetDownloadsForRange(
