@@ -977,13 +977,16 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] = {
-    S3.download(
+    configuredSource(
+      bucket,
+      S3.download(
         bucket.value,
         fileKey.value,
         range = None,
         versionId = s3Version,
         s3Headers = s3Headers(isRequesterPays)
       )
+    )
       .runWith(Sink.head)
       .flatMap {
         case Some((source, content)) =>
