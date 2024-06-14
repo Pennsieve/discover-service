@@ -97,7 +97,14 @@ case class PublishNotification(
   datasetId: Int,
   status: PublishStatus, // TODO: remove this and send "success" boolean from step function
   version: Int,
-  error: Option[String] = None
+  error: Option[String] = None,
+  loadResultsFromS3: Option[Boolean] = Some(true),
+  updateDatasetStatus: Option[Boolean] = Some(true),
+  notifyPennsieve: Option[Boolean] = Some(true),
+  publishDoi: Option[Boolean] = Some(true),
+  storeFiles: Option[Boolean] = Some(true),
+  indexDataset: Option[Boolean] = Some(true),
+  runS3Clean: Option[Boolean] = Some(true)
 ) extends SQSNotification
     with JobDoneNotification {
 
