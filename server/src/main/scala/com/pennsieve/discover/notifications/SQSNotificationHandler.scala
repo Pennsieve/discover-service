@@ -262,6 +262,13 @@ class SQSNotificationHandler(
       metadata <- ports.s3StreamClient
         .readDatasetMetadata(version)
 
+      _ = ports.log.info(
+        s"handleSuccess() dataset: ${version.datasetId} version: ${version.version}"
+      )
+      _ = ports.log.info(
+        s"handleSuccess() publishResult: ${publishResult} (${metadata.files.length}) files"
+      )
+
       // Update the dataset version with the information in outputs.json
       updatedVersion <- ports.db.run(
         PublicDatasetVersionsMapper.setResultMetadata(
@@ -278,6 +285,7 @@ class SQSNotificationHandler(
         message.action
       ) match {
         case true =>
+          ports.log.info("handleSuccess() notify API")
           ports.pennsieveApiClient
             .putPublishComplete(publishStatus, None)
             .value
@@ -289,6 +297,7 @@ class SQSNotificationHandler(
         message.action
       ) match {
         case true =>
+          ports.log.info("handleSuccess() publish DOI")
           publishDoi(
             publicDataset,
             updatedVersion,
@@ -305,6 +314,7 @@ class SQSNotificationHandler(
         message.action
       ) match {
         case true =>
+          ports.log.info("handleSuccess() store files")
           updatedVersion.migrated match {
             case true =>
               // Publishing 5x
@@ -334,7 +344,9 @@ class SQSNotificationHandler(
         PublishNotificationAction.INDEX,
         message.action
       ) match {
-        case true => Search.indexDataset(publicDataset, updatedVersion, ports)
+        case true =>
+          ports.log.info("handleSuccess() index dataset")
+          Search.indexDataset(publicDataset, updatedVersion, ports)
         case _ => Future.successful(())
       }
 
@@ -344,6 +356,7 @@ class SQSNotificationHandler(
         message.action
       ) match {
         case true =>
+          ports.log.info("handleSuccess() run S3 clean")
           ports.lambdaClient.runS3Clean(
             updatedVersion.s3Key.value,
             updatedVersion.s3Bucket.value,
