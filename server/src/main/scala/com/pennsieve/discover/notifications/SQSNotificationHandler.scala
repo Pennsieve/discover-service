@@ -262,12 +262,14 @@ class SQSNotificationHandler(
       metadata <- ports.s3StreamClient
         .readDatasetMetadata(version)
 
-      _ = ports.log.info(
-        s"handleSuccess() dataset: ${version.datasetId} version: ${version.version}"
-      )
-      _ = ports.log.info(
-        s"handleSuccess() publishResult: ${publishResult} (${metadata.files.length}) files"
-      )
+      _ = {
+        ports.log.info(
+          s"handleSuccess() dataset: ${version.datasetId} version: ${version.version}"
+        )
+        ports.log.info(
+          s"handleSuccess() publishResult: ${publishResult} (${metadata.files.length} files)"
+        )
+      }
 
       // Update the dataset version with the information in outputs.json
       updatedVersion <- ports.db.run(
@@ -280,92 +282,57 @@ class SQSNotificationHandler(
           changelog = publishResult.changelogKey
         )
       )
-      _ <- PublishNotification.shouldPerform(
-        PublishNotificationAction.NOTIFY_API,
-        message.action
-      ) match {
-        case true =>
-          ports.log.info("handleSuccess() notify API")
-          ports.pennsieveApiClient
-            .putPublishComplete(publishStatus, None)
-            .value
-            .flatMap(_.fold(Future.failed, Future.successful))
-        case _ => Future.successful(())
-      }
-      _ <- PublishNotification.shouldPerform(
-        PublishNotificationAction.PUBLISH_DOI,
-        message.action
-      ) match {
-        case true =>
-          ports.log.info("handleSuccess() publish DOI")
-          publishDoi(
-            publicDataset,
-            updatedVersion,
-            contributors,
-            collections,
-            externalPublications
-          )
-        case _ => Future.successful(())
-      }
+
+      _ = ports.log.info("handleSuccess() notify API")
+      _ <- ports.pennsieveApiClient
+        .putPublishComplete(publishStatus, None)
+        .value
+        .flatMap(_.fold(Future.failed, Future.successful))
+
+      _ = ports.log.info("handleSuccess() publish DOI")
+      _ <- publishDoi(
+        publicDataset,
+        updatedVersion,
+        contributors,
+        collections,
+        externalPublications
+      )
 
       // Store files in Postgres
-      _ <- PublishNotification.shouldPerform(
-        PublishNotificationAction.STORE_FILES,
-        message.action
-      ) match {
+      _ = ports.log.info("handleSuccess() store files")
+      _ <- updatedVersion.migrated match {
         case true =>
-          ports.log.info("handleSuccess() store files")
-          updatedVersion.migrated match {
-            case true =>
-              // Publishing 5x
-              val manifestFile =
-                metadata.files.filter(_.path.equals("manifest.json")).head
-              val files = manifestFile.copy(
-                s3VersionId = publishResult.manifestVersion
-              ) :: metadata.files.filterNot(_.path.equals("manifest.json"))
+          // Publishing 5x
+          val manifestFile =
+            metadata.files.filter(_.path.equals("manifest.json")).head
+          val files = manifestFile.copy(
+            s3VersionId = publishResult.manifestVersion
+          ) :: metadata.files.filterNot(_.path.equals("manifest.json"))
 
-              updatedVersion.version match {
-                case 1 =>
-                  publishFirstVersion(updatedVersion, files)
-                case _ =>
-                  publishNextVersion(updatedVersion, files)
-              }
-            case false =>
-              // Publishing 4x
-              ports.db.run(
-                PublicFilesMapper.createMany(version, metadata.files)
-              )
+          updatedVersion.version match {
+            case 1 =>
+              publishFirstVersion(updatedVersion, files)
+            case _ =>
+              publishNextVersion(updatedVersion, files)
           }
-        case _ => Future.successful(())
+        case false =>
+          // Publishing 4x
+          ports.db.run(PublicFilesMapper.createMany(version, metadata.files))
       }
 
       // Add dataset to search index
-      _ <- PublishNotification.shouldPerform(
-        PublishNotificationAction.INDEX,
-        message.action
-      ) match {
-        case true =>
-          ports.log.info("handleSuccess() index dataset")
-          Search.indexDataset(publicDataset, updatedVersion, ports)
-        case _ => Future.successful(())
-      }
+      _ = ports.log.info("handleSuccess() index dataset")
+      _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
-      _ <- PublishNotification.shouldPerform(
-        PublishNotificationAction.S3_CLEAN,
-        message.action
-      ) match {
-        case true =>
-          ports.log.info("handleSuccess() run S3 clean")
-          ports.lambdaClient.runS3Clean(
-            updatedVersion.s3Key.value,
-            updatedVersion.s3Bucket.value,
-            updatedVersion.s3Bucket.value,
-            S3CleanupStage.Tidy,
-            updatedVersion.migrated
-          )
-        case _ => Future.successful(())
-      }
+      _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
+      _ <- ports.lambdaClient.runS3Clean(
+        updatedVersion.s3Key.value,
+        updatedVersion.s3Bucket.value,
+        updatedVersion.s3Bucket.value,
+        S3CleanupStage.Tidy,
+        updatedVersion.migrated
+      )
 
     } yield ()
 

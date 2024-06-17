@@ -29,20 +29,6 @@ object SQSNotificationType
 
 import SQSNotificationType._
 
-sealed trait PublishNotificationAction extends EnumEntry with Lowercase
-object PublishNotificationAction
-    extends Enum[PublishNotificationAction]
-    with CirceEnum[PublishNotificationAction] {
-  val values = findValues
-
-  case object ALL extends PublishNotificationAction
-  case object NOTIFY_API extends PublishNotificationAction
-  case object PUBLISH_DOI extends PublishNotificationAction
-  case object STORE_FILES extends PublishNotificationAction
-  case object INDEX extends PublishNotificationAction
-  case object S3_CLEAN extends PublishNotificationAction
-}
-
 /**
   * Generic job type that Discover reads from the SQS queue.
   *
@@ -111,8 +97,7 @@ case class PublishNotification(
   datasetId: Int,
   status: PublishStatus, // TODO: remove this and send "success" boolean from step function
   version: Int,
-  error: Option[String] = None,
-  action: PublishNotificationAction = PublishNotificationAction.ALL
+  error: Option[String] = None
 ) extends SQSNotification
     with JobDoneNotification {
 
@@ -157,21 +142,6 @@ object PublishNotification {
           )
         }
     }
-
-  def shouldPerform(
-    step: PublishNotificationAction,
-    requested: PublishNotificationAction
-  ): Boolean = {
-    import PublishNotificationAction._
-    def theSame(a: PublishNotificationAction, b: PublishNotificationAction) =
-      a == b
-
-    (step, requested) match {
-      case (_, ALL) => true
-      case (s, r) if theSame(s, r) => true
-      case (_, _) => false
-    }
-  }
 }
 
 /**
