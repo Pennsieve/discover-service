@@ -7,7 +7,7 @@ import com.pennsieve.models.PublishStatus
 import io.circe._
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder }
-import enumeratum.EnumEntry.UpperSnakecase
+import enumeratum.EnumEntry.{ Lowercase, UpperSnakecase }
 import enumeratum._
 
 /**
@@ -28,6 +28,20 @@ object SQSNotificationType
 }
 
 import SQSNotificationType._
+
+sealed trait PublishNotificationAction extends EnumEntry with Lowercase
+object PublishNotificationAction
+    extends Enum[PublishNotificationAction]
+    with CirceEnum[PublishNotificationAction] {
+  val values = findValues
+
+  case object ALL extends PublishNotificationAction
+  case object NOTIFY_API extends PublishNotificationAction
+  case object PUBLISH_DOI extends PublishNotificationAction
+  case object STORE_FILES extends PublishNotificationAction
+  case object INDEX extends PublishNotificationAction
+  case object S3_CLEAN extends PublishNotificationAction
+}
 
 /**
   * Generic job type that Discover reads from the SQS queue.
@@ -98,13 +112,7 @@ case class PublishNotification(
   status: PublishStatus, // TODO: remove this and send "success" boolean from step function
   version: Int,
   error: Option[String] = None,
-  loadResultsFromS3: Option[Boolean] = Some(true),
-  updateDatasetStatus: Option[Boolean] = Some(true),
-  notifyPennsieve: Option[Boolean] = Some(true),
-  publishDoi: Option[Boolean] = Some(true),
-  storeFiles: Option[Boolean] = Some(true),
-  indexDataset: Option[Boolean] = Some(true),
-  runS3Clean: Option[Boolean] = Some(true)
+  action: PublishNotificationAction = PublishNotificationAction.ALL
 ) extends SQSNotification
     with JobDoneNotification {
 
@@ -149,6 +157,21 @@ object PublishNotification {
           )
         }
     }
+
+  def shouldPerform(
+    step: PublishNotificationAction,
+    requested: PublishNotificationAction
+  ): Boolean = {
+    import PublishNotificationAction._
+    def theSame(a: PublishNotificationAction, b: PublishNotificationAction) =
+      a == b
+
+    (step, requested) match {
+      case (_, ALL) => true
+      case (s, r) if theSame(s, r) => true
+      case (_, _) => false
+    }
+  }
 }
 
 /**

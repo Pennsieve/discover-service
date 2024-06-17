@@ -272,51 +272,86 @@ class SQSNotificationHandler(
           changelog = publishResult.changelogKey
         )
       )
-      _ <- ports.pennsieveApiClient
-        .putPublishComplete(publishStatus, None)
-        .value
-        .flatMap(_.fold(Future.failed, Future.successful))
-
-      _ <- publishDoi(
-        publicDataset,
-        updatedVersion,
-        contributors,
-        collections,
-        externalPublications
-      )
+      _ <- PublishNotification.shouldPerform(
+        PublishNotificationAction.NOTIFY_API,
+        message.action
+      ) match {
+        case true =>
+          ports.pennsieveApiClient
+            .putPublishComplete(publishStatus, None)
+            .value
+            .flatMap(_.fold(Future.failed, Future.successful))
+        case _ => Future.successful(())
+      }
+      _ <- PublishNotification.shouldPerform(
+        PublishNotificationAction.PUBLISH_DOI,
+        message.action
+      ) match {
+        case true =>
+          publishDoi(
+            publicDataset,
+            updatedVersion,
+            contributors,
+            collections,
+            externalPublications
+          )
+        case _ => Future.successful(())
+      }
 
       // Store files in Postgres
-      _ <- updatedVersion.migrated match {
+      _ <- PublishNotification.shouldPerform(
+        PublishNotificationAction.STORE_FILES,
+        message.action
+      ) match {
         case true =>
-          // Publishing 5x
-          val manifestFile =
-            metadata.files.filter(_.path.equals("manifest.json")).head
-          val files = manifestFile.copy(
-            s3VersionId = publishResult.manifestVersion
-          ) :: metadata.files.filterNot(_.path.equals("manifest.json"))
+          updatedVersion.migrated match {
+            case true =>
+              // Publishing 5x
+              val manifestFile =
+                metadata.files.filter(_.path.equals("manifest.json")).head
+              val files = manifestFile.copy(
+                s3VersionId = publishResult.manifestVersion
+              ) :: metadata.files.filterNot(_.path.equals("manifest.json"))
 
-          updatedVersion.version match {
-            case 1 =>
-              publishFirstVersion(updatedVersion, files)
-            case _ =>
-              publishNextVersion(updatedVersion, files)
+              updatedVersion.version match {
+                case 1 =>
+                  publishFirstVersion(updatedVersion, files)
+                case _ =>
+                  publishNextVersion(updatedVersion, files)
+              }
+            case false =>
+              // Publishing 4x
+              ports.db.run(
+                PublicFilesMapper.createMany(version, metadata.files)
+              )
           }
-        case false =>
-          // Publishing 4x
-          ports.db.run(PublicFilesMapper.createMany(version, metadata.files))
+        case _ => Future.successful(())
       }
 
       // Add dataset to search index
-      _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
+      _ <- PublishNotification.shouldPerform(
+        PublishNotificationAction.INDEX,
+        message.action
+      ) match {
+        case true => Search.indexDataset(publicDataset, updatedVersion, ports)
+        case _ => Future.successful(())
+      }
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
-      _ <- ports.lambdaClient.runS3Clean(
-        updatedVersion.s3Key.value,
-        updatedVersion.s3Bucket.value,
-        updatedVersion.s3Bucket.value,
-        S3CleanupStage.Tidy,
-        updatedVersion.migrated
-      )
+      _ <- PublishNotification.shouldPerform(
+        PublishNotificationAction.S3_CLEAN,
+        message.action
+      ) match {
+        case true =>
+          ports.lambdaClient.runS3Clean(
+            updatedVersion.s3Key.value,
+            updatedVersion.s3Bucket.value,
+            updatedVersion.s3Bucket.value,
+            S3CleanupStage.Tidy,
+            updatedVersion.migrated
+          )
+        case _ => Future.successful(())
+      }
 
     } yield ()
 
