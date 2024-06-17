@@ -32,6 +32,7 @@ import com.pennsieve.discover.server.definitions.{
   DatasetPublishStatus,
   InternalContributor
 }
+import com.pennsieve.discover.utils.runSequentially
 import com.pennsieve.discover.{ Authenticator, Ports, UnauthorizedException }
 import com.pennsieve.doi.client.definitions.PublishDoiRequest
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
@@ -376,18 +377,21 @@ class SQSNotificationHandler(
   private def publishNextVersion(
     version: PublicDatasetVersion,
     files: List[FileManifest]
-  ): Future[Unit] =
+  ): Future[Unit] = {
+    def lookup(
+      file: FileManifest
+    )(implicit
+      version: PublicDatasetVersion
+    ): Future[PublicFileVersion] =
+      ports.db.run(PublicFileVersionsMapper.findOrCreate(version, file))
+    implicit val ver = version
     for {
-      fileVersions <- Future.sequence(
-        files.map(
-          file =>
-            ports.db.run(PublicFileVersionsMapper.findOrCreate(version, file))
-        )
-      )
+      fileVersions <- runSequentially(files)(lookup)
       _ <- ports.db.run(
         PublicDatasetVersionFilesTableMapper.storeLinks(version, fileVersions)
       )
     } yield ()
+  }
 
   private def handleFailure(
     notification: JobDoneNotification,
