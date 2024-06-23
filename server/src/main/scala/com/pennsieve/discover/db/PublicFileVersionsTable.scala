@@ -14,7 +14,6 @@ import com.pennsieve.discover.models.{
   FileTreeNode,
   PublicDatasetVersion,
   PublicDatasetVersionFile,
-  PublicDatasetVersionFileVersion,
   PublicFile,
   PublicFileVersion,
   ReleaseAction,
@@ -193,29 +192,6 @@ object PublicFileVersionsMapper
         .transactionally
     )
 
-//  def create(
-//    version: PublicDatasetVersion,
-//    name: String,
-//    fileType: String,
-//    size: Long,
-//    s3Key: S3Key.File,
-//    sourcePackageId: Option[String] = None
-//  )(implicit
-//    executionContext: ExecutionContext
-//  ): DBIOAction[
-//    PublicFile,
-//    NoStream,
-//    Effect.Read with Effect.Write with Effect.Transactional with Effect
-//  ] =
-//    (this returning this) += buildFile(
-//      version = version,
-//      name = name,
-//      fileType = fileType,
-//      size = size,
-//      s3Key = s3Key,
-//      sourcePackageId = sourcePackageId
-//    )
-
   def getFile(
     version: PublicDatasetVersion,
     path: S3Key.File
@@ -349,13 +325,6 @@ object PublicFileVersionsMapper
     } yield (allFileVersions)
   }
 
-  //  def forVersion(
-  //                  version: PublicDatasetVersion
-  //                ): Query[PublicFileVersionsTable, PublicFile, Seq] =
-  //    this
-  //      .filter(_.version === version.version)
-  //      .filter(_.datasetId === version.datasetId)
-
   def create(
     fileVersion: PublicFileVersion
   )(implicit
@@ -458,152 +427,6 @@ object PublicFileVersionsMapper
       case Success(s) => DBIO.successful(s)
     }.transactionally
   }
-
-  def insert(
-    pfv: PublicFileVersion
-  )(implicit
-    executionContext: ExecutionContext
-  ): DBIOAction[
-    Int,
-    NoStream,
-    Effect.Read with Effect.Write with Effect.Transactional
-  ] = {
-    val action = (
-      this
-        .filter(_.datasetId === pfv.datasetId)
-        .filter(_.s3Key === pfv.s3Key)
-        .filter(_.s3Version === pfv.s3Version)
-        .result
-        .headOption
-        .flatMap {
-          case Some(fileVersion) => DBIO.successful(fileVersion.id)
-          case None =>
-            (this returning this.map(_.id)) +=
-              PublicFileVersion(
-                name = pfv.name,
-                fileType = pfv.fileType,
-                size = pfv.size,
-                sourcePackageId = pfv.sourcePackageId,
-                sourceFileUUID = pfv.sourceFileUUID,
-                s3Key = pfv.s3Key,
-                s3Version = pfv.s3Version,
-                path = pfv.path,
-                datasetId = pfv.datasetId,
-                sha256 = pfv.sha256
-              )
-//            val item = id.map {
-//              id =>
-//                PublicFileVersion(
-//                  id = id,
-//                  name = pfv.name,
-//                  fileType = pfv.fileType,
-//                  size = pfv.size,
-//                  sourcePackageId = pfv.sourcePackageId,
-//                  sourceFileUUID = pfv.sourceFileUUID,
-//                  s3Key = pfv.s3Key,
-//                  s3Version = pfv.s3Version,
-//                  path = pfv.path,
-//                  datasetId = pfv.datasetId,
-//                  sha256 = pfv.sha256
-//                )
-//            }
-//            item
-        }
-      )
-      .transactionally
-    action
-  }
-
-//  def connect(
-//    versionAndFile: PublicDatasetVersionFileVersion
-//  )(implicit
-//    executionContext: ExecutionContext
-//  ): DBIOAction[
-//    PublicFileVersion,
-//    NoStream,
-//    Effect.Read with Effect.Write with Effect.Transactional
-//  ] = {
-//    val pfv = versionAndFile.file
-//    val version = versionAndFile.version
-//    val action = (
-//      this
-//        .filter(_.datasetId === pfv.datasetId)
-//        .filter(_.s3Key === pfv.s3Key)
-//        .filter(_.s3Version === pfv.s3Version)
-//        .result
-//        .headOption
-//        .flatMap {
-//          case Some(fileVersion) =>
-//            DBIO.successful(fileVersion)
-////            val item = (PublicDatasetVersionFilesTableMapper returning PublicDatasetVersionFilesTableMapper) += PublicDatasetVersionFile(
-////              version.datasetId,
-////              version.version,
-////              fileVersion.id
-////            )
-////            DBIO.successful(item.map(item => item.fileId))
-//          case None =>
-//            val item = (this returning this) +=
-//              PublicFileVersion(
-//                name = pfv.name,
-//                fileType = pfv.fileType,
-//                size = pfv.size,
-//                sourcePackageId = pfv.sourcePackageId,
-//                sourceFileUUID = pfv.sourceFileUUID,
-//                s3Key = pfv.s3Key,
-//                s3Version = pfv.s3Version,
-//                path = pfv.path,
-//                datasetId = pfv.datasetId,
-//                sha256 = pfv.sha256
-//              )
-//            item.map(item => DBIO.successful(item))
-////            val fileId = id.
-////            val item = id.map(
-////              id =>
-////                (PublicDatasetVersionFilesTableMapper returning PublicDatasetVersionFilesTableMapper) += PublicDatasetVersionFile(
-////                  version.datasetId,
-////                  version.version,
-////                  id
-////                )
-////            )
-////            DBIO.successful(item.map(item => item.map(item => item.fileId)))
-//        }
-//      )
-//      .transactionally
-//    action
-//  }
-
-//  def insertIfNotExists(productInput: ProductInput): Future[DBProduct] = {
-//
-//    val productAction = (
-//      products.filter(_.uuid===productInput.uuid).result.headOption.flatMap {
-//        case Some(product) =>
-//          mylog("product was there: " + product)
-//          DBIO.successful(product)
-//
-//        case None =>
-//          mylog("inserting product")
-//
-//          val productId =
-//            (products returning products.map(_.id)) += DBProduct(
-//              0,
-//              productInput.uuid,
-//              productInput.name,
-//              productInput.price
-//            )
-//
-//          val product = productId.map { id => DBProduct(
-//            id,
-//            productInput.uuid,
-//            productInput.name,
-//            productInput.price
-//          )
-//          }
-//          product
-//      }
-//      ).transactionally
-//
-//    db.run(productAction)
-//  }
 
   def setS3Version(
     fileVersion: PublicFileVersion,

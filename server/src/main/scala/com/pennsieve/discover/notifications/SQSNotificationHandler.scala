@@ -35,7 +35,6 @@ import com.pennsieve.discover.server.definitions.{
   DatasetPublishStatus,
   InternalContributor
 }
-import com.pennsieve.discover.utils.runSequentially
 import com.pennsieve.discover.{ Authenticator, Ports, UnauthorizedException }
 import com.pennsieve.doi.client.definitions.PublishDoiRequest
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }

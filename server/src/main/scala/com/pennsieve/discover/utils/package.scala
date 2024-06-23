@@ -7,7 +7,6 @@ import java.time.temporal.ChronoUnit
 import com.pennsieve.discover.models.DatasetDownload
 import com.pennsieve.models._
 import org.apache.commons.lang3.StringUtils
-import scala.concurrent._
 
 package object utils {
 
@@ -85,27 +84,4 @@ package object utils {
     }
   }
 
-  /**
-    * Executes asynchronous function on each item in the iterable sequentially (not in parallel)
-    * @param items: the iterable of items
-    * @param f: the asynchronous function that returns a Future
-    * @param ec: ExecutionContext
-    * @tparam T
-    * @tparam U
-    * @return Future with a List of Items
-    * @reference: https://stackoverflow.com/questions/20414500/how-to-do-sequential-execution-of-futures-in-scala
-    */
-  def runSequentially[T, U](
-    items: IterableOnce[T]
-  )(
-    f: T => Future[U]
-  )(implicit
-    ec: ExecutionContext
-  ): Future[List[U]] = {
-    items.iterator.foldLeft(Future.successful[List[U]](Nil)) { (acc, item) =>
-      acc.flatMap { x =>
-        f(item).map(_ :: x)
-      }
-    } map (_.reverse)
-  }
 }
