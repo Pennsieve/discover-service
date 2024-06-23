@@ -138,6 +138,7 @@ lazy val server = project
       "com.lightbend.akka" %% "akka-stream-alpakka-s3" % alpakkaVersion.value,
       "com.lightbend.akka" %% "akka-stream-alpakka-awslambda" % alpakkaVersion.value,
       "com.lightbend.akka" %% "akka-stream-alpakka-csv" % alpakkaVersion.value,
+      "com.lightbend.akka" %% "akka-stream-alpakka-slick" % alpakkaVersion.value,
       "software.amazon.awssdk" % "lambda" % awsSdkVersion,
       "software.amazon.awssdk" % "sfn" % awsSdkVersion,
       "software.amazon.awssdk" % "sns" % awsSdkVersion,

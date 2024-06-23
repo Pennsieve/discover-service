@@ -9,12 +9,15 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.alpakka.sqs.scaladsl.{ SqsAckSink, SqsSource }
-import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Source }
+import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Sink, Source }
 import akka.stream._
+import akka.stream.alpakka.slick.scaladsl.{ Slick, SlickSession }
 import cats.data._
 import cats.implicits._
+import com.github.tminglei.slickpg.LTree
 import com.pennsieve.discover.models.DoiRedirect
 import com.pennsieve.discover.db.{
+  profile,
   PublicCollectionsMapper,
   PublicContributorsMapper,
   PublicDatasetVersionFilesTableMapper,
@@ -271,7 +274,15 @@ class SQSNotificationHandler(
         )
       }
 
+      _ = println(
+        s"handleSuccess() dataset: ${version.datasetId} version: ${version.version}"
+      )
+      _ = println(
+        s"handleSuccess() publishResult: ${publishResult} (${metadata.files.length} files)"
+      )
+
       // Update the dataset version with the information in outputs.json
+      _ = println(s"handleSuccess() updating result metadata")
       updatedVersion <- ports.db.run(
         PublicDatasetVersionsMapper.setResultMetadata(
           version = version,
@@ -282,13 +293,17 @@ class SQSNotificationHandler(
           changelog = publishResult.changelogKey
         )
       )
+      _ = println(s"handleSuccess() updated result metadata")
 
+      _ = println(s"handleSuccess() notify API")
       _ = ports.log.info("handleSuccess() notify API")
       _ <- ports.pennsieveApiClient
         .putPublishComplete(publishStatus, None)
         .value
         .flatMap(_.fold(Future.failed, Future.successful))
+      _ = println(s"handleSuccess() notified API")
 
+      _ = println(s"handleSuccess() publish DOI")
       _ = ports.log.info("handleSuccess() publish DOI")
       _ <- publishDoi(
         publicDataset,
@@ -297,12 +312,15 @@ class SQSNotificationHandler(
         collections,
         externalPublications
       )
+      _ = println(s"handleSuccess() published DOI")
 
       // Store files in Postgres
+      _ = println(s"handleSuccess() store files")
       _ = ports.log.info("handleSuccess() store files")
       _ <- updatedVersion.migrated match {
         case true =>
           // Publishing 5x
+          println(s"handleSuccess() storing files: Publishing 5x")
           val manifestFile =
             metadata.files.filter(_.path.equals("manifest.json")).head
           val files = manifestFile.copy(
@@ -311,20 +329,31 @@ class SQSNotificationHandler(
 
           updatedVersion.version match {
             case 1 =>
+              println(
+                s"handleSuccess() storing files: Publishing 5x - first publication"
+              )
               publishFirstVersion(updatedVersion, files)
             case _ =>
-              publishNextVersion(updatedVersion, files)
+              println(
+                s"handleSuccess() storing files: Publishing 5x - subsequent publication"
+              )
+              publishNextVersionV3(updatedVersion, files)
           }
         case false =>
           // Publishing 4x
+          println(s"handleSuccess() storing files: Publishing 5x")
           ports.db.run(PublicFilesMapper.createMany(version, metadata.files))
       }
+      _ = println(s"handleSuccess() stored files")
 
       // Add dataset to search index
+      _ = println(s"handleSuccess() index dataset")
       _ = ports.log.info("handleSuccess() index dataset")
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
+      _ = println(s"handleSuccess() indexed dataset")
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
+      _ = println(s"handleSuccess() run S3 clean: TIDY")
       _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
       _ <- ports.lambdaClient.runS3Clean(
         updatedVersion.s3Key.value,
@@ -333,31 +362,131 @@ class SQSNotificationHandler(
         S3CleanupStage.Tidy,
         updatedVersion.migrated
       )
-
+      _ = println(s"handleSuccess() done")
     } yield ()
 
   private def publishFirstVersion(
     version: PublicDatasetVersion,
     files: List[FileManifest]
   ): Future[Unit] = {
+
+    implicit val slickSessionCreatedForDbAndProfile: SlickSession =
+      SlickSession.forDbAndProfile(ports.db, profile)
+
     val queryFindAll = for {
       allFileVersions <- PublicFileVersionsMapper.getAll(version.datasetId)
     } yield (allFileVersions)
 
     for {
-      _ <- ports.db.run(PublicFileVersionsMapper.createMany(version, files))
-      allFileVersions <- ports.db.run(queryFindAll)
-      _ <- ports.db.run(
-        PublicDatasetVersionFilesTableMapper
-          .storeLinks(version, allFileVersions)
+      _ <- Future.successful(
+        println(
+          s"publishFirstVersion() dataset ${version.datasetId} version ${version.version} (${files.length} files)"
+        )
       )
+
+//      publicDataset <- ports.db.run(
+//        PublicDatasetsMapper.getDataset(version.datasetId)
+//      )
+//      _ = println(s"publishFirstVersion() publicDataset: ${publicDataset}")
+//
+//      publicDatasetVersion <- ports.db.run(
+//        PublicDatasetVersionsMapper
+//          .getVersion(version.datasetId, version.version)
+//      )
+//      _ = println(
+//        s"publishFirstVersion() publicDatasetVersion: ${publicDatasetVersion}"
+//      )
+
+      _ = println(s"publishFirstVersion() creating many file versions")
+      //_ <- ports.db.run(PublicFileVersionsMapper.createMany(version, files))
+
+//      allFileVersions <- Source(files)
+//        .via(
+//          Slick.flowWithPassThrough(
+//            parallelism = 4,
+//            file => PublicFileVersionsMapper.createOne(version, file)
+//          )
+//        )
+//        .runWith(Sink.seq)
+//      _ = println(
+//        s"publishFirstVersion() created ${allFileVersions.length} file versions"
+//      )
+
+      // _ = println(s"publishFirstVersion() finding all file versions")
+      // allFileVersions <- ports.db.run(queryFindAll)
+      // fileIds = allFileVersions.map(_.id).sorted
+      // _ = println(s"publishFirstVersion() fileIds: ${fileIds}")
+//      _ = println(s"publishFirstVersion() storing links")
+//      _ <- ports.db.run(
+//        PublicDatasetVersionFilesTableMapper
+//          .storeLinks(version, allFileVersions)
+//      )
+
+//      allFileVersionLinks <- Source(allFileVersions)
+//        .via(
+//          Slick.flowWithPassThrough(
+//            parallelism = 4,
+//            file =>
+//              PublicDatasetVersionFilesTableMapper
+//                .storeLink(version, file)
+//          )
+//        )
+//        .runWith(Sink.seq)
+//      _ = println(
+//        s"publishFirstVersion() stored ${allFileVersionLinks.length} links"
+//      )
+
+      fileVersionLinks <- Source(files)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 4,
+            file => PublicFileVersionsMapper.createOne(version, file)
+          )
+        )
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 4,
+            pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(version, pfv)
+          )
+        )
+        .runWith(Sink.seq)
+      _ = println(
+        s"publishFirstVersion() created ${fileVersionLinks.length} file versions and links"
+      )
+
     } yield ()
   }
 
   private def publishNextVersion(
     version: PublicDatasetVersion,
     files: List[FileManifest]
+  ): Future[Unit] =
+    for {
+      _ <- Future.successful(
+        println(
+          s"publishNextVersionV() dataset ${version.datasetId} version ${version.version} (${files.length} files"
+        )
+      )
+      _ = println(s"publishNextVersionV() find or create")
+      fileVersions <- Future.sequence(
+        files.map(
+          file =>
+            ports.db.run(PublicFileVersionsMapper.findOrCreate(version, file))
+        )
+      )
+      _ = println(s"publishNextVersionV() store links")
+      _ <- ports.db.run(
+        PublicDatasetVersionFilesTableMapper.storeLinks(version, fileVersions)
+      )
+    } yield ()
+
+  private def publishNextVersionV2(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
   ): Future[Unit] = {
+
     def lookup(
       file: FileManifest
     )(implicit
@@ -366,10 +495,89 @@ class SQSNotificationHandler(
       ports.db.run(PublicFileVersionsMapper.findOrCreate(version, file))
     implicit val ver = version
     for {
+      _ <- Future.successful(
+        println(
+          s"publishNextVersionV2() dataset ${version.datasetId} version ${version.version} (${files.length} files"
+        )
+      )
+      _ = println(s"publishNextVersionV2() lookup: find or create")
       fileVersions <- runSequentially(files)(lookup)
+      _ = println(s"publishNextVersionV2() store links")
       _ <- ports.db.run(
         PublicDatasetVersionFilesTableMapper.storeLinks(version, fileVersions)
       )
+    } yield ()
+  }
+
+  private def publishNextVersionV3(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  ): Future[Unit] = {
+    val pfvs = files.map(
+      file =>
+        PublicFileVersion(
+          name = file.name,
+          fileType = file.fileType.toString,
+          size = file.size,
+          sourcePackageId = file.sourcePackageId,
+          sourceFileUUID = None,
+          s3Key = version.s3Key / file.path,
+          s3Version = file.s3VersionId.getOrElse("missing"),
+          path = LTree(
+            PublicFileVersionsMapper
+              .convertPathToTree(version.s3Key / file.path)
+          ),
+          datasetId = version.datasetId,
+          sha256 = file.sha256
+        )
+    )
+
+//    val insertIfNotExists: Flow[PublicFileVersion, PublicFileVersion, NotUsed] =
+//      Flow[PublicFileVersion].map(
+//        pfv => ports.db.run(PublicFileVersionsMapper.insert(pfv))
+//      )
+
+//    for {
+//      _ <- Source(pfvs)
+//        .mapAsync(1)(pfv => {
+//          ports.db.run(PublicFileVersionsMapper.insert(pfv))
+//        })
+//        .runWith(Sink.seq)
+//
+//    } yield ()
+
+    implicit val slickSessionCreatedForDbAndProfile: SlickSession =
+      SlickSession.forDbAndProfile(ports.db, profile)
+
+    for {
+//      fileIds <- Source(pfvs)
+//        .via(
+//          Slick
+//            .flow(parallelism = 4, pfv => PublicFileVersionsMapper.insert(pfv))
+//        )
+//        .runWith(Sink.seq)
+//      //_ = println(s"publishNextVersionV3() fileIds: ${fileIds.toList.sorted}")
+//      // TODO: link the fileIds to the dataset version
+      fileVersionLinks <- Source(files)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 4,
+            file => PublicFileVersionsMapper.findOrCreate(version, file)
+          )
+        )
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 4,
+            pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(version, pfv)
+          )
+        )
+        .runWith(Sink.seq)
+      _ = println(
+        s"publishNextVersionV3() stored and linked ${fileVersionLinks.length}"
+      )
+
     } yield ()
   }
 

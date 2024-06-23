@@ -25,3 +25,8 @@ case class PublicFileVersion(
 object PublicFileVersion {
   val tupled = (this.apply _).tupled
 }
+
+case class PublicDatasetVersionFileVersion(
+  version: PublicDatasetVersion,
+  file: PublicFileVersion
+)
