@@ -35,6 +35,22 @@ object PublicDatasetVersionFilesTableMapper
     ) {
 
   def storeLink(
+    datasetId: Int,
+    datasetVersion: Int,
+    fileId: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    PublicDatasetVersionFile,
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect
+  ] = (this returning this) += PublicDatasetVersionFile(
+    datasetId = datasetId,
+    datasetVersion = datasetVersion,
+    fileId = fileId
+  )
+
+  def storeLink(
     version: PublicDatasetVersion,
     fileVersion: PublicFileVersion
   )(implicit

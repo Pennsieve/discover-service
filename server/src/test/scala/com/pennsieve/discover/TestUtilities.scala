@@ -352,6 +352,49 @@ object TestUtilities extends AwaitableImplicits {
       )
       .awaitFinite()
 
+  def assetFiles(): List[FileManifest] = List(
+    FileManifest(
+      name = "banner.jpg",
+      path = "banner.jpg",
+      size = TestUtilities.randomInteger(16 * 1024),
+      fileType = FileType.JPEG,
+      sourcePackageId = None,
+      id = None,
+      s3VersionId = Some(TestUtilities.randomString()),
+      sha256 = Some(TestUtilities.randomString())
+    ),
+    FileManifest(
+      name = "readme.md",
+      path = "readme.md",
+      size = TestUtilities.randomInteger(16 * 1024),
+      fileType = FileType.Markdown,
+      sourcePackageId = None,
+      id = None,
+      s3VersionId = Some(TestUtilities.randomString()),
+      sha256 = Some(TestUtilities.randomString())
+    ),
+    FileManifest(
+      name = "changelog.md",
+      path = "changelog.md",
+      size = TestUtilities.randomInteger(16 * 1024),
+      fileType = FileType.Markdown,
+      sourcePackageId = None,
+      id = None,
+      s3VersionId = Some(TestUtilities.randomString()),
+      sha256 = Some(TestUtilities.randomString())
+    ),
+    FileManifest(
+      name = "manifest.json",
+      path = "manifest.json",
+      size = TestUtilities.randomInteger(16 * 1024),
+      fileType = FileType.Json,
+      sourcePackageId = None,
+      id = None,
+      s3VersionId = Some(TestUtilities.randomString()),
+      sha256 = Some(TestUtilities.randomString())
+    )
+  )
+
   def createDatasetDownloadRow(
     db: Database
   )(

@@ -9,12 +9,15 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.alpakka.sqs.scaladsl.{ SqsAckSink, SqsSource }
-import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Source }
+import akka.stream.scaladsl.{ Flow, Keep, RunnableGraph, Sink, Source }
 import akka.stream._
+import akka.stream.alpakka.slick.scaladsl.{ Slick, SlickSession }
 import cats.data._
 import cats.implicits._
+import com.github.tminglei.slickpg.LTree
 import com.pennsieve.discover.models.DoiRedirect
 import com.pennsieve.discover.db.{
+  profile,
   PublicCollectionsMapper,
   PublicContributorsMapper,
   PublicDatasetVersionFilesTableMapper,
@@ -63,7 +66,6 @@ class SQSNotificationHandler(
   executionContext: ExecutionContext,
   system: ActorSystem
 ) {
-
   implicit val sqsClient: SqsAsyncClient = ports.sqsClient
 
   def graph(): RunnableGraph[UniqueKillSwitch] = {
@@ -258,8 +260,13 @@ class SQSNotificationHandler(
       // Read the outputs.json file in S3
       publishResult <- ports.s3StreamClient
         .readPublishJobOutput(version)
+      // Read the metadata (manifest.json) file from S3
       metadata <- ports.s3StreamClient
         .readDatasetMetadata(version)
+
+      _ = ports.log.info(
+        s"handleSuccess() publishResult: ${publishResult} (${metadata.files.length} files)"
+      )
 
       // Update the dataset version with the information in outputs.json
       updatedVersion <- ports.db.run(
@@ -272,11 +279,14 @@ class SQSNotificationHandler(
           changelog = publishResult.changelogKey
         )
       )
+
+      _ = ports.log.info("handleSuccess() notify API")
       _ <- ports.pennsieveApiClient
         .putPublishComplete(publishStatus, None)
         .value
         .flatMap(_.fold(Future.failed, Future.successful))
 
+      _ = ports.log.info("handleSuccess() publish DOI")
       _ <- publishDoi(
         publicDataset,
         updatedVersion,
@@ -286,6 +296,7 @@ class SQSNotificationHandler(
       )
 
       // Store files in Postgres
+      _ = ports.log.info("handleSuccess() store files")
       _ <- updatedVersion.migrated match {
         case true =>
           // Publishing 5x
@@ -297,9 +308,15 @@ class SQSNotificationHandler(
 
           updatedVersion.version match {
             case 1 =>
-              publishFirstVersion(updatedVersion, files)
+              publishFirstVersion(updatedVersion, files)(
+                ports.slickSession,
+                logContext
+              )
             case _ =>
-              publishNextVersion(updatedVersion, files)
+              publishNextVersion(updatedVersion, files)(
+                ports.slickSession,
+                logContext
+              )
           }
         case false =>
           // Publishing 4x
@@ -307,9 +324,11 @@ class SQSNotificationHandler(
       }
 
       // Add dataset to search index
+      _ = ports.log.info("handleSuccess() index dataset")
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
+      _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
       _ <- ports.lambdaClient.runS3Clean(
         updatedVersion.s3Key.value,
         updatedVersion.s3Bucket.value,
@@ -317,23 +336,34 @@ class SQSNotificationHandler(
         S3CleanupStage.Tidy,
         updatedVersion.migrated
       )
-
     } yield ()
 
   private def publishFirstVersion(
     version: PublicDatasetVersion,
     files: List[FileManifest]
+  )(implicit
+    slickSession: SlickSession,
+    logContext: LogContext
   ): Future[Unit] = {
-    val queryFindAll = for {
-      allFileVersions <- PublicFileVersionsMapper.getAll(version.datasetId)
-    } yield (allFileVersions)
-
     for {
-      _ <- ports.db.run(PublicFileVersionsMapper.createMany(version, files))
-      allFileVersions <- ports.db.run(queryFindAll)
-      _ <- ports.db.run(
-        PublicDatasetVersionFilesTableMapper
-          .storeLinks(version, allFileVersions)
+      fileVersionLinks <- Source(files)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            file => PublicFileVersionsMapper.createOne(version, file)
+          )
+        )
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(version, pfv)
+          )
+        )
+        .runWith(Sink.seq)
+      _ = ports.log.info(
+        s"publishFirstVersion() stored ${fileVersionLinks.length} files and links"
       )
     } yield ()
   }
@@ -341,18 +371,32 @@ class SQSNotificationHandler(
   private def publishNextVersion(
     version: PublicDatasetVersion,
     files: List[FileManifest]
-  ): Future[Unit] =
+  )(implicit
+    slickSession: SlickSession,
+    logContext: LogContext
+  ): Future[Unit] = {
     for {
-      fileVersions <- Future.sequence(
-        files.map(
-          file =>
-            ports.db.run(PublicFileVersionsMapper.findOrCreate(version, file))
+      fileVersionLinks <- Source(files)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            file => PublicFileVersionsMapper.findOrCreate(version, file)
+          )
         )
-      )
-      _ <- ports.db.run(
-        PublicDatasetVersionFilesTableMapper.storeLinks(version, fileVersions)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(version, pfv)
+          )
+        )
+        .runWith(Sink.seq)
+      _ = ports.log.info(
+        s"publishNextVersion() stored ${fileVersionLinks.length} files and links"
       )
     } yield ()
+  }
 
   private def handleFailure(
     notification: JobDoneNotification,

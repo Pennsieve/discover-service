@@ -4,11 +4,7 @@ package com.pennsieve.discover
 
 import java.time.temporal.ChronoUnit
 
-import com.pennsieve.discover.models.{
-  DatasetDownload,
-  PublicDatasetVersion,
-  S3Key
-}
+import com.pennsieve.discover.models.DatasetDownload
 import com.pennsieve.models._
 import org.apache.commons.lang3.StringUtils
 
@@ -87,4 +83,5 @@ package object utils {
       }.isEmpty
     }
   }
+
 }

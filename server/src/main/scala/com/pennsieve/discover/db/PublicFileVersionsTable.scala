@@ -13,6 +13,7 @@ import com.pennsieve.discover.models.{
   FileDownloadDTO,
   FileTreeNode,
   PublicDatasetVersion,
+  PublicDatasetVersionFile,
   PublicFile,
   PublicFileVersion,
   ReleaseAction,
@@ -191,29 +192,6 @@ object PublicFileVersionsMapper
         .transactionally
     )
 
-//  def create(
-//    version: PublicDatasetVersion,
-//    name: String,
-//    fileType: String,
-//    size: Long,
-//    s3Key: S3Key.File,
-//    sourcePackageId: Option[String] = None
-//  )(implicit
-//    executionContext: ExecutionContext
-//  ): DBIOAction[
-//    PublicFile,
-//    NoStream,
-//    Effect.Read with Effect.Write with Effect.Transactional with Effect
-//  ] =
-//    (this returning this) += buildFile(
-//      version = version,
-//      name = name,
-//      fileType = fileType,
-//      size = size,
-//      s3Key = s3Key,
-//      sourcePackageId = sourcePackageId
-//    )
-
   def getFile(
     version: PublicDatasetVersion,
     path: S3Key.File
@@ -346,13 +324,6 @@ object PublicFileVersionsMapper
         .map(_.toList)
     } yield (allFileVersions)
   }
-
-  //  def forVersion(
-  //                  version: PublicDatasetVersion
-  //                ): Query[PublicFileVersionsTable, PublicFile, Seq] =
-  //    this
-  //      .filter(_.version === version.version)
-  //      .filter(_.datasetId === version.datasetId)
 
   def create(
     fileVersion: PublicFileVersion

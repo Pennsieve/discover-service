@@ -7,7 +7,7 @@ import com.pennsieve.models.PublishStatus
 import io.circe._
 import io.circe.syntax._
 import io.circe.{ Decoder, Encoder }
-import enumeratum.EnumEntry.UpperSnakecase
+import enumeratum.EnumEntry.{ Lowercase, UpperSnakecase }
 import enumeratum._
 
 /**

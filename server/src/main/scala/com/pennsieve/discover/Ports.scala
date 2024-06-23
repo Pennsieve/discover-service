@@ -7,6 +7,7 @@ import com.pennsieve.auth.middleware.Jwt
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.Materializer._
+import akka.stream.alpakka.slick.scaladsl.SlickSession
 import com.pennsieve.discover.clients.{
   AlpakkaLambdaClient,
   AlpakkaS3StreamClient,
@@ -25,6 +26,7 @@ import com.pennsieve.discover.clients.{
   SearchClient,
   StepFunctionsClient
 }
+import com.pennsieve.discover.db.profile
 import com.pennsieve.service.utilities.{
   ContextLogger,
   LogContext,
@@ -54,6 +56,8 @@ case class Ports(
 ) {
   val logger: ContextLogger = new ContextLogger()
   val log: LoggerTakingImplicit[LogContext] = logger.context
+  val slickSession: SlickSession =
+    SlickSession.forDbAndProfile(db, profile)
 }
 
 object Ports {

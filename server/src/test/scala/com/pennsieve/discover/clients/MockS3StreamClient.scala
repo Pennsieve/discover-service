@@ -11,7 +11,12 @@ import akka.stream.alpakka.s3.ListBucketResultContents
 import akka.stream.alpakka.s3.scaladsl.S3
 import akka.actor.ActorSystem
 import akka.util.ByteString
-import com.pennsieve.models.{ FileManifest, FileType }
+import com.pennsieve.models.{
+  DatasetMetadata,
+  DatasetMetadataV4_0,
+  FileManifest,
+  FileType
+}
 import com.pennsieve.discover.models._
 import com.pennsieve.test.AwaitableImplicits
 import org.scalatest.concurrent.ScalaFutures
@@ -28,6 +33,7 @@ import scala.collection.mutable
 import com.pennsieve.test.AwaitableImplicits
 import com.pennsieve.discover.downloads.ZipStream._
 import com.pennsieve.discover.db.profile.api.Database
+import io.circe.syntax._
 
 class MockS3StreamClient extends S3StreamClient {
 
@@ -107,9 +113,17 @@ class MockS3StreamClient extends S3StreamClient {
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[(Source[ByteString, NotUsed], Long)] =
-    Future.successful(
-      (Source.single(ByteString(sampleMetadata)), sampleMetadata.length)
-    )
+    publishMetadata.get(version.s3Key) match {
+      case Some(metadata) =>
+        val sampleMetadata = metadata.asJson.toString
+        Future.successful(
+          (Source.single(ByteString(sampleMetadata)), sampleMetadata.length)
+        )
+      case None =>
+        Future.successful(
+          (Source.single(ByteString(sampleMetadata)), sampleMetadata.length)
+        )
+    }
 
   def datasetMetadataSource(
     file: FileTreeNode.File
@@ -188,10 +202,19 @@ class MockS3StreamClient extends S3StreamClient {
   val publishResults: mutable.Map[S3Key.Version, PublishJobOutput] =
     mutable.Map.empty
 
+  val publishMetadata: mutable.Map[S3Key.Version, DatasetMetadataV4_0] =
+    mutable.Map.empty
+
   val releaseResults = List.empty[ReleaseAction]
 
   def withNextPublishResult(key: S3Key.Version, result: PublishJobOutput) =
     publishResults += key -> result
+
+  def withNextPublishMetadata(
+    key: S3Key.Version,
+    metadata: DatasetMetadataV4_0
+  ) =
+    publishMetadata += key -> metadata
 
   def readPublishJobOutput(
     version: PublicDatasetVersion
