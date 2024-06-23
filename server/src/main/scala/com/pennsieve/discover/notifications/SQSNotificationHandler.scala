@@ -67,7 +67,6 @@ class SQSNotificationHandler(
   executionContext: ExecutionContext,
   system: ActorSystem
 ) {
-
   implicit val sqsClient: SqsAsyncClient = ports.sqsClient
 
   def graph(): RunnableGraph[UniqueKillSwitch] = {
@@ -332,12 +331,12 @@ class SQSNotificationHandler(
               println(
                 s"handleSuccess() storing files: Publishing 5x - first publication"
               )
-              publishFirstVersion(updatedVersion, files)
+              publishFirstVersion(updatedVersion, files)(ports.slickSession)
             case _ =>
               println(
                 s"handleSuccess() storing files: Publishing 5x - subsequent publication"
               )
-              publishNextVersionV3(updatedVersion, files)
+              publishNextVersionV3(updatedVersion, files)(ports.slickSession)
           }
         case false =>
           // Publishing 4x
@@ -368,14 +367,16 @@ class SQSNotificationHandler(
   private def publishFirstVersion(
     version: PublicDatasetVersion,
     files: List[FileManifest]
+  )(implicit
+    slickSession: SlickSession
   ): Future[Unit] = {
 
-    implicit val slickSessionCreatedForDbAndProfile: SlickSession =
-      SlickSession.forDbAndProfile(ports.db, profile)
+//    implicit val slickSessionCreatedForDbAndProfile: SlickSession =
+//      SlickSession.forDbAndProfile(ports.db, profile)
 
-    val queryFindAll = for {
-      allFileVersions <- PublicFileVersionsMapper.getAll(version.datasetId)
-    } yield (allFileVersions)
+//    val queryFindAll = for {
+//      allFileVersions <- PublicFileVersionsMapper.getAll(version.datasetId)
+//    } yield (allFileVersions)
 
     for {
       _ <- Future.successful(
@@ -439,13 +440,13 @@ class SQSNotificationHandler(
       fileVersionLinks <- Source(files)
         .via(
           Slick.flowWithPassThrough(
-            parallelism = 4,
+            parallelism = 8,
             file => PublicFileVersionsMapper.createOne(version, file)
           )
         )
         .via(
           Slick.flowWithPassThrough(
-            parallelism = 4,
+            parallelism = 8,
             pfv =>
               PublicDatasetVersionFilesTableMapper
                 .storeLink(version, pfv)
@@ -512,25 +513,27 @@ class SQSNotificationHandler(
   private def publishNextVersionV3(
     version: PublicDatasetVersion,
     files: List[FileManifest]
+  )(implicit
+    slickSession: SlickSession
   ): Future[Unit] = {
-    val pfvs = files.map(
-      file =>
-        PublicFileVersion(
-          name = file.name,
-          fileType = file.fileType.toString,
-          size = file.size,
-          sourcePackageId = file.sourcePackageId,
-          sourceFileUUID = None,
-          s3Key = version.s3Key / file.path,
-          s3Version = file.s3VersionId.getOrElse("missing"),
-          path = LTree(
-            PublicFileVersionsMapper
-              .convertPathToTree(version.s3Key / file.path)
-          ),
-          datasetId = version.datasetId,
-          sha256 = file.sha256
-        )
-    )
+//    val pfvs = files.map(
+//      file =>
+//        PublicFileVersion(
+//          name = file.name,
+//          fileType = file.fileType.toString,
+//          size = file.size,
+//          sourcePackageId = file.sourcePackageId,
+//          sourceFileUUID = None,
+//          s3Key = version.s3Key / file.path,
+//          s3Version = file.s3VersionId.getOrElse("missing"),
+//          path = LTree(
+//            PublicFileVersionsMapper
+//              .convertPathToTree(version.s3Key / file.path)
+//          ),
+//          datasetId = version.datasetId,
+//          sha256 = file.sha256
+//        )
+//    )
 
 //    val insertIfNotExists: Flow[PublicFileVersion, PublicFileVersion, NotUsed] =
 //      Flow[PublicFileVersion].map(
@@ -546,9 +549,6 @@ class SQSNotificationHandler(
 //
 //    } yield ()
 
-    implicit val slickSessionCreatedForDbAndProfile: SlickSession =
-      SlickSession.forDbAndProfile(ports.db, profile)
-
     for {
 //      fileIds <- Source(pfvs)
 //        .via(
@@ -561,13 +561,13 @@ class SQSNotificationHandler(
       fileVersionLinks <- Source(files)
         .via(
           Slick.flowWithPassThrough(
-            parallelism = 4,
+            parallelism = 8,
             file => PublicFileVersionsMapper.findOrCreate(version, file)
           )
         )
         .via(
           Slick.flowWithPassThrough(
-            parallelism = 4,
+            parallelism = 8,
             pfv =>
               PublicDatasetVersionFilesTableMapper
                 .storeLink(version, pfv)

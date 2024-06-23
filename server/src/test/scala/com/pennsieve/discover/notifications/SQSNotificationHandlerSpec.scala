@@ -73,7 +73,10 @@ class SQSNotificationHandlerSpec
   /**
     * Run an incoming job done notification through the SQS notification stream.
     */
-  def processNotification(notification: SQSNotification): MessageAction = {
+  def processNotification(
+    notification: SQSNotification,
+    waitTime: FiniteDuration = 10.seconds
+  ): MessageAction = {
     val sqsMessage = Message
       .builder()
       .body(notification.asJson.toString)
@@ -83,7 +86,7 @@ class SQSNotificationHandlerSpec
       .single(sqsMessage)
       .via(notificationHandler.notificationFlow)
       .runWith(Sink.seq)
-      .awaitFinite(10.seconds)
+      .awaitFinite(waitTime)
       .head
   }
 
@@ -837,14 +840,15 @@ class SQSNotificationHandlerSpec
           publicDataset.sourceDatasetId,
           PublishStatus.PublishSucceeded,
           publicDatasetV1.version
-        )
+        ),
+        waitTime = 60.seconds
       ) shouldBe an[MessageAction.Delete]
 
     }
 
     "handle large number of files in subsequent publication" in {
-      val numberOfFilesV1 = 5000
-      val numberOfFilesV2 = 5000
+      val numberOfFilesV1 = 10000
+      val numberOfFilesV2 = 10000
 
       // create public dataset version 1 with 5000 files
       val publicDataset =
@@ -976,7 +980,8 @@ class SQSNotificationHandlerSpec
           publicDataset.sourceDatasetId,
           PublishStatus.PublishSucceeded,
           publicDatasetV1.version
-        )
+        ),
+        waitTime = 60.seconds
       ) shouldBe an[MessageAction.Delete]
 
       // create version 2
@@ -1054,10 +1059,147 @@ class SQSNotificationHandlerSpec
           publicDataset.sourceDatasetId,
           PublishStatus.PublishSucceeded,
           publicDatasetV2.version
-        )
+        ),
+        waitTime = 60.seconds
       ) shouldBe an[MessageAction.Delete]
 
     }
+
+//    "handle 1 million files in publication" in {
+//      val numberOfFiles = 1000000
+//      // create public dataset version 1 with 5000 files
+//      val publicDataset =
+//        TestUtilities.createDataset(ports.db)()
+//
+//      val doi = ports.doiClient
+//        .asInstanceOf[MockDoiClient]
+//        .createMockDoi(
+//          publicDataset.sourceOrganizationId,
+//          publicDataset.sourceDatasetId
+//        )
+//
+//      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+//        id = publicDataset.id,
+//        status = PublishStatus.PublishInProgress,
+//        doi = doi.doi,
+//        migrated = true
+//      )
+//
+//      // Successful publish jobs create an outputs.json file
+//      ports.s3StreamClient
+//        .asInstanceOf[MockS3StreamClient]
+//        .withNextPublishResult(
+//          publicDatasetV1.s3Key,
+//          PublishJobOutput(
+//            readmeKey = publicDatasetV1.s3Key / "readme.md",
+//            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+//            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+//            totalSize = 76543
+//          )
+//        )
+//
+//      val datasetContributor = PublishedContributor(
+//        first_name = "dataset",
+//        last_name = "owner",
+//        orcid = Some("0000-0001-0023-9087"),
+//        middle_initial = None,
+//        degree = Some(Degree.PhD)
+//      )
+//
+//      val assetFiles = List(
+//        FileManifest(
+//          name = "banner.jpg",
+//          path = "banner.jpg",
+//          size = TestUtilities.randomInteger(16 * 1024),
+//          fileType = FileType.JPEG,
+//          sourcePackageId = None,
+//          id = None,
+//          s3VersionId = Some(TestUtilities.randomString()),
+//          sha256 = Some(TestUtilities.randomString())
+//        ),
+//        FileManifest(
+//          name = "readme.md",
+//          path = "readme.md",
+//          size = TestUtilities.randomInteger(16 * 1024),
+//          fileType = FileType.Markdown,
+//          sourcePackageId = None,
+//          id = None,
+//          s3VersionId = Some(TestUtilities.randomString()),
+//          sha256 = Some(TestUtilities.randomString())
+//        ),
+//        FileManifest(
+//          name = "changelog.md",
+//          path = "changelog.md",
+//          size = TestUtilities.randomInteger(16 * 1024),
+//          fileType = FileType.Markdown,
+//          sourcePackageId = None,
+//          id = None,
+//          s3VersionId = Some(TestUtilities.randomString()),
+//          sha256 = Some(TestUtilities.randomString())
+//        ),
+//        FileManifest(
+//          name = "manifest.json",
+//          path = "manifest.json",
+//          size = TestUtilities.randomInteger(16 * 1024),
+//          fileType = FileType.Json,
+//          sourcePackageId = None,
+//          id = None,
+//          s3VersionId = Some(TestUtilities.randomString()),
+//          sha256 = Some(TestUtilities.randomString())
+//        )
+//      )
+//
+//      // generate manifest.json with 5000 files
+//      val metadata = DatasetMetadataV4_0(
+//        pennsieveDatasetId = publicDataset.id,
+//        version = publicDatasetV1.version,
+//        revision = None,
+//        name = publicDataset.name,
+//        description = publicDatasetV1.description,
+//        creator = datasetContributor,
+//        contributors = List(datasetContributor),
+//        sourceOrganization = "1",
+//        keywords = List("data"),
+//        datePublished = LocalDate.now(),
+//        license = Some(License.`Community Data License Agreement – Permissive`),
+//        `@id` = doi.doi,
+//        publisher = "Pennsieve",
+//        `@context` = "public data",
+//        `@type` = "dataset",
+//        schemaVersion = "n/a",
+//        collections = None,
+//        relatedPublications = None,
+//        files = assetFiles ++ (1 to numberOfFiles).map { i =>
+//          val name = s"test-file-${i}.csv"
+//          FileManifest(
+//            name = name,
+//            path = s"data/${name}",
+//            size = TestUtilities.randomInteger(16 * 1024),
+//            fileType = FileType.CSV,
+//            sourcePackageId = Some(s"N:package:${UUID.randomUUID().toString}"),
+//            id = None,
+//            s3VersionId = Some(TestUtilities.randomString()),
+//            sha256 = Some(TestUtilities.randomString())
+//          )
+//        }.toList,
+//        pennsieveSchemaVersion = "4.0"
+//      )
+//
+//      ports.s3StreamClient
+//        .asInstanceOf[MockS3StreamClient]
+//        .withNextPublishMetadata(publicDatasetV1.s3Key, metadata)
+//
+//      processNotification(
+//        PublishNotification(
+//          publicDataset.sourceOrganizationId,
+//          publicDataset.sourceDatasetId,
+//          PublishStatus.PublishSucceeded,
+//          publicDatasetV1.version
+//        ),
+//        waitTime = 300.seconds
+//      ) shouldBe an[MessageAction.Delete]
+//
+//    }
 
   }
 
