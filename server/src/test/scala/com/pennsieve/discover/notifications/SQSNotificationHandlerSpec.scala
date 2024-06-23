@@ -712,7 +712,7 @@ class SQSNotificationHandlerSpec
 
     "handle large number of files in initial publication" in {
       val numberOfFiles = 10000
-      // create public dataset version 1 with 5000 files
+
       val publicDataset =
         TestUtilities.createDataset(ports.db)()
 
@@ -751,50 +751,7 @@ class SQSNotificationHandlerSpec
         degree = Some(Degree.PhD)
       )
 
-      val assetFiles = List(
-        FileManifest(
-          name = "banner.jpg",
-          path = "banner.jpg",
-          size = TestUtilities.randomInteger(16 * 1024),
-          fileType = FileType.JPEG,
-          sourcePackageId = None,
-          id = None,
-          s3VersionId = Some(TestUtilities.randomString()),
-          sha256 = Some(TestUtilities.randomString())
-        ),
-        FileManifest(
-          name = "readme.md",
-          path = "readme.md",
-          size = TestUtilities.randomInteger(16 * 1024),
-          fileType = FileType.Markdown,
-          sourcePackageId = None,
-          id = None,
-          s3VersionId = Some(TestUtilities.randomString()),
-          sha256 = Some(TestUtilities.randomString())
-        ),
-        FileManifest(
-          name = "changelog.md",
-          path = "changelog.md",
-          size = TestUtilities.randomInteger(16 * 1024),
-          fileType = FileType.Markdown,
-          sourcePackageId = None,
-          id = None,
-          s3VersionId = Some(TestUtilities.randomString()),
-          sha256 = Some(TestUtilities.randomString())
-        ),
-        FileManifest(
-          name = "manifest.json",
-          path = "manifest.json",
-          size = TestUtilities.randomInteger(16 * 1024),
-          fileType = FileType.Json,
-          sourcePackageId = None,
-          id = None,
-          s3VersionId = Some(TestUtilities.randomString()),
-          sha256 = Some(TestUtilities.randomString())
-        )
-      )
-
-      // generate manifest.json with 5000 files
+      // generate dataset metadata (manifest.json)
       val metadata = DatasetMetadataV4_0(
         pennsieveDatasetId = publicDataset.id,
         version = publicDatasetV1.version,
@@ -814,7 +771,7 @@ class SQSNotificationHandlerSpec
         schemaVersion = "n/a",
         collections = None,
         relatedPublications = None,
-        files = assetFiles ++ (1 to numberOfFiles).map { i =>
+        files = TestUtilities.assetFiles() ++ (1 to numberOfFiles).map { i =>
           val name = s"test-file-${i}.csv"
           FileManifest(
             name = name,
@@ -850,7 +807,6 @@ class SQSNotificationHandlerSpec
       val numberOfFilesV1 = 10000
       val numberOfFilesV2 = 10000
 
-      // create public dataset version 1 with 5000 files
       val publicDataset =
         TestUtilities.createDataset(ports.db)()
 
@@ -889,51 +845,7 @@ class SQSNotificationHandlerSpec
         degree = Some(Degree.PhD)
       )
 
-      val assetFiles = List(
-        FileManifest(
-          name = "banner.jpg",
-          path = "banner.jpg",
-          size = TestUtilities.randomInteger(16 * 1024),
-          fileType = FileType.JPEG,
-          sourcePackageId = None,
-          id = None,
-          s3VersionId = Some(TestUtilities.randomString()),
-          sha256 = Some(TestUtilities.randomString())
-        ),
-        FileManifest(
-          name = "readme.md",
-          path = "readme.md",
-          size = TestUtilities.randomInteger(16 * 1024),
-          fileType = FileType.Markdown,
-          sourcePackageId = None,
-          id = None,
-          s3VersionId = Some(TestUtilities.randomString()),
-          sha256 = Some(TestUtilities.randomString())
-        ),
-        FileManifest(
-          name = "changelog.md",
-          path = "changelog.md",
-          size = TestUtilities.randomInteger(16 * 1024),
-          fileType = FileType.Markdown,
-          sourcePackageId = None,
-          id = None,
-          s3VersionId = Some(TestUtilities.randomString()),
-          sha256 = Some(TestUtilities.randomString())
-        ),
-        FileManifest(
-          name = "manifest.json",
-          path = "manifest.json",
-          size = TestUtilities.randomInteger(16 * 1024),
-          fileType = FileType.Json,
-          sourcePackageId = None,
-          id = None,
-          s3VersionId = Some(TestUtilities.randomString()),
-          sha256 = Some(TestUtilities.randomString())
-        )
-      )
-
-      // generate manifest.json with 5000 files
-
+      // generate list of files in V1 of dataset
       val v1Files = (1 to numberOfFilesV1).map { i =>
         val name = s"test-file-${i}.csv"
         FileManifest(
@@ -947,6 +859,8 @@ class SQSNotificationHandlerSpec
           sha256 = Some(TestUtilities.randomString())
         )
       }.toList
+
+      // generate dataset V1 metadata (manifest.json)
       val metadataV1 = DatasetMetadataV4_0(
         pennsieveDatasetId = publicDataset.id,
         version = publicDatasetV1.version,
@@ -966,7 +880,7 @@ class SQSNotificationHandlerSpec
         schemaVersion = "n/a",
         collections = None,
         relatedPublications = None,
-        files = assetFiles ++ v1Files,
+        files = TestUtilities.assetFiles() ++ v1Files,
         pennsieveSchemaVersion = "4.0"
       )
 
@@ -1012,7 +926,7 @@ class SQSNotificationHandlerSpec
           )
         )
 
-      // generate manifest.json with 5000 files
+      // generate list of files in V2 of dataset
       val v2Files = (1 to numberOfFilesV2).map { i =>
         val name = s"test-file-${i}.csv"
         FileManifest(
@@ -1026,6 +940,8 @@ class SQSNotificationHandlerSpec
           sha256 = Some(TestUtilities.randomString())
         )
       }.toList
+
+      // generate dataset V2 metadata (manifest.json)
       val metadataV2 = DatasetMetadataV4_0(
         pennsieveDatasetId = publicDataset.id,
         version = publicDatasetV1.version,
@@ -1045,7 +961,7 @@ class SQSNotificationHandlerSpec
         schemaVersion = "n/a",
         collections = None,
         relatedPublications = None,
-        files = assetFiles ++ v1Files ++ v2Files,
+        files = TestUtilities.assetFiles() ++ v1Files ++ v2Files,
         pennsieveSchemaVersion = "4.0"
       )
 
@@ -1064,143 +980,6 @@ class SQSNotificationHandlerSpec
       ) shouldBe an[MessageAction.Delete]
 
     }
-
-//    "handle 1 million files in publication" in {
-//      val numberOfFiles = 1000000
-//      // create public dataset version 1 with 5000 files
-//      val publicDataset =
-//        TestUtilities.createDataset(ports.db)()
-//
-//      val doi = ports.doiClient
-//        .asInstanceOf[MockDoiClient]
-//        .createMockDoi(
-//          publicDataset.sourceOrganizationId,
-//          publicDataset.sourceDatasetId
-//        )
-//
-//      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
-//        id = publicDataset.id,
-//        status = PublishStatus.PublishInProgress,
-//        doi = doi.doi,
-//        migrated = true
-//      )
-//
-//      // Successful publish jobs create an outputs.json file
-//      ports.s3StreamClient
-//        .asInstanceOf[MockS3StreamClient]
-//        .withNextPublishResult(
-//          publicDatasetV1.s3Key,
-//          PublishJobOutput(
-//            readmeKey = publicDatasetV1.s3Key / "readme.md",
-//            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
-//            changelogKey = publicDatasetV1.s3Key / "changelog.md",
-//            totalSize = 76543
-//          )
-//        )
-//
-//      val datasetContributor = PublishedContributor(
-//        first_name = "dataset",
-//        last_name = "owner",
-//        orcid = Some("0000-0001-0023-9087"),
-//        middle_initial = None,
-//        degree = Some(Degree.PhD)
-//      )
-//
-//      val assetFiles = List(
-//        FileManifest(
-//          name = "banner.jpg",
-//          path = "banner.jpg",
-//          size = TestUtilities.randomInteger(16 * 1024),
-//          fileType = FileType.JPEG,
-//          sourcePackageId = None,
-//          id = None,
-//          s3VersionId = Some(TestUtilities.randomString()),
-//          sha256 = Some(TestUtilities.randomString())
-//        ),
-//        FileManifest(
-//          name = "readme.md",
-//          path = "readme.md",
-//          size = TestUtilities.randomInteger(16 * 1024),
-//          fileType = FileType.Markdown,
-//          sourcePackageId = None,
-//          id = None,
-//          s3VersionId = Some(TestUtilities.randomString()),
-//          sha256 = Some(TestUtilities.randomString())
-//        ),
-//        FileManifest(
-//          name = "changelog.md",
-//          path = "changelog.md",
-//          size = TestUtilities.randomInteger(16 * 1024),
-//          fileType = FileType.Markdown,
-//          sourcePackageId = None,
-//          id = None,
-//          s3VersionId = Some(TestUtilities.randomString()),
-//          sha256 = Some(TestUtilities.randomString())
-//        ),
-//        FileManifest(
-//          name = "manifest.json",
-//          path = "manifest.json",
-//          size = TestUtilities.randomInteger(16 * 1024),
-//          fileType = FileType.Json,
-//          sourcePackageId = None,
-//          id = None,
-//          s3VersionId = Some(TestUtilities.randomString()),
-//          sha256 = Some(TestUtilities.randomString())
-//        )
-//      )
-//
-//      // generate manifest.json with 5000 files
-//      val metadata = DatasetMetadataV4_0(
-//        pennsieveDatasetId = publicDataset.id,
-//        version = publicDatasetV1.version,
-//        revision = None,
-//        name = publicDataset.name,
-//        description = publicDatasetV1.description,
-//        creator = datasetContributor,
-//        contributors = List(datasetContributor),
-//        sourceOrganization = "1",
-//        keywords = List("data"),
-//        datePublished = LocalDate.now(),
-//        license = Some(License.`Community Data License Agreement – Permissive`),
-//        `@id` = doi.doi,
-//        publisher = "Pennsieve",
-//        `@context` = "public data",
-//        `@type` = "dataset",
-//        schemaVersion = "n/a",
-//        collections = None,
-//        relatedPublications = None,
-//        files = assetFiles ++ (1 to numberOfFiles).map { i =>
-//          val name = s"test-file-${i}.csv"
-//          FileManifest(
-//            name = name,
-//            path = s"data/${name}",
-//            size = TestUtilities.randomInteger(16 * 1024),
-//            fileType = FileType.CSV,
-//            sourcePackageId = Some(s"N:package:${UUID.randomUUID().toString}"),
-//            id = None,
-//            s3VersionId = Some(TestUtilities.randomString()),
-//            sha256 = Some(TestUtilities.randomString())
-//          )
-//        }.toList,
-//        pennsieveSchemaVersion = "4.0"
-//      )
-//
-//      ports.s3StreamClient
-//        .asInstanceOf[MockS3StreamClient]
-//        .withNextPublishMetadata(publicDatasetV1.s3Key, metadata)
-//
-//      processNotification(
-//        PublishNotification(
-//          publicDataset.sourceOrganizationId,
-//          publicDataset.sourceDatasetId,
-//          PublishStatus.PublishSucceeded,
-//          publicDatasetV1.version
-//        ),
-//        waitTime = 300.seconds
-//      ) shouldBe an[MessageAction.Delete]
-//
-//    }
-
   }
 
 }
