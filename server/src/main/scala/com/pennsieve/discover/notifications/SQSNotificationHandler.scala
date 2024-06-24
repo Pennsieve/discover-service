@@ -376,6 +376,12 @@ class SQSNotificationHandler(
     logContext: LogContext
   ): Future[Unit] = {
     for {
+      existingLinks <- ports.db.run(
+        PublicDatasetVersionFilesTableMapper
+          .getLinks(version.datasetId, version.version)
+      )
+      linkedFileIds = existingLinks.map(_.fileId).toSet
+
       fileVersionLinks <- Source(files)
         .via(
           Slick.flowWithPassThrough(
@@ -383,6 +389,7 @@ class SQSNotificationHandler(
             file => PublicFileVersionsMapper.findOrCreate(version, file)
           )
         )
+        .filterNot(pfv => linkedFileIds.contains(pfv.id))
         .via(
           Slick.flowWithPassThrough(
             parallelism = 8,
