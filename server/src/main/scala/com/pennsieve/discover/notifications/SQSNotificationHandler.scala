@@ -3,7 +3,7 @@
 package com.pennsieve.discover.notifications
 
 import java.util.Calendar
-import akka.NotUsed
+import akka.{ Done, NotUsed }
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
@@ -325,7 +325,14 @@ class SQSNotificationHandler(
 
       // Add dataset to search index
       _ = ports.log.info("handleSuccess() index dataset")
-      _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
+      _ <- Search.indexDataset(publicDataset, updatedVersion, ports) recoverWith {
+        case e: Throwable =>
+          ports.log.error(
+            s"handleSuccess() indexing dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
+          )
+          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
+          Future.successful(Done)
+      }
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
       _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
