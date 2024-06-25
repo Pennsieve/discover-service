@@ -309,7 +309,14 @@ class SQSNotificationHandler(
         contributors,
         collections,
         externalPublications
-      )
+      ) recoverWith {
+        case e: Throwable =>
+          ports.log.error(
+            s"handleSuccess() publish DOI (${version.doi}) for dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
+          )
+          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
+          Future.successful(Done)
+      }
 
       // Store files in Postgres
       _ = ports.log.info("handleSuccess() store files")
