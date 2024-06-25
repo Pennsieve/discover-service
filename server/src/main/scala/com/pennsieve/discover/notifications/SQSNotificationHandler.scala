@@ -120,6 +120,21 @@ class SQSNotificationHandler(
           _ <- Search.indexDataset(dataset, version, ports, overwrite = true)
         } yield MessageAction.Delete(sqsMessage)
 
+      case Right(message: PushDoiRequest) =>
+        ports.logger.noContext
+          .info(s"[NOT-YET-SUPPORTED] PushDoiRequest ${message}")
+        Future.successful(MessageAction.Delete(sqsMessage))
+
+      case Right(message: NotifyApiRequest) =>
+        ports.logger.noContext
+          .info(s"[NOT-YET-SUPPORTED] NotifyApiRequest ${message}")
+        Future.successful(MessageAction.Delete(sqsMessage))
+
+      case Right(message: StoreFilesRequest) =>
+        ports.logger.noContext
+          .info(s"[NOT-YET-SUPPORTED] StoreFilesRequest ${message}")
+        Future.successful(MessageAction.Delete(sqsMessage))
+
       case Right(message: JobDoneNotification) =>
         implicit val logContext: LogContext =
           DiscoverLogContext(
@@ -280,6 +295,7 @@ class SQSNotificationHandler(
         )
       )
 
+      // TODO: move notification to the end of this function
       _ = ports.log.info("handleSuccess() notify API")
       _ <- ports.pennsieveApiClient
         .putPublishComplete(publishStatus, None)
