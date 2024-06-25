@@ -3,7 +3,7 @@
 package com.pennsieve.discover.notifications
 
 import java.util.Calendar
-import akka.NotUsed
+import akka.{ Done, NotUsed }
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
@@ -119,6 +119,21 @@ class SQSNotificationHandler(
           // Add dataset to search index
           _ <- Search.indexDataset(dataset, version, ports, overwrite = true)
         } yield MessageAction.Delete(sqsMessage)
+
+      case Right(message: PushDoiRequest) =>
+        ports.logger.noContext
+          .info(s"[NOT-YET-SUPPORTED] PushDoiRequest ${message}")
+        Future.successful(MessageAction.Delete(sqsMessage))
+
+      case Right(message: NotifyApiRequest) =>
+        ports.logger.noContext
+          .info(s"[NOT-YET-SUPPORTED] NotifyApiRequest ${message}")
+        Future.successful(MessageAction.Delete(sqsMessage))
+
+      case Right(message: StoreFilesRequest) =>
+        ports.logger.noContext
+          .info(s"[NOT-YET-SUPPORTED] StoreFilesRequest ${message}")
+        Future.successful(MessageAction.Delete(sqsMessage))
 
       case Right(message: JobDoneNotification) =>
         implicit val logContext: LogContext =
@@ -280,6 +295,7 @@ class SQSNotificationHandler(
         )
       )
 
+      // TODO: move notification to the end of this function
       _ = ports.log.info("handleSuccess() notify API")
       _ <- ports.pennsieveApiClient
         .putPublishComplete(publishStatus, None)
@@ -293,7 +309,14 @@ class SQSNotificationHandler(
         contributors,
         collections,
         externalPublications
-      )
+      ) recoverWith {
+        case e: Throwable =>
+          ports.log.error(
+            s"handleSuccess() publish DOI (${version.doi}) for dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
+          )
+          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
+          Future.successful(Done)
+      }
 
       // Store files in Postgres
       _ = ports.log.info("handleSuccess() store files")
@@ -325,7 +348,14 @@ class SQSNotificationHandler(
 
       // Add dataset to search index
       _ = ports.log.info("handleSuccess() index dataset")
-      _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
+      _ <- Search.indexDataset(publicDataset, updatedVersion, ports) recoverWith {
+        case e: Throwable =>
+          ports.log.error(
+            s"handleSuccess() indexing dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
+          )
+          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
+          Future.successful(Done)
+      }
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
       _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
@@ -376,6 +406,12 @@ class SQSNotificationHandler(
     logContext: LogContext
   ): Future[Unit] = {
     for {
+      existingLinks <- ports.db.run(
+        PublicDatasetVersionFilesTableMapper
+          .getLinks(version.datasetId, version.version)
+      )
+      linkedFileIds = existingLinks.map(_.fileId).toSet
+
       fileVersionLinks <- Source(files)
         .via(
           Slick.flowWithPassThrough(
@@ -383,6 +419,7 @@ class SQSNotificationHandler(
             file => PublicFileVersionsMapper.findOrCreate(version, file)
           )
         )
+        .filterNot(pfv => linkedFileIds.contains(pfv.id))
         .via(
           Slick.flowWithPassThrough(
             parallelism = 8,

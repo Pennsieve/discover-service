@@ -86,6 +86,17 @@ object PublicDatasetVersionFilesTableMapper
       .map(_ => Done)
       .transactionally
 
+  def getLinks(
+    datasetId: Int,
+    versionId: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Seq[PublicDatasetVersionFile], NoStream, Effect.Read with Effect] =
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === versionId)
+      .result
+
   def buildDatasetVersionFile(
     version: PublicDatasetVersion,
     file: PublicFileVersion

@@ -25,6 +25,9 @@ object SQSNotificationType
   case object PUBLISH extends SQSNotificationType
   case object SCAN_FOR_RELEASE extends SQSNotificationType
   case object INDEX extends SQSNotificationType
+  case object PUSH_DOI extends SQSNotificationType
+  case object NOTIFY_API extends SQSNotificationType
+  case object STORE_FILES extends SQSNotificationType
 }
 
 import SQSNotificationType._
@@ -70,6 +73,9 @@ object SQSNotification {
             case Some(RELEASE) => c.as[ReleaseNotification]
             case Some(SCAN_FOR_RELEASE) => c.as[ScanForReleaseNotification]
             case Some(INDEX) => c.as[IndexDatasetRequest]
+            case Some(PUSH_DOI) => c.as[PushDoiRequest]
+            case Some(NOTIFY_API) => c.as[NotifyApiRequest]
+            case Some(STORE_FILES) => c.as[StoreFilesRequest]
             case _ =>
               Left(
                 DecodingFailure(
@@ -86,6 +92,9 @@ object SQSNotification {
     case n: ReleaseNotification => n.asJson
     case n: ScanForReleaseNotification => n.asJson
     case n: IndexDatasetRequest => n.asJson
+    case n: PushDoiRequest => n.asJson
+    case n: NotifyApiRequest => n.asJson
+    case n: StoreFilesRequest => n.asJson
   }
 }
 
@@ -278,5 +287,144 @@ object IndexDatasetRequest {
           datasetId <- c.downField("dataset_id").as[Int]
           version <- c.downField("version").as[Int]
         } yield new IndexDatasetRequest(jobType, datasetId, version)
+    }
+}
+
+/**
+  * Notification that will ask Discover Service to publish the DOI
+  */
+case class PushDoiRequest(
+  jobType: SQSNotificationType,
+  datasetId: Int,
+  version: Int,
+  doi: String
+) extends SQSNotification
+    with JobRequestNotification
+
+object PushDoiRequest {
+  implicit val encoder: Encoder[PushDoiRequest] =
+    Encoder.forProduct4("job_type", "dataset_id", "version", "doi")(
+      j =>
+        (
+          (PUSH_DOI: SQSNotificationType).asJson,
+          j.datasetId.toString,
+          j.version.toString,
+          j.doi
+        )
+    )
+
+  implicit val decoder: Decoder[PushDoiRequest] =
+    new Decoder[PushDoiRequest] {
+      final def apply(c: HCursor): Decoder.Result[PushDoiRequest] =
+        for {
+          jobType <- c.downField("job_type").as[SQSNotificationType]
+          _ <- if (jobType == PUSH_DOI) Right(())
+          else
+            Left(
+              DecodingFailure(
+                s"Did not recognize job type $jobType (expecting $PUSH_DOI)",
+                c.history
+              )
+            )
+          datasetId <- c.downField("dataset_id").as[Int]
+          version <- c.downField("version").as[Int]
+          doi <- c.downField("doi").as[String]
+        } yield new PushDoiRequest(jobType, datasetId, version, doi)
+    }
+}
+
+/**
+  * Notification that will ask Discover Service to signal the Pennsieve API
+  */
+case class NotifyApiRequest(
+  jobType: SQSNotificationType,
+  datasetId: Int,
+  version: Int,
+  status: PublishStatus
+) extends SQSNotification
+    with JobRequestNotification
+
+object NotifyApiRequest {
+  implicit val encoder: Encoder[NotifyApiRequest] =
+    Encoder.forProduct4("job_type", "dataset_id", "version", "status")(
+      j =>
+        (
+          (NOTIFY_API: SQSNotificationType).asJson,
+          j.datasetId.toString,
+          j.version.toString,
+          j.status.toString
+        )
+    )
+
+  implicit val decoder: Decoder[NotifyApiRequest] =
+    new Decoder[NotifyApiRequest] {
+      final def apply(c: HCursor): Decoder.Result[NotifyApiRequest] =
+        for {
+          jobType <- c.downField("job_type").as[SQSNotificationType]
+          _ <- if (jobType == NOTIFY_API) Right(())
+          else
+            Left(
+              DecodingFailure(
+                s"Did not recognize job type $jobType (expecting $NOTIFY_API)",
+                c.history
+              )
+            )
+          datasetId <- c.downField("dataset_id").as[Int]
+          version <- c.downField("version").as[Int]
+          status <- c.downField("status").as[PublishStatus]
+        } yield new NotifyApiRequest(jobType, datasetId, version, status)
+    }
+}
+
+/**
+  * Notification that will ask Discover Service to store the published files
+  */
+case class StoreFilesRequest(
+  jobType: SQSNotificationType,
+  datasetId: Int,
+  version: Int,
+  s3Key: String,
+  s3Version: String
+) extends SQSNotification
+    with JobRequestNotification
+
+object StoreFilesRequest {
+  implicit val encoder: Encoder[StoreFilesRequest] =
+    Encoder.forProduct5(
+      "job_type",
+      "dataset_id",
+      "version",
+      "s3Key",
+      "s3Version"
+    )(
+      j =>
+        (
+          (STORE_FILES: SQSNotificationType).asJson,
+          j.datasetId.toString,
+          j.version.toString,
+          j.s3Key,
+          j.s3Version
+        )
+    )
+
+  implicit val decoder: Decoder[StoreFilesRequest] =
+    new Decoder[StoreFilesRequest] {
+      final def apply(c: HCursor): Decoder.Result[StoreFilesRequest] =
+        for {
+          jobType <- c.downField("job_type").as[SQSNotificationType]
+          _ <- if (jobType == STORE_FILES) Right(())
+          else
+            Left(
+              DecodingFailure(
+                s"Did not recognize job type $jobType (expecting $STORE_FILES)",
+                c.history
+              )
+            )
+          datasetId <- c.downField("dataset_id").as[Int]
+          version <- c.downField("version").as[Int]
+          s3Key <- c.downField("s3Key").as[String]
+          s3Version <- c.downField("s3Version").as[String]
+        } yield
+          new StoreFilesRequest(jobType, datasetId, version, s3Key, s3Version)
     }
 }
