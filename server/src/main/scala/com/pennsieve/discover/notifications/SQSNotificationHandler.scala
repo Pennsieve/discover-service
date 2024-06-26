@@ -122,9 +122,48 @@ class SQSNotificationHandler(
         } yield MessageAction.Delete(sqsMessage)
 
       case Right(message: PushDoiRequest) =>
-        ports.logger.noContext
-          .info(s"[NOT-YET-SUPPORTED] PushDoiRequest ${message}")
-        Future.successful(MessageAction.Delete(sqsMessage))
+        implicit val logContext: LogContext =
+          DiscoverLogContext(
+            publicDatasetId = Some(message.datasetId),
+            publicDatasetVersion = Some(message.version)
+          )
+
+        ports.log.info(s"Decoded $message")
+
+        val query = for {
+          dataset <- PublicDatasetsMapper
+            .getDataset(message.datasetId)
+
+          version <- PublicDatasetVersionsMapper.getVersion(
+            message.datasetId,
+            message.version
+          )
+
+          (contributors, collections, externalPublications, _, _) <- PublicDatasetVersionsMapper
+            .getDatasetDetails(dataset, version)
+
+        } yield {
+          (dataset, version, contributors, collections, externalPublications)
+        }
+
+        (for {
+          (dataset, version, contributors, collections, externalPublications) <- ports.db
+            .run(query)
+
+          _ <- publishDoi(
+            dataset,
+            version,
+            contributors,
+            collections,
+            externalPublications
+          )
+        } yield MessageAction.Delete(sqsMessage))
+        // Send failed messages back to queue
+          .recoverWith {
+            case error: Throwable =>
+              ports.log.error(s"Failed push DOI $message", error)
+              Future.successful(MessageAction.Ignore(sqsMessage))
+          }
 
       case Right(message: NotifyApiRequest) =>
         ports.logger.noContext
@@ -303,20 +342,42 @@ class SQSNotificationHandler(
         .value
         .flatMap(_.fold(Future.failed, Future.successful))
 
-      _ = ports.log.info("handleSuccess() publish DOI")
-      _ <- publishDoi(
-        publicDataset,
-        updatedVersion,
-        contributors,
-        collections,
-        externalPublications
-      ) recoverWith {
-        case e: Throwable =>
-          ports.log.error(
-            s"handleSuccess() publish DOI (${version.doi}) for dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
-          )
-          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
-          Future.successful(Done)
+//      _ = ports.log.info("handleSuccess() publish DOI")
+//      _ <- publishDoi(
+//        publicDataset,
+//        updatedVersion,
+//        contributors,
+//        collections,
+//        externalPublications
+//      ) recoverWith {
+//        case e: Throwable =>
+//          ports.log.error(
+//            s"handleSuccess() publish DOI (${version.doi}) for dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
+//          )
+//          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
+//          Future.successful(Done)
+//      }
+
+      _ <- Future {
+        val pushDoiRequest = PushDoiRequest(
+          jobType = SQSNotificationType.PUSH_DOI,
+          datasetId = publicDataset.id,
+          version = version.version,
+          doi = version.doi
+        )
+
+        ports.log.info(
+          s"handleSuccess() queuing PushDoiRequest: ${pushDoiRequest}"
+        )
+
+        val sendMessageRequest = SendMessageRequest
+          .builder()
+          .queueUrl(ports.config.sqs.queueUrl)
+          .messageBody(pushDoiRequest.asJson.toString)
+          .delaySeconds(5)
+          .build()
+
+        ports.sqsClient.sendMessage(sendMessageRequest)
       }
 
       // Store files in Postgres
