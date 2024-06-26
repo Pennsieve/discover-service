@@ -335,51 +335,6 @@ class SQSNotificationHandler(
         )
       )
 
-      // TODO: move notification to the end of this function
-      _ = ports.log.info("handleSuccess() notify API")
-      _ <- ports.pennsieveApiClient
-        .putPublishComplete(publishStatus, None)
-        .value
-        .flatMap(_.fold(Future.failed, Future.successful))
-
-//      _ = ports.log.info("handleSuccess() publish DOI")
-//      _ <- publishDoi(
-//        publicDataset,
-//        updatedVersion,
-//        contributors,
-//        collections,
-//        externalPublications
-//      ) recoverWith {
-//        case e: Throwable =>
-//          ports.log.error(
-//            s"handleSuccess() publish DOI (${version.doi}) for dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
-//          )
-//          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
-//          Future.successful(Done)
-//      }
-
-      _ <- Future {
-        val pushDoiRequest = PushDoiRequest(
-          jobType = SQSNotificationType.PUSH_DOI,
-          datasetId = publicDataset.id,
-          version = version.version,
-          doi = version.doi
-        )
-
-        ports.log.info(
-          s"handleSuccess() queuing PushDoiRequest: ${pushDoiRequest}"
-        )
-
-        val sendMessageRequest = SendMessageRequest
-          .builder()
-          .queueUrl(ports.config.sqs.queueUrl)
-          .messageBody(pushDoiRequest.asJson.toString)
-          .delaySeconds(5)
-          .build()
-
-        ports.sqsClient.sendMessage(sendMessageRequest)
-      }
-
       // Store files in Postgres
       _ = ports.log.info("handleSuccess() store files")
       _ <- updatedVersion.migrated match {
@@ -408,36 +363,31 @@ class SQSNotificationHandler(
           ports.db.run(PublicFilesMapper.createMany(version, metadata.files))
       }
 
-      // Add dataset to search index
-//      _ = ports.log.info("handleSuccess() index dataset")
-//      _ <- Search.indexDataset(publicDataset, updatedVersion, ports) recoverWith {
-//        case e: Throwable =>
-//          ports.log.error(
-//            s"handleSuccess() indexing dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
-//          )
-//          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
-//          Future.successful(Done)
-//      }
+      // queue message to execute pushing DOI
+      _ <- queueMessage(
+        PushDoiRequest(
+          jobType = SQSNotificationType.PUSH_DOI,
+          datasetId = updatedVersion.datasetId,
+          version = updatedVersion.version,
+          doi = updatedVersion.doi
+        )
+      )
 
-      _ <- Future {
-        val indexDatasetRequest = IndexDatasetRequest(
+      // queue message to execute dataset indexing
+      _ <- queueMessage(
+        IndexDatasetRequest(
           jobType = SQSNotificationType.INDEX,
-          datasetId = version.datasetId,
-          version = version.version
+          datasetId = updatedVersion.datasetId,
+          version = updatedVersion.version
         )
+      )
 
-        ports.log.info(
-          s"handleSuccess() queuing IndexDatasetRequest: ${indexDatasetRequest}"
-        )
-        val sendMessageRequest = SendMessageRequest
-          .builder()
-          .queueUrl(ports.config.sqs.queueUrl)
-          .messageBody(indexDatasetRequest.asJson.toString)
-          .delaySeconds(5)
-          .build()
-
-        ports.sqsClient.sendMessage(sendMessageRequest)
-      }
+      // Notify Pennsieve API that publishing has completed
+      _ = ports.log.info("handleSuccess() notify API")
+      _ <- ports.pennsieveApiClient
+        .putPublishComplete(publishStatus, None)
+        .value
+        .flatMap(_.fold(Future.failed, Future.successful))
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
       _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
@@ -449,6 +399,23 @@ class SQSNotificationHandler(
         updatedVersion.migrated
       )
     } yield ()
+
+  private def queueMessage(
+    message: SQSNotification
+  )(implicit
+    logContext: LogContext
+  ): Future[Unit] = Future {
+    ports.log.info(s"queueMessage() queuing message: ${message}")
+
+    val sendMessageRequest = SendMessageRequest
+      .builder()
+      .queueUrl(ports.config.sqs.queueUrl)
+      .messageBody(message.asJson.toString)
+      .delaySeconds(5)
+      .build()
+
+    ports.sqsClient.sendMessage(sendMessageRequest)
+  }
 
   private def publishFirstVersion(
     version: PublicDatasetVersion,
