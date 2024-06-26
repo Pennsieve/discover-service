@@ -41,9 +41,10 @@ import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.models.{ DatasetMetadata, FileManifest, PublishStatus }
 import com.pennsieve.service.utilities.LogContext
 import io.circe.parser.decode
+import io.circe.syntax.EncoderOps
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
-import software.amazon.awssdk.services.sqs.model.Message
+import software.amazon.awssdk.services.sqs.model.{ Message, SendMessageRequest }
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 
 import java.time.LocalDate
@@ -347,14 +348,34 @@ class SQSNotificationHandler(
       }
 
       // Add dataset to search index
-      _ = ports.log.info("handleSuccess() index dataset")
-      _ <- Search.indexDataset(publicDataset, updatedVersion, ports) recoverWith {
-        case e: Throwable =>
-          ports.log.error(
-            s"handleSuccess() indexing dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
-          )
-          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
-          Future.successful(Done)
+//      _ = ports.log.info("handleSuccess() index dataset")
+//      _ <- Search.indexDataset(publicDataset, updatedVersion, ports) recoverWith {
+//        case e: Throwable =>
+//          ports.log.error(
+//            s"handleSuccess() indexing dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
+//          )
+//          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
+//          Future.successful(Done)
+//      }
+
+      _ <- Future {
+        val indexDatasetRequest = IndexDatasetRequest(
+          jobType = SQSNotificationType.INDEX,
+          datasetId = version.datasetId,
+          version = version.version
+        )
+
+        ports.log.info(
+          s"handleSuccess() queuing IndexDatasetRequest: ${indexDatasetRequest}"
+        )
+        val sendMessageRequest = SendMessageRequest
+          .builder()
+          .queueUrl(ports.config.sqs.queueUrl)
+          .messageBody(indexDatasetRequest.asJson.toString)
+          .delaySeconds(5)
+          .build()
+
+        ports.sqsClient.sendMessage(sendMessageRequest)
       }
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files

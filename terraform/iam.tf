@@ -93,6 +93,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
     actions = [
       "sqs:DeleteMessage",
       "sqs:ReceiveMessage",
+      "sqs:SendMessage",
     ]
 
     resources = [
