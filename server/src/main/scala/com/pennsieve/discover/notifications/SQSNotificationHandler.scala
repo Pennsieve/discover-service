@@ -41,9 +41,10 @@ import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.models.{ DatasetMetadata, FileManifest, PublishStatus }
 import com.pennsieve.service.utilities.LogContext
 import io.circe.parser.decode
+import io.circe.syntax.EncoderOps
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
-import software.amazon.awssdk.services.sqs.model.Message
+import software.amazon.awssdk.services.sqs.model.{ Message, SendMessageRequest }
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 
 import java.time.LocalDate
@@ -121,9 +122,48 @@ class SQSNotificationHandler(
         } yield MessageAction.Delete(sqsMessage)
 
       case Right(message: PushDoiRequest) =>
-        ports.logger.noContext
-          .info(s"[NOT-YET-SUPPORTED] PushDoiRequest ${message}")
-        Future.successful(MessageAction.Delete(sqsMessage))
+        implicit val logContext: LogContext =
+          DiscoverLogContext(
+            publicDatasetId = Some(message.datasetId),
+            publicDatasetVersion = Some(message.version)
+          )
+
+        ports.log.info(s"Decoded $message")
+
+        val query = for {
+          dataset <- PublicDatasetsMapper
+            .getDataset(message.datasetId)
+
+          version <- PublicDatasetVersionsMapper.getVersion(
+            message.datasetId,
+            message.version
+          )
+
+          (contributors, collections, externalPublications, _, _) <- PublicDatasetVersionsMapper
+            .getDatasetDetails(dataset, version)
+
+        } yield {
+          (dataset, version, contributors, collections, externalPublications)
+        }
+
+        (for {
+          (dataset, version, contributors, collections, externalPublications) <- ports.db
+            .run(query)
+
+          _ <- publishDoi(
+            dataset,
+            version,
+            contributors,
+            collections,
+            externalPublications
+          )
+        } yield MessageAction.Delete(sqsMessage))
+        // Send failed messages back to queue
+          .recoverWith {
+            case error: Throwable =>
+              ports.log.error(s"Failed push DOI $message", error)
+              Future.successful(MessageAction.Ignore(sqsMessage))
+          }
 
       case Right(message: NotifyApiRequest) =>
         ports.logger.noContext
@@ -295,29 +335,6 @@ class SQSNotificationHandler(
         )
       )
 
-      // TODO: move notification to the end of this function
-      _ = ports.log.info("handleSuccess() notify API")
-      _ <- ports.pennsieveApiClient
-        .putPublishComplete(publishStatus, None)
-        .value
-        .flatMap(_.fold(Future.failed, Future.successful))
-
-      _ = ports.log.info("handleSuccess() publish DOI")
-      _ <- publishDoi(
-        publicDataset,
-        updatedVersion,
-        contributors,
-        collections,
-        externalPublications
-      ) recoverWith {
-        case e: Throwable =>
-          ports.log.error(
-            s"handleSuccess() publish DOI (${version.doi}) for dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
-          )
-          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
-          Future.successful(Done)
-      }
-
       // Store files in Postgres
       _ = ports.log.info("handleSuccess() store files")
       _ <- updatedVersion.migrated match {
@@ -346,16 +363,31 @@ class SQSNotificationHandler(
           ports.db.run(PublicFilesMapper.createMany(version, metadata.files))
       }
 
-      // Add dataset to search index
-      _ = ports.log.info("handleSuccess() index dataset")
-      _ <- Search.indexDataset(publicDataset, updatedVersion, ports) recoverWith {
-        case e: Throwable =>
-          ports.log.error(
-            s"handleSuccess() indexing dataset ${version.datasetId} version ${version.version} failed (exception: ${e.toString})"
-          )
-          // TODO: put an Index Dataset messages on an SQS queue to potentially trigger an indexing request at a later time
-          Future.successful(Done)
-      }
+      // queue message to execute pushing DOI
+      _ <- queueMessage(
+        PushDoiRequest(
+          jobType = SQSNotificationType.PUSH_DOI,
+          datasetId = updatedVersion.datasetId,
+          version = updatedVersion.version,
+          doi = updatedVersion.doi
+        )
+      )
+
+      // queue message to execute dataset indexing
+      _ <- queueMessage(
+        IndexDatasetRequest(
+          jobType = SQSNotificationType.INDEX,
+          datasetId = updatedVersion.datasetId,
+          version = updatedVersion.version
+        )
+      )
+
+      // Notify Pennsieve API that publishing has completed
+      _ = ports.log.info("handleSuccess() notify API")
+      _ <- ports.pennsieveApiClient
+        .putPublishComplete(publishStatus, None)
+        .value
+        .flatMap(_.fold(Future.failed, Future.successful))
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
       _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
@@ -367,6 +399,23 @@ class SQSNotificationHandler(
         updatedVersion.migrated
       )
     } yield ()
+
+  private def queueMessage(
+    message: SQSNotification
+  )(implicit
+    logContext: LogContext
+  ): Future[Unit] = Future {
+    ports.log.info(s"queueMessage() queuing message: ${message}")
+
+    val sendMessageRequest = SendMessageRequest
+      .builder()
+      .queueUrl(ports.config.sqs.queueUrl)
+      .messageBody(message.asJson.toString)
+      .delaySeconds(5)
+      .build()
+
+    ports.sqsClient.sendMessage(sendMessageRequest)
+  }
 
   private def publishFirstVersion(
     version: PublicDatasetVersion,
