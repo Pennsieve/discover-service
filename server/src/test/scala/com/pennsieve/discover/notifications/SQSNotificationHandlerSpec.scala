@@ -44,7 +44,10 @@ import com.pennsieve.doi.client.definitions._
 import com.sksamuel.elastic4s.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
-import software.amazon.awssdk.services.sqs.model.Message
+import software.amazon.awssdk.services.sqs.model.{
+  Message,
+  ReceiveMessageRequest
+}
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -184,34 +187,36 @@ class SQSNotificationHandlerSpec
         )
       )
 
-      val actualDoi: DoiDTO = ports.doiClient
-        .asInstanceOf[MockDoiClient]
-        .dois(doi.doi)
-      actualDoi.title shouldBe Some(publicDataset.name)
-      actualDoi.creators shouldBe Some(List())
-      actualDoi.publicationYear shouldBe Some(futureYear)
-      actualDoi.url shouldBe Some(
-        s"https://discover.pennsieve.org/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
-      )
+      // pushing the DOI is now done asynchronously via separate SQS Message request
+//      val actualDoi: DoiDTO = ports.doiClient
+//        .asInstanceOf[MockDoiClient]
+//        .dois(doi.doi)
+//      actualDoi.title shouldBe Some(publicDataset.name)
+//      actualDoi.creators shouldBe Some(List())
+//      actualDoi.publicationYear shouldBe Some(futureYear)
+//      actualDoi.url shouldBe Some(
+//        s"https://discover.pennsieve.org/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
+//      )
 
-      val (
-        indexedVersion,
-        indexedRevision,
-        indexedSponsorship,
-        indexedFiles,
-        indexedRecords
-      ) =
-        ports.searchClient
-          .asInstanceOf[MockSearchClient]
-          .indexedDatasets(publicDataset.id)
-
-      indexedVersion.version shouldBe publicDatasetV1.version
-      indexedRevision shouldBe None
-      indexedSponsorship shouldBe None
-
-      // From defaults in MockS3StreamClient
-      indexedFiles.length shouldBe 2
-      indexedRecords.length shouldBe 1
+      // indexing the published dataset is now done asynchronously via separate SQS Message request
+//      val (
+//        indexedVersion,
+//        indexedRevision,
+//        indexedSponsorship,
+//        indexedFiles,
+//        indexedRecords
+//      ) =
+//        ports.searchClient
+//          .asInstanceOf[MockSearchClient]
+//          .indexedDatasets(publicDataset.id)
+//
+//      indexedVersion.version shouldBe publicDatasetV1.version
+//      indexedRevision shouldBe None
+//      indexedSponsorship shouldBe None
+//
+//      // From defaults in MockS3StreamClient
+//      indexedFiles.length shouldBe 2
+//      indexedRecords.length shouldBe 1
     }
 
     "update publish status as failed" in {
@@ -284,74 +289,75 @@ class SQSNotificationHandlerSpec
 
     }
 
-    "not index files and records for embargoed datasets" in {
-      val publicDataset =
-        TestUtilities.createDataset(ports.db)()
-
-      val doi = ports.doiClient
-        .asInstanceOf[MockDoiClient]
-        .createMockDoi(
-          publicDataset.sourceOrganizationId,
-          publicDataset.sourceDatasetId
-        )
-
-      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
-        id = publicDataset.id,
-        status = PublishStatus.EmbargoInProgress,
-        doi = doi.doi
-      )
-
-      // Successful publish jobs create an outputs.json file
-      ports.s3StreamClient
-        .asInstanceOf[MockS3StreamClient]
-        .withNextPublishResult(
-          publicDatasetV1.s3Key,
-          PublishJobOutput(
-            readmeKey = publicDatasetV1.s3Key / "readme.md",
-            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
-            changelogKey = publicDatasetV1.s3Key / "changelog.md",
-            totalSize = 76543
-          )
-        )
-
-      processNotification(
-        PublishNotification(
-          publicDataset.sourceOrganizationId,
-          publicDataset.sourceDatasetId,
-          PublishStatus.PublishSucceeded,
-          publicDatasetV1.version
-        )
-      ) shouldBe an[MessageAction.Delete]
-
-      val publicVersion = ports.db
-        .run(
-          PublicDatasetVersionsMapper
-            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
-        )
-        .awaitFinite()
-
-      inside(publicVersion) {
-        case v: PublicDatasetVersion =>
-          v.status shouldBe PublishStatus.EmbargoSucceeded
-      }
-
-      val (
-        indexedVersion,
-        indexedRevision,
-        indexedSponsorship,
-        indexedFiles,
-        indexedRecords
-      ) =
-        ports.searchClient
-          .asInstanceOf[MockSearchClient]
-          .indexedDatasets(publicDataset.id)
-
-      indexedVersion.version shouldBe publicDatasetV1.version
-      indexedRevision shouldBe None
-      indexedSponsorship shouldBe None
-      indexedFiles shouldBe empty
-      indexedRecords shouldBe empty
-    }
+    // this test is invalid -- indexing is now done asynchronously via separate SQS message
+//    "not index files and records for embargoed datasets" in {
+//      val publicDataset =
+//        TestUtilities.createDataset(ports.db)()
+//
+//      val doi = ports.doiClient
+//        .asInstanceOf[MockDoiClient]
+//        .createMockDoi(
+//          publicDataset.sourceOrganizationId,
+//          publicDataset.sourceDatasetId
+//        )
+//
+//      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+//        id = publicDataset.id,
+//        status = PublishStatus.EmbargoInProgress,
+//        doi = doi.doi
+//      )
+//
+//      // Successful publish jobs create an outputs.json file
+//      ports.s3StreamClient
+//        .asInstanceOf[MockS3StreamClient]
+//        .withNextPublishResult(
+//          publicDatasetV1.s3Key,
+//          PublishJobOutput(
+//            readmeKey = publicDatasetV1.s3Key / "readme.md",
+//            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+//            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+//            totalSize = 76543
+//          )
+//        )
+//
+//      processNotification(
+//        PublishNotification(
+//          publicDataset.sourceOrganizationId,
+//          publicDataset.sourceDatasetId,
+//          PublishStatus.PublishSucceeded,
+//          publicDatasetV1.version
+//        )
+//      ) shouldBe an[MessageAction.Delete]
+//
+//      val publicVersion = ports.db
+//        .run(
+//          PublicDatasetVersionsMapper
+//            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+//        )
+//        .awaitFinite()
+//
+//      inside(publicVersion) {
+//        case v: PublicDatasetVersion =>
+//          v.status shouldBe PublishStatus.EmbargoSucceeded
+//      }
+//
+//      val (
+//        indexedVersion,
+//        indexedRevision,
+//        indexedSponsorship,
+//        indexedFiles,
+//        indexedRecords
+//      ) =
+//        ports.searchClient
+//          .asInstanceOf[MockSearchClient]
+//          .indexedDatasets(publicDataset.id)
+//
+//      indexedVersion.version shouldBe publicDatasetV1.version
+//      indexedRevision shouldBe None
+//      indexedSponsorship shouldBe None
+//      indexedFiles shouldBe empty
+//      indexedRecords shouldBe empty
+//    }
 
     "update publish status as failed for embargoed datasets" in {
 
