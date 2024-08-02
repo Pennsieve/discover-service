@@ -9,7 +9,10 @@ final case class DiscoverLogContext(
   datasetId: Option[Int] = None,
   userId: Option[Int] = None,
   publicDatasetId: Option[Int] = None,
-  publicDatasetVersion: Option[Int] = None
+  publicDatasetVersion: Option[Int] = None,
+  releaseOrigin: Option[String] = None,
+  releaseRepoUrl: Option[String] = None,
+  releaseLabel: Option[String] = None
 ) extends LogContext {
   override val values: Map[String, String] = inferValues(this)
 }
