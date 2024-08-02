@@ -25,7 +25,8 @@ import com.pennsieve.discover.db.{
   PublicDatasetsMapper,
   PublicExternalPublicationsMapper,
   PublicFileVersionsMapper,
-  PublicFilesMapper
+  PublicFilesMapper,
+  WorkspaceSettingsMapper
 }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.logging.DiscoverLogContext
@@ -560,40 +561,53 @@ class SQSNotificationHandler(
     contributors: List[PublicContributor],
     collections: List[PublicCollection],
     externalPublications: List[PublicExternalPublication]
-  ): Future[DoiDTO] = {
+  ): Future[DoiDTO] =
+    for {
+      workspaceSettings <- ports.db.run(
+        WorkspaceSettingsMapper
+          .getSettings(organizationId = publicDataset.sourceOrganizationId)
+      )
 
-    val token = Authenticator.generateServiceToken(
-      ports.jwt,
-      organizationId = publicDataset.sourceOrganizationId,
-      datasetId = publicDataset.sourceDatasetId
-    )
-    val headers = List(Authorization(OAuth2BearerToken(token.value)))
-    val publicationYear: Int = version.embargoReleaseDate
-      .map(_.getYear)
-      .getOrElse(Calendar.getInstance().get(Calendar.YEAR))
-    ports.doiClient.publishDoi(
-      doi = version.doi,
-      name = publicDataset.name,
-      publicationYear = publicationYear,
-      contributors = contributors,
-      publisher = DoiRedirect.getPublisher(publicDataset),
-      url = DoiRedirect.getUrl(ports.config.publicUrl, publicDataset, version),
-      owner = Some(
-        InternalContributor(
-          id = publicDataset.ownerId, //id is not used so the value does not matter
-          firstName = publicDataset.ownerFirstName,
-          lastName = publicDataset.ownerLastName,
-          orcid = Some(publicDataset.ownerOrcid)
-        )
-      ),
-      version = Some(version.version),
-      description = Some(version.description),
-      license = Some(publicDataset.license),
-      collections = collections,
-      externalPublications = externalPublications,
-      headers = headers
-    )
-  }
+      doiRedirect = DoiRedirect(
+        workspaceSettings
+          .getOrElse(WorkspaceSettings.default(ports.config.publicUrl))
+      )
+
+      token = Authenticator.generateServiceToken(
+        ports.jwt,
+        organizationId = publicDataset.sourceOrganizationId,
+        datasetId = publicDataset.sourceDatasetId
+      )
+
+      headers = List(Authorization(OAuth2BearerToken(token.value)))
+
+      publicationYear: Int = version.embargoReleaseDate
+        .map(_.getYear)
+        .getOrElse(Calendar.getInstance().get(Calendar.YEAR))
+
+      doi <- ports.doiClient.publishDoi(
+        doi = version.doi,
+        name = publicDataset.name,
+        publicationYear = publicationYear,
+        contributors = contributors,
+        publisher = Some(doiRedirect.getPublisher()),
+        url = doiRedirect.getUrl(publicDataset.id, version.version),
+        owner = Some(
+          InternalContributor(
+            id = publicDataset.ownerId, //id is not used so the value does not matter
+            firstName = publicDataset.ownerFirstName,
+            lastName = publicDataset.ownerLastName,
+            orcid = Some(publicDataset.ownerOrcid)
+          )
+        ),
+        version = Some(version.version),
+        description = Some(version.description),
+        license = Some(publicDataset.license),
+        collections = collections,
+        externalPublications = externalPublications,
+        headers = headers
+      )
+    } yield (doi)
 
   /**
     * Scan the dataset versions table for datasets that can be released to

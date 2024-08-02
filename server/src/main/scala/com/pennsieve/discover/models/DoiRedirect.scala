@@ -2,45 +2,20 @@
 
 package com.pennsieve.discover.models
 
+class DoiRedirect(settings: WorkspaceSettings) {
+  def getPublisher(): String = settings.publisherName
+  def getUrl(datasetId: Int, versionId: Int): String = {
+    val replacements = Map(
+      "{{datasetId}}" -> datasetId.toString,
+      "{{versionId}}" -> versionId.toString
+    )
+    replacements.foldLeft(settings.redirectUrl)(
+      (a, b) => a.replaceAllLiterally(b._1, b._2)
+    )
+  }
+}
+
 object DoiRedirect {
-  def getUrl(
-    publicDiscoverUrl: String,
-    publicDataset: PublicDataset,
-    publicVersion: PublicDatasetVersion
-  ): String = {
-    if ((publicDataset.sourceOrganizationName == "SPARC" || publicDataset.sourceOrganizationName == "SPARC Consortium") &&
-      publicDiscoverUrl == "https://discover.pennsieve.io") {
-      getSPARCUrl(publicDataset.id, publicVersion.version)
-    } else if (publicDataset.sourceOrganizationName == "RE-JOIN" && publicDiscoverUrl == "https://discover.pennsieve.io") {
-      getSPARCUrl(publicDataset.id, publicVersion.version)
-    } else if (publicDataset.sourceOrganizationName == "HEAL PRECISION" && publicDiscoverUrl == "https://discover.pennsieve.io") {
-      getSPARCUrl(publicDataset.id, publicVersion.version)
-    } else {
-      getDiscoverUrl(publicDiscoverUrl, publicDataset.id, publicVersion.version)
-    }
-  }
-
-  def getPublisher(publicDataset: PublicDataset): Option[String] = {
-    if ((publicDataset.sourceOrganizationName == "SPARC" || publicDataset.sourceOrganizationName == "SPARC Consortium")) {
-      Some("SPARC Consortium")
-    } else if (publicDataset.sourceOrganizationName == "RE-JOIN") {
-      Some("RE-JOIN Consortium")
-    } else if (publicDataset.sourceOrganizationName == "HEAL PRECISION") {
-      Some("HEAL PRECISION Consortium")
-    } else {
-      Some("Pennsieve Discover")
-    }
-  }
-
-  def getSPARCUrl(datasetId: Int, version: Int): String = {
-    s"https://sparc.science/datasets/${datasetId}/version/${version}"
-  }
-
-  def getDiscoverUrl(
-    publicDiscoverUrl: String,
-    datasetId: Int,
-    version: Int
-  ): String = {
-    s"${publicDiscoverUrl}/datasets/${datasetId}/version/${version}"
-  }
+  def apply(settings: WorkspaceSettings): DoiRedirect =
+    new DoiRedirect(settings)
 }
