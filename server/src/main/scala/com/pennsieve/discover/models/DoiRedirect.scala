@@ -9,9 +9,7 @@ class DoiRedirect(settings: WorkspaceSettings) {
       "{{datasetId}}" -> datasetId.toString,
       "{{versionId}}" -> versionId.toString
     )
-    replacements.foldLeft(settings.redirectUrl)(
-      (a, b) => a.replaceAllLiterally(b._1, b._2)
-    )
+    replacements.foldLeft(settings.redirectUrl)((a, b) => a.replace(b._1, b._2))
   }
 }
 

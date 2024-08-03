@@ -25,6 +25,18 @@ final class WorkspaceSettingsTable(tag: Tag)
 
 object WorkspaceSettingsMapper
     extends TableQuery(new WorkspaceSettingsTable(_)) {
+
+  def addSettings(
+    settings: WorkspaceSettings
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    WorkspaceSettings,
+    NoStream,
+    Effect.Read with Effect.Write with Effect
+  ] =
+    (this returning this) += settings
+
   def getSettings(
     organizationId: Int
   )(implicit

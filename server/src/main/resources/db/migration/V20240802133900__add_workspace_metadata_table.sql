@@ -5,7 +5,7 @@ CREATE TABLE workspace_settings (
     redirect_url TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
+);
 
 CREATE TRIGGER workspace_settings_updated_at
     BEFORE UPDATE ON workspace_settings

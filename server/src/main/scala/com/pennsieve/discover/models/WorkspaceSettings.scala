@@ -14,10 +14,11 @@ case class WorkspaceSettings(
 )
 
 object WorkspaceSettings {
+  def defaultPublisher = "Pennsieve Discover"
   def default(publicUrl: String): WorkspaceSettings =
     WorkspaceSettings(
       organizationId = 0,
-      publisherName = "Pennsieve",
+      publisherName = defaultPublisher,
       redirectUrl = s"${publicUrl}/datasets/{{datasetId}}/version/{{versionId}}"
     )
 

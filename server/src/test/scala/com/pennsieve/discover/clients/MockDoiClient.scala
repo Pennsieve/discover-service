@@ -41,7 +41,7 @@ class MockDoiClient(
       organizationId = organizationId,
       datasetId = datasetId,
       doi = doi,
-      publisher = "Pennsieve Discover",
+      publisher = WorkspaceSettings.defaultPublisher,
       url = None,
       createdAt = Some("4/18/2019"),
       publicationYear = None,
@@ -98,7 +98,8 @@ class MockDoiClient(
           title = Some(name),
           creators = Some(contributors.map(c => Some(c.fullName))),
           publicationYear = Some(publicationYear),
-          url = Some(url)
+          url = Some(url),
+          publisher = publisher.getOrElse(dto.publisher)
         )
         dois += doi -> published
         Future.successful(published)
