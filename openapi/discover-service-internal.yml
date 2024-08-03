@@ -470,7 +470,7 @@ paths:
       summary: publish a release to Discover
       security:
         - Bearer: []
-      operationId: publish
+      operationId: publishRelease
       x-scala-package: release
       parameters:
         - name: organizationId

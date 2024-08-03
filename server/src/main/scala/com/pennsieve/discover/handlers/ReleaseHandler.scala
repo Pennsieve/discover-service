@@ -9,13 +9,17 @@ import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
 import com.pennsieve.discover.db.{
   PublicCollectionsMapper,
   PublicContributorsMapper,
+  PublicDatasetReleaseMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   PublicExternalPublicationsMapper
 }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.logging.DiscoverLogContext
-import com.pennsieve.discover.models.{ PennsieveSchemaVersion }
+import com.pennsieve.discover.models.{
+  PennsieveSchemaVersion,
+  PublicDatasetRelease
+}
 import com.pennsieve.discover.{
   Config,
   DoiCreationException,
@@ -48,12 +52,12 @@ class ReleaseHandler(
   system: ActorSystem,
   executionContext: ExecutionContext
 ) extends GuardrailHandler {
-  type PublishResponse = GuardrailResource.PublishResponse
+  type PublishResponse = GuardrailResource.PublishReleaseResponse
 
   implicit val config: Config = ports.config
 
-  override def publish(
-    respond: GuardrailResource.PublishResponse.type
+  override def publishRelease(
+    respond: GuardrailResource.PublishReleaseResponse.type
   )(
     organizationId: Int,
     datasetId: Int,
@@ -115,7 +119,20 @@ class ReleaseHandler(
               )
             _ = ports.log.info(s"Public dataset version : $version")
 
-            // TODO: add PublicDatasetRelease
+            release <- PublicDatasetReleaseMapper.add(
+              PublicDatasetRelease(
+                datasetId = publicDataset.id,
+                datasetVersion = version.version,
+                origin = body.origin,
+                label = body.label,
+                marker = body.marker,
+                repoUrl = body.repoUrl,
+                labelUrl = body.labelUrl,
+                markerUrl = body.markerUrl,
+                releaseStatus = body.releaseStatus
+              )
+            )
+            _ = ports.log.info(s"Public dataset release : $release")
 
             _ = ports.log.info(s"Internal Contributors : ${body.contributors}")
             contributors <- DBIO.sequence(body.contributors.map { c =>
@@ -134,6 +151,7 @@ class ReleaseHandler(
             }.toList)
             _ = ports.log.info(s"Public dataset contributors: $contributors")
 
+            _ = ports.log.info(s"Collections: ${body.collections}")
             collections <- DBIO.sequence(
               body.collections
                 .getOrElse(IndexedSeq())
@@ -150,6 +168,9 @@ class ReleaseHandler(
             )
             _ = ports.log.info(s"Public dataset collections: $collections")
 
+            _ = ports.log.info(
+              s"External Publications: ${body.externalPublications}"
+            )
             externalPublications <- DBIO.sequence(
               body.externalPublications
                 .getOrElse(IndexedSeq.empty)
@@ -171,6 +192,7 @@ class ReleaseHandler(
             status <- PublicDatasetVersionsMapper.getDatasetStatus(
               publicDataset
             )
+            _ = ports.log.info(s"Dataset Public Status: ${status}")
 
           } yield respond.Created(status)
 

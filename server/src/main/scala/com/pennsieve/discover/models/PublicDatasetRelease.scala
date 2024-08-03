@@ -12,11 +12,11 @@ case class PublicDatasetRelease(
   label: String,
   marker: String,
   repoUrl: String,
-  labelUrl: Option[String],
-  markerUrl: Option[String],
-  releaseStatus: Option[String],
-  assetFilePrefix: Option[String],
-  assetFileId: Option[Int],
+  labelUrl: Option[String] = None,
+  markerUrl: Option[String] = None,
+  releaseStatus: Option[String] = None,
+  assetFilePrefix: Option[String] = None,
+  assetFileId: Option[Int] = None,
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC)
 )

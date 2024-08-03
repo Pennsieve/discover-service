@@ -6,6 +6,7 @@ import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.PublicDatasetRelease
 
 import java.time.OffsetDateTime
+import scala.concurrent.ExecutionContext
 
 final class PublicDatasetReleaseTable(tag: Tag)
     extends Table[PublicDatasetRelease](tag, "public_dataset_release") {
@@ -45,4 +46,61 @@ final class PublicDatasetReleaseTable(tag: Tag)
 }
 
 object PublicDatasetReleaseMapper
-    extends TableQuery(new PublicDatasetReleaseTable(_)) {}
+    extends TableQuery(new PublicDatasetReleaseTable(_)) {
+
+  def add(
+    release: PublicDatasetRelease
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    PublicDatasetRelease,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] =
+    (this returning this) += release
+
+  def update(
+    release: PublicDatasetRelease
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    PublicDatasetRelease,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] =
+    for {
+      _ <- this
+        .filter(_.datasetId === release.datasetId)
+        .filter(_.datasetVersion === release.datasetVersion)
+        .update(release)
+
+      updated <- this
+        .filter(_.datasetId === release.datasetId)
+        .filter(_.datasetVersion === release.datasetVersion)
+        .result
+        .head
+    } yield updated
+
+  def get(
+    id: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Option[PublicDatasetRelease], NoStream, Effect.Read with Effect] =
+    this
+      .filter(_.id === id)
+      .result
+      .headOption
+
+  def get(
+    datasetId: Int,
+    versionId: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Option[PublicDatasetRelease], NoStream, Effect.Read with Effect] =
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === versionId)
+      .result
+      .headOption
+
+}
