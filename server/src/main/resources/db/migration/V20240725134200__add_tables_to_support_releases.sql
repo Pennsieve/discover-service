@@ -23,6 +23,7 @@ CREATE TABLE public_dataset_release (
     asset_file_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(dataset_id, dataset_version),
     CONSTRAINT public_dataset_release_fk1
         FOREIGN KEY (dataset_id, dataset_version)
         REFERENCES public_dataset_versions(dataset_id, version)
