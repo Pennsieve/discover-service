@@ -4,7 +4,8 @@ CREATE TABLE workspace_settings (
     publisher_name TEXT NOT NULL,
     redirect_url TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(organization_id)
 );
 
 CREATE TRIGGER workspace_settings_updated_at
