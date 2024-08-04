@@ -3,6 +3,8 @@
 package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.server.Route
+import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.utils.getOrCreateDoi
 import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
@@ -15,7 +17,10 @@ import com.pennsieve.discover.db.{
   PublicExternalPublicationsMapper
 }
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.logging.DiscoverLogContext
+import com.pennsieve.discover.logging.{
+  logRequestAndResponse,
+  DiscoverLogContext
+}
 import com.pennsieve.discover.models.{
   PennsieveSchemaVersion,
   PublicDatasetRelease
@@ -225,4 +230,19 @@ class ReleaseHandler(
     }
   }
 
+}
+
+object ReleaseHandler {
+  def routes(
+    ports: Ports
+  )(implicit
+    system: ActorSystem,
+    executionContext: ExecutionContext
+  ): Route = {
+    logRequestAndResponse(ports) {
+      authenticateJwt(system.name)(ports.jwt) { claim =>
+        GuardrailResource.routes(new ReleaseHandler(ports, claim))
+      }
+    }
+  }
 }
