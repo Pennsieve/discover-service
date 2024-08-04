@@ -18,6 +18,12 @@ import com.pennsieve.discover.client.release.{
   PublishReleaseResponse,
   ReleaseClient
 }
+import com.pennsieve.discover.clients.MockDoiClient
+import com.pennsieve.discover.db.{
+  PublicDatasetReleaseMapper,
+  PublicDatasetVersionsMapper,
+  PublicDatasetsMapper
+}
 import com.pennsieve.discover.models.PublishingWorkflow
 import com.pennsieve.models.{ Degree, License, RelationshipType }
 import com.pennsieve.models.PublishStatus.PublishInProgress
@@ -140,6 +146,41 @@ class ReleaseHandlerSpec
         None,
         workflowId = PublishingWorkflow.Version5
       )
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      val doiDto = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .getMockDoi(organizationId, datasetId)
+        .get
+
+      doiDto.publisher shouldBe "Pennsieve Discover"
+
+      val publicRelease = ports.db
+        .run(
+          PublicDatasetReleaseMapper
+            .get(publicDataset.id, publicVersion.version)
+        )
+        .awaitFinite()
+        .get
+
+      publicRelease.origin shouldBe origin
+      publicRelease.label shouldBe label
+      publicRelease.marker shouldBe marker
+      publicRelease.repoUrl shouldBe repoUrl
     }
   }
 
