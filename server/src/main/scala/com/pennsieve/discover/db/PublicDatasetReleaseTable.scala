@@ -4,6 +4,8 @@ package com.pennsieve.discover.db
 
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.PublicDatasetRelease
+import slick.dbio.Effect
+import slick.sql.FixedSqlAction
 
 import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
@@ -103,4 +105,14 @@ object PublicDatasetReleaseMapper
       .result
       .headOption
 
+  def delete(
+    datasetId: Int,
+    versionId: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): FixedSqlAction[Int, NoStream, Effect.Write] =
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === versionId)
+      .delete
 }

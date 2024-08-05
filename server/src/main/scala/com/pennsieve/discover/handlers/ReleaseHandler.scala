@@ -23,7 +23,8 @@ import com.pennsieve.discover.logging.{
 }
 import com.pennsieve.discover.models.{
   PennsieveSchemaVersion,
-  PublicDatasetRelease
+  PublicDatasetRelease,
+  PublicDatasetVersion
 }
 import com.pennsieve.discover.{
   Config,
@@ -42,9 +43,10 @@ import com.pennsieve.discover.server.release.{
 }
 import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.utils.BucketResolver
+import com.pennsieve.models.PublishStatus.PublishSucceeded
 import com.pennsieve.models.{ PublishStatus, RelationshipType }
 import io.circe.DecodingFailure
-import slick.dbio.DBIO
+import slick.dbio.{ DBIO, DBIOAction }
 import slick.jdbc.TransactionIsolation
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -105,6 +107,24 @@ class ReleaseHandler(
                 tags = body.tags.toList
               )
             _ = ports.log.info(s"Public dataset: $publicDataset")
+
+            // get the latest published version
+            _ <- PublicDatasetVersionsMapper
+              .getLatestVisibleVersion(publicDataset)
+              .flatMap {
+                // if the previous publish job failed, then this will remove the record of the public
+                // dataset version and release in preparation for attempting publishing (again).
+                case Some(version) if version.status != PublishSucceeded =>
+                  for {
+                    _ <- PublicDatasetReleaseMapper.delete(
+                      publicDataset.id,
+                      version.version
+                    )
+                    _ <- PublicDatasetVersionsMapper.deleteVersion(version)
+                  } yield ()
+                case _ =>
+                  DBIOAction.from(Future.successful(()))
+              }
 
             version <- PublicDatasetVersionsMapper
               .create(
