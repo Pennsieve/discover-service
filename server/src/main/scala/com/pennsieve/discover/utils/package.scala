@@ -2,11 +2,17 @@
 
 package com.pennsieve.discover
 
-import java.time.temporal.ChronoUnit
+import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
+import com.pennsieve.discover.db.PublicDatasetVersionsMapper
+import com.pennsieve.discover.logging.DiscoverLogContext
 
+import java.time.temporal.ChronoUnit
 import com.pennsieve.discover.models.DatasetDownload
+import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.models._
 import org.apache.commons.lang3.StringUtils
+
+import scala.concurrent.{ ExecutionContext, Future }
 
 package object utils {
 
@@ -82,6 +88,45 @@ package object utils {
           databaseDL
       }.isEmpty
     }
+  }
+
+  def getOrCreateDoi(
+    ports: Ports,
+    organizationId: Int,
+    datasetId: Int
+  )(implicit
+    ec: ExecutionContext,
+    logContext: DiscoverLogContext
+  ): Future[DoiDTO] = {
+    val token = Authenticator.generateServiceToken(
+      ports.jwt,
+      organizationId = organizationId,
+      datasetId = datasetId
+    )
+    val headers = List(Authorization(OAuth2BearerToken(token.value)))
+
+    for {
+      latestDoi <- ports.doiClient
+        .getLatestDoi(organizationId, datasetId, headers)
+        .recoverWith {
+          case NoDoiException => {
+            // no DOI exists for the dataset, so create a new one
+            ports.log.info("creating new DOI: no existing DOI found")
+            ports.doiClient.createDraftDoi(organizationId, datasetId, headers)
+          }
+        }
+      isDuplicateDoi <- ports.db.run(
+        PublicDatasetVersionsMapper.isDuplicateDoi(latestDoi.doi)
+      )
+      isFindable = latestDoi.state.contains(DoiState.Findable)
+      validDoi <- if (isFindable || isDuplicateDoi) {
+        // create a new draft DOI if the latest DOI is Findable, or if the latest DOI is already associated with a dataset version
+        ports.log.info(
+          s"creating new DOI: existing DOI ${latestDoi.doi} is not usable (isFindable: ${isFindable}, isDuplicateDoi: ${isDuplicateDoi})"
+        )
+        ports.doiClient.createDraftDoi(organizationId, datasetId, headers)
+      } else Future.successful(latestDoi)
+    } yield validDoi
   }
 
 }
