@@ -29,12 +29,14 @@ import com.pennsieve.discover.models.{
   PublicFileVersion,
   PublishJobOutput,
   PublishingWorkflow,
-  S3Bucket
+  S3Bucket,
+  WorkspaceSettings
 }
 import com.pennsieve.discover.db.{
   PublicDatasetVersionsMapper,
   PublicFileVersionsMapper,
-  PublicFilesMapper
+  PublicFilesMapper,
+  WorkspaceSettingsMapper
 }
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.discover.server.definitions.DatasetPublishStatus
@@ -988,4 +990,260 @@ class SQSNotificationHandlerSpec
     }
   }
 
+  "Workspace Metadata" should {
+    "provide default settings" in {
+      val numberOfFilesV1 = 10
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)()
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      // Successful publish jobs create an outputs.json file
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      val datasetContributor = PublishedContributor(
+        first_name = "dataset",
+        last_name = "owner",
+        orcid = Some("0000-0001-0023-9087"),
+        middle_initial = None,
+        degree = Some(Degree.PhD)
+      )
+
+      // generate list of files in V1 of dataset
+      val v1Files = (1 to numberOfFilesV1).map { i =>
+        val name = s"test-file-${i}.csv"
+        FileManifest(
+          name = name,
+          path = s"data/${name}",
+          size = TestUtilities.randomInteger(16 * 1024),
+          fileType = FileType.CSV,
+          sourcePackageId = Some(s"N:package:${UUID.randomUUID().toString}"),
+          id = None,
+          s3VersionId = Some(TestUtilities.randomString()),
+          sha256 = Some(TestUtilities.randomString())
+        )
+      }.toList
+
+      // generate dataset V1 metadata (manifest.json)
+      val metadataV1 = DatasetMetadataV4_0(
+        pennsieveDatasetId = publicDataset.id,
+        version = publicDatasetV1.version,
+        revision = None,
+        name = publicDataset.name,
+        description = publicDatasetV1.description,
+        creator = datasetContributor,
+        contributors = List(datasetContributor),
+        sourceOrganization = "1",
+        keywords = List("data"),
+        datePublished = LocalDate.now(),
+        license = Some(License.`Community Data License Agreement – Permissive`),
+        `@id` = doi.doi,
+        publisher = "Pennsieve",
+        `@context` = "public data",
+        `@type` = "dataset",
+        schemaVersion = "n/a",
+        collections = None,
+        relatedPublications = None,
+        files = TestUtilities.assetFiles() ++ v1Files,
+        pennsieveSchemaVersion = "4.0"
+      )
+
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishMetadata(publicDatasetV1.s3Key, metadataV1)
+
+      // finalize publishing
+      processNotification(
+        PublishNotification(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId,
+          PublishStatus.PublishSucceeded,
+          publicDatasetV1.version
+        ),
+        waitTime = 60.seconds
+      ) shouldBe an[MessageAction.Delete]
+
+      // push DOI to registry
+      processNotification(
+        PushDoiRequest(
+          jobType = SQSNotificationType.PUSH_DOI,
+          datasetId = publicDataset.id,
+          version = publicDatasetV1.version,
+          doi = publicDatasetV1.doi
+        ),
+        waitTime = 60.seconds
+      ) shouldBe an[MessageAction.Delete]
+
+      val updatedDoiOption = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .getMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      updatedDoiOption should not be empty
+      val updatedDoi = updatedDoiOption.get
+      updatedDoi.publisher shouldBe WorkspaceSettings.defaultPublisher
+      updatedDoi.url.get should startWith("https://discover.pennsieve")
+    }
+
+    "provide organization settings" in {
+      val numberOfFilesV1 = 10
+      val organizationId = 367
+      val organizationName = "SPARC"
+      val organizationRedirectUrlFormat =
+        "https://sparc.science/datasets/{{datasetId}}/version/{{versionId}}"
+
+      val settings = WorkspaceSettings(
+        organizationId = organizationId,
+        publisherName = organizationName,
+        redirectUrl = organizationRedirectUrlFormat
+      )
+
+      ports.db.run(WorkspaceSettingsMapper.addSettings(settings)).await
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(
+          sourceOrganizationId = organizationId,
+          sourceOrganizationName = organizationName
+        )
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      // Successful publish jobs create an outputs.json file
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      val datasetContributor = PublishedContributor(
+        first_name = "dataset",
+        last_name = "owner",
+        orcid = Some("0000-0001-0023-9087"),
+        middle_initial = None,
+        degree = Some(Degree.PhD)
+      )
+
+      // generate list of files in V1 of dataset
+      val v1Files = (1 to numberOfFilesV1).map { i =>
+        val name = s"test-file-${i}.csv"
+        FileManifest(
+          name = name,
+          path = s"data/${name}",
+          size = TestUtilities.randomInteger(16 * 1024),
+          fileType = FileType.CSV,
+          sourcePackageId = Some(s"N:package:${UUID.randomUUID().toString}"),
+          id = None,
+          s3VersionId = Some(TestUtilities.randomString()),
+          sha256 = Some(TestUtilities.randomString())
+        )
+      }.toList
+
+      // generate dataset V1 metadata (manifest.json)
+      val metadataV1 = DatasetMetadataV4_0(
+        pennsieveDatasetId = publicDataset.id,
+        version = publicDatasetV1.version,
+        revision = None,
+        name = publicDataset.name,
+        description = publicDatasetV1.description,
+        creator = datasetContributor,
+        contributors = List(datasetContributor),
+        sourceOrganization = "1",
+        keywords = List("data"),
+        datePublished = LocalDate.now(),
+        license = Some(License.`Community Data License Agreement – Permissive`),
+        `@id` = doi.doi,
+        publisher = "Pennsieve",
+        `@context` = "public data",
+        `@type` = "dataset",
+        schemaVersion = "n/a",
+        collections = None,
+        relatedPublications = None,
+        files = TestUtilities.assetFiles() ++ v1Files,
+        pennsieveSchemaVersion = "4.0"
+      )
+
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishMetadata(publicDatasetV1.s3Key, metadataV1)
+
+      // finalize publishing
+      processNotification(
+        PublishNotification(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId,
+          PublishStatus.PublishSucceeded,
+          publicDatasetV1.version
+        ),
+        waitTime = 60.seconds
+      ) shouldBe an[MessageAction.Delete]
+
+      // push DOI to registry
+      processNotification(
+        PushDoiRequest(
+          jobType = SQSNotificationType.PUSH_DOI,
+          datasetId = publicDataset.id,
+          version = publicDatasetV1.version,
+          doi = publicDatasetV1.doi
+        ),
+        waitTime = 60.seconds
+      ) shouldBe an[MessageAction.Delete]
+
+      val updatedDoiOption = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .getMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      updatedDoiOption should not be empty
+      val updatedDoi = updatedDoiOption.get
+      updatedDoi.publisher shouldBe organizationName
+      val expectedUrl =
+        s"https://sparc.science/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
+      updatedDoi.url.get shouldEqual (expectedUrl)
+    }
+  }
 }
