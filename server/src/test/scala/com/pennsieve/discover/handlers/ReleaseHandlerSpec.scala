@@ -113,7 +113,6 @@ class ReleaseHandlerSpec
       organizationNodeId = organizationNodeId,
       organizationName = organizationName,
       datasetNodeId = datasetNodeId,
-      workflowId = Some(5),
       origin = origin,
       label = label,
       marker = marker,
