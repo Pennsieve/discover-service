@@ -132,17 +132,12 @@ class ReleaseHandler(
                 status = PublishStatus.PublishInProgress,
                 size = body.size,
                 description = body.description,
-                // TODO: make this an empty Map
-                modelCount =
-                  body.modelCount.map(o => o.modelName -> o.count).toMap,
-                // TODO: really, this is 1 (the release asset Zip file)
+                modelCount = Map.empty,
                 fileCount = body.fileCount,
-                // TODO: set this to zero
-                recordCount = body.recordCount,
                 s3Bucket = targetS3Bucket,
                 embargoReleaseDate = None,
                 doi = doi.doi,
-                // TODO: we need to
+                // TODO: we need to generate a new schema version and DatasetMetadata_V?
                 schemaVersion = PennsieveSchemaVersion.`4.0`,
                 migrated = true
               )
