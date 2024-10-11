@@ -100,8 +100,6 @@ class ReleaseHandlerSpec
       name = datasetName,
       description = "A very very long description...",
       ownerId = 1,
-      modelCount = Vector(definitions.ModelCount("myConcept", 100L)),
-      recordCount = 100L,
       fileCount = 100L,
       size = 5555555L,
       license = License.`Apache 2.0`,
