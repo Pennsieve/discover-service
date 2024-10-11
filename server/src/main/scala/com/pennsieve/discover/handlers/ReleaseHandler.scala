@@ -24,7 +24,8 @@ import com.pennsieve.discover.logging.{
 import com.pennsieve.discover.models.{
   PennsieveSchemaVersion,
   PublicDatasetRelease,
-  PublicDatasetVersion
+  PublicDatasetVersion,
+  PublishingWorkflow
 }
 import com.pennsieve.discover.{
   Config,
@@ -43,6 +44,7 @@ import com.pennsieve.discover.server.release.{
 }
 import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.utils.BucketResolver
+import com.pennsieve.models.PayloadType.Workflow
 import com.pennsieve.models.PublishStatus.PublishSucceeded
 import com.pennsieve.models.{ PublishStatus, RelationshipType }
 import io.circe.DecodingFailure
@@ -81,7 +83,10 @@ class ReleaseHandler(
     ports.log.info("publish release starting")
     val bucketResolver = BucketResolver(ports)
     val (targetS3Bucket, _) =
-      bucketResolver.resolveBucketConfig(body.bucketConfig, body.workflowId)
+      bucketResolver.resolveBucketConfig(
+        body.bucketConfig,
+        Some(PublishingWorkflow.Version5)
+      )
 
     withServiceOwnerAuthorization[PublishResponse](
       claim,
