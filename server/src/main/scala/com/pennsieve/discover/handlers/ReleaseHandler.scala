@@ -44,7 +44,6 @@ import com.pennsieve.discover.server.release.{
 }
 import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.utils.BucketResolver
-import com.pennsieve.models.PayloadType.Workflow
 import com.pennsieve.models.PublishStatus.PublishSucceeded
 import com.pennsieve.models.{ PublishStatus, RelationshipType }
 import io.circe.DecodingFailure
