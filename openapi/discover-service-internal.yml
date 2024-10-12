@@ -734,8 +734,6 @@ components:
         - name
         - description
         - ownerId
-        - modelCount
-        - recordCount
         - fileCount
         - size
         - license
@@ -760,13 +758,6 @@ components:
         ownerId:
           type: integer
           format: int32
-        modelCount:
-          type: array
-          items:
-            $ref: ./discover-service.yml#/components/schemas/ModelCount
-        recordCount:
-          type: integer
-          format: int64
         fileCount:
           type: integer
           format: int64
@@ -809,9 +800,6 @@ components:
         bucketConfig:
           description: The owning organization's custom bucket config. Omit if there is no such config
           $ref: "#/components/schemas/BucketConfig"
-        workflowId:
-          type: integer
-          format: int64
         origin:
           type: string
         label:

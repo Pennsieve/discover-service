@@ -24,7 +24,8 @@ import com.pennsieve.discover.logging.{
 import com.pennsieve.discover.models.{
   PennsieveSchemaVersion,
   PublicDatasetRelease,
-  PublicDatasetVersion
+  PublicDatasetVersion,
+  PublishingWorkflow
 }
 import com.pennsieve.discover.{
   Config,
@@ -81,7 +82,10 @@ class ReleaseHandler(
     ports.log.info("publish release starting")
     val bucketResolver = BucketResolver(ports)
     val (targetS3Bucket, _) =
-      bucketResolver.resolveBucketConfig(body.bucketConfig, body.workflowId)
+      bucketResolver.resolveBucketConfig(
+        body.bucketConfig,
+        Some(PublishingWorkflow.Version5)
+      )
 
     withServiceOwnerAuthorization[PublishResponse](
       claim,
@@ -132,13 +136,12 @@ class ReleaseHandler(
                 status = PublishStatus.PublishInProgress,
                 size = body.size,
                 description = body.description,
-                modelCount =
-                  body.modelCount.map(o => o.modelName -> o.count).toMap,
+                modelCount = Map.empty,
                 fileCount = body.fileCount,
-                recordCount = body.recordCount,
                 s3Bucket = targetS3Bucket,
                 embargoReleaseDate = None,
                 doi = doi.doi,
+                // TODO: we need to generate a new schema version and DatasetMetadata_V?
                 schemaVersion = PennsieveSchemaVersion.`4.0`,
                 migrated = true
               )
