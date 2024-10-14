@@ -25,12 +25,14 @@ import com.pennsieve.discover.db.{
   PublicDatasetsMapper
 }
 import com.pennsieve.discover.models.PublishingWorkflow
+import com.pennsieve.discover.client.definitions.BucketConfig
 import com.pennsieve.models.{ Degree, License, RelationshipType }
 import com.pennsieve.models.PublishStatus.PublishInProgress
 import com.pennsieve.test.EitherValue._
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import io.circe.parser.decode
 
 class ReleaseHandlerSpec
     extends AnyWordSpec
@@ -178,6 +180,101 @@ class ReleaseHandlerSpec
       publicRelease.label shouldBe label
       publicRelease.marker shouldBe marker
       publicRelease.repoUrl shouldBe repoUrl
+    }
+  }
+
+  "JSON encoder/decoder" should {
+    "decode PublishReleaseRequest message" in {
+      val jsonMessage =
+        """
+          |{
+          |  "name": "muftring/a1a-test-repo",
+          |  "description": "Test Repo a1a for Publishing",
+          |  "ownerId": 177,
+          |  "fileCount": 0,
+          |  "size": 0,
+          |  "license": "Apache License 2.0",
+          |  "contributors": [
+          |    {
+          |      "id": 1,
+          |      "firstName": "Michael",
+          |      "lastName": "Uftring",
+          |      "orcid": "0000-0001-7054-4685",
+          |      "userId": 177
+          |    }
+          |  ],
+          |  "tags": [],
+          |  "origin": "GitHub",
+          |  "label": "v1.5.9",
+          |  "marker": "ad6919eb3391ad24f7d73f04a07dd088e153373e",
+          |  "repoUrl": "https://github.com/muftring/a1a-test-repo",
+          |  "ownerNodeId": "N:user:61e7c1cf-a836-421b-b919-a2309402c9d6",
+          |  "ownerFirstName": "Michael",
+          |  "ownerLastName": "Uftring",
+          |  "ownerOrcid": "0000-0001-7054-4685",
+          |  "organizationNodeId": "N:organization:7c2de0a6-5972-4138-99ad-cc0aff0fb67f",
+          |  "organizationName": "Publishing 5.0 Workspace",
+          |  "datasetNodeId": "N:dataset:749c25b7-0d42-4cfa-b7ed-996fed1314c6",
+          |  "bucketConfig": {
+          |    "publish": "pennsieve-dev-discover-publish50-use1",
+          |    "embargo": "pennsieve-dev-discover-publish50-use1"
+          |  }
+          |}
+          |
+          |""".stripMargin
+
+      decode[definitions.PublishReleaseRequest](jsonMessage) shouldBe Right(
+        definitions.PublishReleaseRequest(
+          name = "muftring/a1a-test-repo",
+          description = "Test Repo a1a for Publishing",
+          ownerId = 177,
+          fileCount = 0,
+          size = 0,
+          license = License.`Apache License 2.0`,
+          contributors = Vector(
+            InternalContributor(
+              id = 1,
+              firstName = "Michael",
+              lastName = "Uftring",
+              orcid = Some("0000-0001-7054-4685"),
+              middleInitial = None,
+              degree = None,
+              userId = Some(177)
+            )
+          ),
+          collections = None,
+          externalPublications = None,
+          tags = Vector.empty,
+          ownerNodeId = "N:user:61e7c1cf-a836-421b-b919-a2309402c9d6",
+          ownerFirstName = "Michael",
+          ownerLastName = "Uftring",
+          ownerOrcid = "0000-0001-7054-4685",
+          organizationNodeId =
+            "N:organization:7c2de0a6-5972-4138-99ad-cc0aff0fb67f",
+          organizationName = "Publishing 5.0 Workspace",
+          datasetNodeId = "N:dataset:749c25b7-0d42-4cfa-b7ed-996fed1314c6",
+          bucketConfig = Some(
+            BucketConfig(
+              publish = "pennsieve-dev-discover-publish50-use1",
+              embargo = "pennsieve-dev-discover-publish50-use1"
+            )
+          ),
+          origin = "GitHub",
+          label = "v1.5.9",
+          marker = "ad6919eb3391ad24f7d73f04a07dd088e153373e",
+          repoUrl = "https://github.com/muftring/a1a-test-repo",
+          labelUrl = None,
+          markerUrl = None,
+          releaseStatus = None
+        )
+      )
+    }
+  }
+
+  "Auth Middleware" should {
+    "parse Service CLaim" in {
+      val serviceClaim = ""
+
     }
   }
 
