@@ -330,9 +330,9 @@ class SQSNotificationHandler(
           version = version,
           size = publishResult.totalSize,
           fileCount = metadata.files.length,
-          readme = publishResult.readmeKey,
-          banner = publishResult.bannerKey,
-          changelog = publishResult.changelogKey
+          readme = Some(publishResult.readmeKey),
+          banner = Some(publishResult.bannerKey),
+          changelog = Some(publishResult.changelogKey)
         )
       )
 

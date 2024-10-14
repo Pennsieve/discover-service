@@ -576,9 +576,9 @@ class PublishHandler(
           version = revisedVersion,
           size = revisedVersion.size + newFiles.asList.map(_.size).sum,
           fileCount = revisedVersion.fileCount + newFiles.asList.length,
-          readme = revisedVersion.s3Key / newFiles.readme.path,
-          banner = revisedVersion.s3Key / newFiles.banner.path,
-          changelog = revisedVersion.s3Key / newFiles.changelog.path
+          readme = Some(revisedVersion.s3Key / newFiles.readme.path),
+          banner = Some(revisedVersion.s3Key / newFiles.banner.path),
+          changelog = Some(revisedVersion.s3Key / newFiles.changelog.path)
         )
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 
