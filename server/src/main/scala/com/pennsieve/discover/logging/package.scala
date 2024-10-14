@@ -7,6 +7,7 @@ import akka.http.scaladsl.server.directives.{
   DebuggingDirectives,
   LoggingMagnet
 }
+import akka.http.scaladsl.model.HttpRequest
 
 package object logging {
   def logRequestAndResponse(ports: Ports): Directive[Unit] =
@@ -16,8 +17,10 @@ package object logging {
           req => {
             case RouteResult.Complete(resp) =>
               ports.logger.noContext
-                .info(s"${req.method} ${req.uri} ${resp.status}")
-            case _ => ()
+                .info(s"${req.method} ${req.uri} Completed: ${resp.status}")
+            case RouteResult.Rejected(rejection) =>
+              ports.logger.noContext
+                .info(s"${req.method} ${req.uri} Rejected: ${rejection}")
           }
       )
     )
