@@ -98,6 +98,14 @@ class SQSNotificationHandler(
               Future.successful(MessageAction.Ignore(sqsMessage))
           }
 
+      case Right(message: S3OperationRequest) =>
+        implicit val logContext: LogContext = DiscoverLogContext()
+        ports.log.info(s"S3OperationRequest ${message}")
+        for {
+          result <- ports.s3StreamClient.s3OperationRequest(message)
+          _ = ports.log.info(s"result: ${result.asJson}")
+        } yield MessageAction.Delete(sqsMessage)
+
       case Right(message: IndexDatasetRequest) =>
         implicit val logContext: LogContext =
           DiscoverLogContext(

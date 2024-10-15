@@ -3,9 +3,12 @@
 package com.pennsieve.discover.db
 
 import akka.Done
+import akka.actor.ActorSystem
+import akka.stream.alpakka.slick.scaladsl.{ Slick, SlickSession }
+import akka.stream.scaladsl.{ Sink, Source }
 import cats.implicits._
 import com.github.tminglei.slickpg._
-import com.pennsieve.discover.{ NoFileException, NoFileVersionException }
+import com.pennsieve.discover.{ NoFileException, NoFileVersionException, Ports }
 
 import java.util.UUID
 import com.pennsieve.discover.db.profile.api._
@@ -22,6 +25,7 @@ import com.pennsieve.discover.models.{
 }
 import com.pennsieve.discover.utils.{ getFileType, joinPath }
 import com.pennsieve.models.{ FileManifest, PublishStatus }
+import com.pennsieve.service.utilities.LogContext
 import slick.basic.DatabasePublisher
 import slick.dbio.{ DBIOAction, Effect }
 import slick.jdbc.{ GetResult, ResultSetConcurrency, ResultSetType }
@@ -680,4 +684,80 @@ object PublicFileVersionsMapper
     */
   private def buildPath(basePath: Option[String], name: String): String =
     basePath.map(joinPath(_, name)) getOrElse name
+}
+
+object PublicFileVersionStore {
+  def publishFirstVersion(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  )(implicit
+    ec: ExecutionContext,
+    system: ActorSystem,
+    ports: Ports,
+    slickSession: SlickSession,
+    logContext: LogContext
+  ): Future[Unit] = {
+    for {
+      fileVersionLinks <- Source(files)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            file => PublicFileVersionsMapper.createOne(version, file)
+          )
+        )
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(version, pfv)
+          )
+        )
+        .runWith(Sink.seq)
+      _ = ports.log.info(
+        s"publishFirstVersion() stored ${fileVersionLinks.length} files and links"
+      )
+    } yield ()
+  }
+
+  def publishNextVersion(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  )(implicit
+    ec: ExecutionContext,
+    system: ActorSystem,
+    ports: Ports,
+    slickSession: SlickSession,
+    logContext: LogContext
+  ): Future[Unit] = {
+    for {
+      existingLinks <- ports.db.run(
+        PublicDatasetVersionFilesTableMapper
+          .getLinks(version.datasetId, version.version)
+      )
+      linkedFileIds = existingLinks.map(_.fileId).toSet
+
+      fileVersionLinks <- Source(files)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            file => PublicFileVersionsMapper.findOrCreate(version, file)
+          )
+        )
+        .filterNot(pfv => linkedFileIds.contains(pfv.id))
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(version, pfv)
+          )
+        )
+        .runWith(Sink.seq)
+      _ = ports.log.info(
+        s"publishNextVersion() stored ${fileVersionLinks.length} files and links"
+      )
+    } yield ()
+  }
+
 }

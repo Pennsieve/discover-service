@@ -9,6 +9,7 @@ import io.circe.syntax._
 import io.circe.{ Decoder, Encoder }
 import enumeratum.EnumEntry.{ Lowercase, UpperSnakecase }
 import enumeratum._
+import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 
 /**
   * Types of SQS notifications
@@ -28,6 +29,7 @@ object SQSNotificationType
   case object PUSH_DOI extends SQSNotificationType
   case object NOTIFY_API extends SQSNotificationType
   case object STORE_FILES extends SQSNotificationType
+  case object S3_REQUEST extends SQSNotificationType
 }
 
 import SQSNotificationType._
@@ -76,6 +78,7 @@ object SQSNotification {
             case Some(PUSH_DOI) => c.as[PushDoiRequest]
             case Some(NOTIFY_API) => c.as[NotifyApiRequest]
             case Some(STORE_FILES) => c.as[StoreFilesRequest]
+            case Some(S3_REQUEST) => c.as[S3OperationRequest]
             case _ =>
               Left(
                 DecodingFailure(
@@ -95,6 +98,7 @@ object SQSNotification {
     case n: PushDoiRequest => n.asJson
     case n: NotifyApiRequest => n.asJson
     case n: StoreFilesRequest => n.asJson
+    case n: S3OperationRequest => n.asJson
   }
 }
 
@@ -427,4 +431,89 @@ object StoreFilesRequest {
         } yield
           new StoreFilesRequest(jobType, datasetId, version, s3Key, s3Version)
     }
+}
+
+case class S3OperationRequest(
+  jobType: SQSNotificationType,
+  s3Operation: String,
+  s3Bucket: String,
+  s3Key: String,
+  s3Version: Option[String],
+  data: Option[String]
+) extends SQSNotification
+
+object S3OperationRequest {
+  implicit val encoder: Encoder[S3OperationRequest] = Encoder.forProduct6(
+    "job_type",
+    "s3_operation",
+    "s3_bucket",
+    "s3_key",
+    "s3_version",
+    "data"
+  )(
+    j =>
+      (
+        (S3_REQUEST: SQSNotificationType).asJson,
+        j.s3Operation,
+        j.s3Bucket,
+        j.s3Key,
+        j.s3Version,
+        j.data
+      )
+  )
+
+  implicit val decoder: Decoder[S3OperationRequest] =
+    new Decoder[S3OperationRequest] {
+      final def apply(c: HCursor): Decoder.Result[S3OperationRequest] =
+        for {
+          jobType <- c.downField("job_type").as[SQSNotificationType]
+          _ <- if (jobType == S3_REQUEST) Right(())
+          else {
+            Left(
+              DecodingFailure(
+                s"Did not recognize job type $jobType (expecting $S3_REQUEST)",
+                c.history
+              )
+            )
+          }
+          s3Operation <- c.downField("s3_operation").as[String]
+          s3Bucket <- c.downField("s3_bucket").as[String]
+          s3Key <- c.downField("s3_key").as[String]
+          s3Version <- c.downField("s3_version").as[Option[String]]
+          data <- c.downField("data").as[Option[String]]
+        } yield
+          new S3OperationRequest(
+            jobType,
+            s3Operation,
+            s3Bucket,
+            s3Key,
+            s3Version,
+            data
+          )
+    }
+}
+
+sealed trait S3OperationStatus extends EnumEntry with UpperSnakecase
+object S3OperationStatus
+    extends Enum[S3OperationStatus]
+    with CirceEnum[S3OperationStatus] {
+  val values = findValues
+
+  case object SUCCESS extends S3OperationStatus
+  case object FAILURE extends S3OperationStatus
+  case object NOOP extends S3OperationStatus
+}
+
+case class S3OperationResponse(
+  request: S3OperationRequest,
+  status: S3OperationStatus,
+  message: Option[String],
+  data: Option[String]
+)
+
+object S3OperationResponse {
+  implicit val encoder: Encoder[S3OperationResponse] =
+    deriveEncoder[S3OperationResponse]
+  implicit val decoder: Decoder[S3OperationResponse] =
+    deriveDecoder[S3OperationResponse]
 }

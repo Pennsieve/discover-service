@@ -14,7 +14,8 @@ import com.pennsieve.discover.db.{
   PublicDatasetReleaseMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
-  PublicExternalPublicationsMapper
+  PublicExternalPublicationsMapper,
+  PublicFileVersionStore
 }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.logging.{
@@ -25,7 +26,8 @@ import com.pennsieve.discover.models.{
   PennsieveSchemaVersion,
   PublicDatasetRelease,
   PublicDatasetVersion,
-  PublishingWorkflow
+  PublishingWorkflow,
+  S3Key
 }
 import com.pennsieve.discover.{
   Config,
@@ -61,6 +63,7 @@ class ReleaseHandler(
   executionContext: ExecutionContext
 ) extends GuardrailHandler {
   type PublishResponse = GuardrailResource.PublishReleaseResponse
+  type FinalizeResponse = GuardrailResource.FinalizeReleaseResponse
 
   implicit val config: Config = ports.config
 
@@ -252,6 +255,129 @@ class ReleaseHandler(
       case NonFatal(e) => respond.InternalServerError(e.toString)
     }
   }
+
+  override def finalizeRelease(
+    respond: GuardrailResource.FinalizeReleaseResponse.type
+  )(
+    sourceOrganizationId: Int,
+    sourceDatasetId: Int,
+    body: definitions.FinalizeReleaseRequest
+  ): Future[FinalizeResponse] = {
+    implicit val logContext: DiscoverLogContext = DiscoverLogContext(
+      organizationId = Some(sourceOrganizationId),
+      datasetId = Some(sourceDatasetId)
+    )
+    ports.log.info("finalize release starting")
+
+    withServiceOwnerAuthorization[FinalizeResponse](
+      claim,
+      sourceOrganizationId,
+      sourceDatasetId
+    ) { _ =>
+      val query = for {
+        publicDataset <- PublicDatasetsMapper
+          .getDatasetFromSourceIds(sourceOrganizationId, sourceDatasetId)
+
+        version <- PublicDatasetVersionsMapper.getVersion(
+          publicDataset.id,
+          body.versionId
+        )
+
+        updatedStatus <- PublicDatasetVersionsMapper.setStatus(
+          id = publicDataset.id,
+          version = version.version,
+          status = body.publishSuccess match {
+            case true =>
+              PublishStatus.PublishSucceeded
+            case false =>
+              PublishStatus.PublishFailed
+          }
+        )
+
+        updatedVersion <- PublicDatasetVersionsMapper.setResultMetadata(
+          version = updatedStatus,
+          size = body.totalSize,
+          fileCount = body.fileCount,
+          banner = s3KeyFor(body.bannerKey),
+          readme = s3KeyFor(body.readmeKey),
+          changelog = s3KeyFor(body.changelogKey)
+        )
+
+        _ <- PublicDatasetReleaseMapper.get(
+          publicDataset.id,
+          updatedVersion.version
+        )
+
+        // Read the metadata (manifest.json) file from S3
+        metadata <- DBIO.from(
+          ports.s3StreamClient
+            .readDatasetMetadata(updatedVersion)
+        )
+
+        manifestFile = metadata.files
+          .filter(_.path.equals("manifest.json"))
+          .head
+        files = manifestFile.copy(s3VersionId = Some(body.manifestVersionId)) :: metadata.files
+          .filterNot(_.path.equals("manifest.json"))
+
+        _ <- DBIO.from(updatedVersion.version match {
+          case 1 =>
+            PublicFileVersionStore.publishFirstVersion(updatedVersion, files)(
+              ec = executionContext,
+              system = system,
+              ports = ports,
+              slickSession = ports.slickSession,
+              logContext = logContext
+            )
+          case _ =>
+            PublicFileVersionStore.publishNextVersion(updatedVersion, files)(
+              ec = executionContext,
+              system = system,
+              ports = ports,
+              slickSession = ports.slickSession,
+              logContext = logContext
+            )
+        })
+
+        // TODO: read release-asset-listing.json
+        //  create PublicDatasetReleaseAssets
+
+        status <- PublicDatasetVersionsMapper.getDatasetStatus(publicDataset)
+
+      } yield respond.OK(status)
+
+      ports.db
+        .run(
+          query.transactionally
+            .withTransactionIsolation(TransactionIsolation.Serializable)
+        )
+    // TODO: queue message to execute making DOI visible
+    //        _ <- queueMessage(
+    //          PushDoiRequest(
+    //            jobType = SQSNotificationType.PUSH_DOI,
+    //            datasetId = updatedVersion.datasetId,
+    //            version = updatedVersion.version,
+    //            doi = updatedVersion.doi
+    //          )
+    //        )
+
+    }.recover {
+      case UnauthorizedException => respond.Unauthorized
+      case DecodingFailure(msg, path) =>
+        respond.InternalServerError(s"Failed to decode DOI: $msg [$path]")
+      case MissingParameterException(parameter) =>
+        respond.BadRequest(s"Missing parameter '$parameter'")
+      case ForbiddenException(e) => respond.Forbidden(e)
+      case PublishJobException(e) => respond.InternalServerError(e.toString)
+      case NonFatal(e) => respond.InternalServerError(e.toString)
+    }
+  }
+
+  def s3KeyFor(value: Option[String]): Option[S3Key.File] =
+    value match {
+      case Some(value) => Some(S3Key.File(value))
+      case None => None
+    }
 
 }
 

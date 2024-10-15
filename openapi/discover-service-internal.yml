@@ -878,6 +878,7 @@ components:
         - publishId
         - versionId
         - publishSuccess
+        - fileCount
         - totalSize
         - manifestKey
         - manifestVersionId
@@ -890,6 +891,9 @@ components:
           format: int32
         publishSuccess:
           type: boolean
+        fileCount:
+          type: integer
+          format: int64
         totalSize:
           type: integer
           format: int64
