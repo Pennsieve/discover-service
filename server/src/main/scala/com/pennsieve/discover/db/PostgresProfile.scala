@@ -2,7 +2,13 @@
 
 package com.pennsieve.discover.db
 
-import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
+import com.pennsieve.models.{
+  DatasetType,
+  Degree,
+  License,
+  PublishStatus,
+  RelationshipType
+}
 import com.pennsieve.discover.models.{
   DownloadOrigin,
   FileChecksum,
@@ -97,6 +103,9 @@ trait PostgresProfile
         s => s.toString,
         s => FileChecksum.fromString(s)
       )
+
+    implicit val datasetTypeMapper = MappedColumnType
+      .base[DatasetType, String](_.entryName, DatasetType.withName)
   }
 
   override val pgjson = "jsonb" // jsonb support is in postgres 9.4.0 onward; for 9.3.x use "json"

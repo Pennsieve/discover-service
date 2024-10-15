@@ -47,7 +47,7 @@ import com.pennsieve.discover.server.release.{
 import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.utils.BucketResolver
 import com.pennsieve.models.PublishStatus.PublishSucceeded
-import com.pennsieve.models.{ PublishStatus, RelationshipType }
+import com.pennsieve.models.{ DatasetType, PublishStatus, RelationshipType }
 import io.circe.DecodingFailure
 import slick.dbio.{ DBIO, DBIOAction }
 import slick.jdbc.TransactionIsolation
@@ -111,7 +111,8 @@ class ReleaseHandler(
                 ownerLastName = body.ownerLastName,
                 ownerOrcid = body.ownerOrcid,
                 license = body.license,
-                tags = body.tags.toList
+                tags = body.tags.toList,
+                datasetType = DatasetType.Release
               )
             _ = ports.log.info(s"Public dataset: $publicDataset")
 

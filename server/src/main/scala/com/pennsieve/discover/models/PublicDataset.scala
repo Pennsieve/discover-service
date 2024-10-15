@@ -2,8 +2,7 @@
 
 package com.pennsieve.discover.models
 import java.time.{ OffsetDateTime, ZoneOffset }
-
-import com.pennsieve.models.License
+import com.pennsieve.models.{ DatasetType, License }
 import io.circe.{ Decoder, Encoder }
 import io.circe.generic.semiauto.{ deriveDecoder, deriveEncoder }
 
@@ -20,7 +19,8 @@ final case class PublicDataset(
   tags: List[String] = List.empty,
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
-  id: Int = 0
+  id: Int = 0,
+  datasetType: DatasetType = DatasetType.Research
 )
 
 object PublicDataset {
