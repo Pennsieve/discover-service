@@ -33,6 +33,11 @@ import scala.collection.mutable
 import com.pennsieve.test.AwaitableImplicits
 import com.pennsieve.discover.downloads.ZipStream._
 import com.pennsieve.discover.db.profile.api.Database
+import com.pennsieve.discover.notifications.{
+  S3OperationRequest,
+  S3OperationResponse,
+  S3OperationStatus
+}
 import io.circe.syntax._
 
 class MockS3StreamClient extends S3StreamClient {
@@ -251,6 +256,30 @@ class MockS3StreamClient extends S3StreamClient {
   def clear(): Unit = {
     revisions.clear()
   }
+
+  override def s3OperationRequest(
+    request: S3OperationRequest
+  )(implicit
+    ec: ExecutionContext
+  ): Future[S3OperationResponse] =
+    Future.successful(
+      S3OperationResponse(request, S3OperationStatus.NOOP, None, None)
+    )
+
+  override def getFile(
+    bucket: S3Bucket,
+    key: S3Key.File
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ByteString] = Future.successful(ByteString.empty)
+
+  override def readReleaseAssetListing(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ReleaseAssetListing] =
+    Future.successful(ReleaseAssetListing(files = List.empty))
+
 }
 
 case class TestFile(

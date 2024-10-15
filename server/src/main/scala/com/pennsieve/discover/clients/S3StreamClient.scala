@@ -43,13 +43,21 @@ import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import com.pennsieve.discover.models.Revision
+import com.pennsieve.discover.notifications.{
+  S3OperationRequest,
+  S3OperationResponse,
+  S3OperationStatus
+}
 import software.amazon.awssdk.arns.Arn
-import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.core.ResponseBytes
+import software.amazon.awssdk.core.async.AsyncResponseTransformer
+import software.amazon.awssdk.core.sync.{ RequestBody, ResponseTransformer }
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{
   GetObjectRequest,
+  GetObjectResponse,
   PutObjectRequest,
   PutObjectResponse,
   RequestPayer
@@ -81,6 +89,18 @@ object S3StreamObject {
 }
 
 trait S3StreamClient {
+  def s3OperationRequest(
+    request: S3OperationRequest
+  )(implicit
+    ec: ExecutionContext
+  ): Future[S3OperationResponse]
+
+  def getFile(
+    bucket: S3Bucket,
+    key: S3Key.File
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ByteString]
 
   def datasetFilesSource(
     version: PublicDatasetVersion,
@@ -196,6 +216,12 @@ trait S3StreamClient {
     key: S3Key.File,
     version: Option[String] = None
   ): String
+
+  def readReleaseAssetListing(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ReleaseAssetListing]
 }
 
 class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
@@ -334,6 +360,12 @@ class AlpakkaS3StreamClient(
 
   private def releaseResultKey(version: PublicDatasetVersion): S3Key.File = {
     version.s3Key / "discover-release-results.json"
+  }
+
+  private def releaseAssetListingKey(
+    version: PublicDatasetVersion
+  ): S3Key.File = {
+    version.s3Key / "release-asset-listing.json"
   }
 
   // Returns None iff bucket is not external
@@ -1143,4 +1175,101 @@ class AlpakkaS3StreamClient(
       .via(CsvParsing.lineScanner())
       .via(CsvToMap.toMapAsStrings(StandardCharsets.UTF_8))
       .mapMaterializedValue(_ => NotUsed)
+
+  override def getFile(
+    bucket: S3Bucket,
+    key: S3Key.File
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ByteString] =
+    Future {
+      val s3Request = GetObjectRequest
+        .builder()
+        .bucket(bucket.value)
+        .key(key.value)
+        .requestPayer(RequestPayer.REQUESTER)
+        .build
+
+      val objectBytes: ResponseBytes[GetObjectResponse] =
+        s3Client.getObject(s3Request, ResponseTransformer.toBytes())
+      ByteString.fromArray(objectBytes.asByteArray())
+    }
+
+  private def s3OperationGetObject(
+    request: S3OperationRequest
+  )(implicit
+    ec: ExecutionContext
+  ): Future[S3OperationResponse] =
+    Future {
+      val s3Request = request.s3Version match {
+        case Some(versionId) =>
+          GetObjectRequest
+            .builder()
+            .bucket(request.s3Bucket)
+            .key(request.s3Key)
+            .versionId(versionId)
+            .requestPayer(RequestPayer.REQUESTER)
+            .build()
+        case None =>
+          GetObjectRequest
+            .builder()
+            .bucket(request.s3Bucket)
+            .key(request.s3Key)
+            .requestPayer(RequestPayer.REQUESTER)
+            .build()
+      }
+
+      val objectBytes: ResponseBytes[GetObjectResponse] =
+        s3Client.getObject(s3Request, ResponseTransformer.toBytes())
+      val data = objectBytes.asByteArray()
+
+      S3OperationResponse(
+        request,
+        status = S3OperationStatus.SUCCESS,
+        message = None,
+        data = Some(new String(data, StandardCharsets.UTF_8))
+      )
+    }.recover {
+      case t: Throwable =>
+        S3OperationResponse(
+          request,
+          status = S3OperationStatus.FAILURE,
+          message = Some(t.toString),
+          None
+        )
+    }
+
+  def s3OperationRequest(
+    request: S3OperationRequest
+  )(implicit
+    ec: ExecutionContext
+  ): Future[S3OperationResponse] = {
+    for {
+      response <- request.s3Operation.toLowerCase match {
+        case "getobject" => s3OperationGetObject(request)
+        case _ =>
+          Future.successful(
+            S3OperationResponse(
+              request = request,
+              status = S3OperationStatus.NOOP,
+              message = Some("unsupported"),
+              data = None
+            )
+          )
+      }
+    } yield response
+  }
+
+  override def readReleaseAssetListing(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ReleaseAssetListing] =
+    for {
+      content <- getFile(version.s3Bucket, releaseAssetListingKey(version))
+      output <- decode[ReleaseAssetListing](
+        content.decodeString(akka.util.ByteString.UTF_8)
+      ).fold(Future.failed, Future.successful)
+    } yield output
+
 }

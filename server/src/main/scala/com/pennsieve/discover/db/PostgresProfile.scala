@@ -2,11 +2,18 @@
 
 package com.pennsieve.discover.db
 
-import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
+import com.pennsieve.models.{
+  DatasetType,
+  Degree,
+  License,
+  PublishStatus,
+  RelationshipType
+}
 import com.pennsieve.discover.models.{
   DownloadOrigin,
   FileChecksum,
   PennsieveSchemaVersion,
+  ReleaseAssetFileType,
   S3Bucket,
   S3Key
 }
@@ -96,6 +103,15 @@ trait PostgresProfile
       MappedColumnType.base[FileChecksum, String](
         s => s.toString,
         s => FileChecksum.fromString(s)
+      )
+
+    implicit val datasetTypeMapper = MappedColumnType
+      .base[DatasetType, String](_.entryName, DatasetType.withName)
+
+    implicit val releaseAssetFileTypeMapper = MappedColumnType
+      .base[ReleaseAssetFileType, String](
+        _.entryName,
+        ReleaseAssetFileType.withName
       )
   }
 

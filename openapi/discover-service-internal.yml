@@ -522,6 +522,63 @@ paths:
               schema:
                 type: string
 
+  "/organizations/{organizationId}/release/{datasetId}/finalize":
+    post:
+      summary: finalize the publishing of a release to Discover
+      security:
+        - Bearer: []
+      operationId: finalizeRelease
+      x-scala-package: release
+      parameters:
+        - name: organizationId
+          in: path
+          description: organization id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizeReleaseRequest"
+        description: dataset metadata
+        required: true
+      responses:
+        "200":
+          description: Completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetPublishStatus"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                type: string
+
   "/metrics/dataset/athena/download/sync":
     get:
       security: []
@@ -813,6 +870,42 @@ components:
         markerUrl:
           type: string
         releaseStatus:
+          type: string
+
+    FinalizeReleaseRequest:
+      type: object
+      required:
+        - publishId
+        - versionId
+        - publishSuccess
+        - fileCount
+        - totalSize
+        - manifestKey
+        - manifestVersionId
+      properties:
+        publishId:
+          type: integer
+          format: int32
+        versionId:
+          type: integer
+          format: int32
+        publishSuccess:
+          type: boolean
+        fileCount:
+          type: integer
+          format: int64
+        totalSize:
+          type: integer
+          format: int64
+        manifestKey:
+          type: string
+        manifestVersionId:
+          type: string
+        bannerKey:
+          type: string
+        changelogKey:
+          type: string
+        readmeKey:
           type: string
 
     DatasetPublishStatus:

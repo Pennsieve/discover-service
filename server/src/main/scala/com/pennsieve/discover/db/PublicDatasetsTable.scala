@@ -3,16 +3,14 @@
 package com.pennsieve.discover.db
 
 import java.time.OffsetDateTime
-
 import com.pennsieve.discover.{
   NoDatasetException,
   NoDatasetForSourcesException
 }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.PublicDataset
-
 import com.pennsieve.discover.server.definitions.{ DatasetMetrics, DatasetTag }
-import com.pennsieve.models.License
+import com.pennsieve.models.{ DatasetType, License }
 import com.pennsieve.models.PublishStatus.PublishSucceeded
 import slick.dbio.{ DBIOAction, Effect }
 
@@ -35,6 +33,7 @@ final class PublicDatasetsTable(tag: Tag)
   def createdAt = column[OffsetDateTime]("created_at")
   def updatedAt = column[OffsetDateTime]("updated_at")
   def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
+  def datasetType = column[DatasetType]("dataset_type")
 
   def * =
     (
@@ -51,7 +50,8 @@ final class PublicDatasetsTable(tag: Tag)
       tags,
       createdAt,
       updatedAt,
-      id
+      id,
+      datasetType
     ).mapTo[PublicDataset]
 }
 
@@ -188,7 +188,8 @@ object PublicDatasetsMapper extends TableQuery(new PublicDatasetsTable(_)) {
     ownerLastName: String,
     ownerOrcid: String,
     license: License,
-    tags: List[String] = List.empty
+    tags: List[String] = List.empty,
+    datasetType: DatasetType = DatasetType.Research
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[
@@ -225,7 +226,8 @@ object PublicDatasetsMapper extends TableQuery(new PublicDatasetsTable(_)) {
       ownerLastName,
       ownerOrcid,
       license,
-      cleanTags(tags)
+      cleanTags(tags),
+      datasetType = datasetType
     )
 
     updateDataset.asTry.flatMap {

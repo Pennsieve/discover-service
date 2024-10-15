@@ -607,9 +607,9 @@ object PublicDatasetVersionsMapper
     version: PublicDatasetVersion,
     size: Long,
     fileCount: Long,
-    readme: S3Key.File,
-    banner: S3Key.File,
-    changelog: S3Key.File
+    readme: Option[S3Key.File] = None,
+    banner: Option[S3Key.File] = None,
+    changelog: Option[S3Key.File] = None
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[PublicDatasetVersion, NoStream, Effect.Read with Effect.Write] =
@@ -622,9 +622,9 @@ object PublicDatasetVersionsMapper
             .copy(
               size = size,
               fileCount = fileCount,
-              readme = Some(readme),
-              banner = Some(banner),
-              changelog = Some(changelog)
+              readme = readme,
+              banner = banner,
+              changelog = changelog
             )
         )
 
