@@ -13,7 +13,7 @@ case class PublicDatasetReleaseAsset(
   releaseId: Int,
   file: String,
   name: String,
-  `type`: String,
+  `type`: ReleaseAssetFileType,
   size: Long,
   path: LTree,
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),

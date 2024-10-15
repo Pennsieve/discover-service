@@ -96,8 +96,8 @@ trait S3StreamClient {
   ): Future[S3OperationResponse]
 
   def getFile(
-    bucket: String,
-    okey: String
+    bucket: S3Bucket,
+    key: S3Key.File
   )(implicit
     ec: ExecutionContext
   ): Future[ByteString]
@@ -216,6 +216,12 @@ trait S3StreamClient {
     key: S3Key.File,
     version: Option[String] = None
   ): String
+
+  def readReleaseAssetListing(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ReleaseAssetListing]
 }
 
 class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
@@ -354,6 +360,12 @@ class AlpakkaS3StreamClient(
 
   private def releaseResultKey(version: PublicDatasetVersion): S3Key.File = {
     version.s3Key / "discover-release-results.json"
+  }
+
+  private def releaseAssetListingKey(
+    version: PublicDatasetVersion
+  ): S3Key.File = {
+    version.s3Key / "release-asset-listing.json"
   }
 
   // Returns None iff bucket is not external
@@ -1165,16 +1177,16 @@ class AlpakkaS3StreamClient(
       .mapMaterializedValue(_ => NotUsed)
 
   override def getFile(
-    bucket: String,
-    key: String
+    bucket: S3Bucket,
+    key: S3Key.File
   )(implicit
     ec: ExecutionContext
   ): Future[ByteString] =
     Future {
       val s3Request = GetObjectRequest
         .builder()
-        .bucket(bucket)
-        .key(key)
+        .bucket(bucket.value)
+        .key(key.value)
         .requestPayer(RequestPayer.REQUESTER)
         .build
 
@@ -1247,4 +1259,17 @@ class AlpakkaS3StreamClient(
       }
     } yield response
   }
+
+  override def readReleaseAssetListing(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ReleaseAssetListing] =
+    for {
+      content <- getFile(version.s3Bucket, releaseAssetListingKey(version))
+      output <- decode[ReleaseAssetListing](
+        content.decodeString(akka.util.ByteString.UTF_8)
+      ).fold(Future.failed, Future.successful)
+    } yield output
+
 }

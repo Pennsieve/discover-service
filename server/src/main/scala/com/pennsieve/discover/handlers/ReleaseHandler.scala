@@ -11,6 +11,7 @@ import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
 import com.pennsieve.discover.db.{
   PublicCollectionsMapper,
   PublicContributorsMapper,
+  PublicDatasetReleaseAssetMapper,
   PublicDatasetReleaseMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
@@ -278,11 +279,13 @@ class ReleaseHandler(
       val query = for {
         publicDataset <- PublicDatasetsMapper
           .getDatasetFromSourceIds(sourceOrganizationId, sourceDatasetId)
+        _ = ports.log.info(s"finalizeRelease() publicDataset: ${publicDataset}")
 
         version <- PublicDatasetVersionsMapper.getVersion(
           publicDataset.id,
           body.versionId
         )
+        _ = ports.log.info(s"finalizeRelease() version: ${version}")
 
         updatedStatus <- PublicDatasetVersionsMapper.setStatus(
           id = publicDataset.id,
@@ -294,6 +297,7 @@ class ReleaseHandler(
               PublishStatus.PublishFailed
           }
         )
+        _ = ports.log.info(s"finalizeRelease() updatedStatus: ${updatedStatus}")
 
         updatedVersion <- PublicDatasetVersionsMapper.setResultMetadata(
           version = updatedStatus,
@@ -303,23 +307,34 @@ class ReleaseHandler(
           readme = s3KeyFor(body.readmeKey),
           changelog = s3KeyFor(body.changelogKey)
         )
+        _ = ports.log.info(
+          s"finalizeRelease() updatedVersion: ${updatedVersion}"
+        )
 
-        _ <- PublicDatasetReleaseMapper.get(
+        release <- PublicDatasetReleaseMapper.get(
           publicDataset.id,
           updatedVersion.version
         )
+        _ = ports.log.info(s"finalizeRelease() release: ${release}")
+
+        _ <- DBIO.from(release match {
+          case Some(_) => Future.successful(())
+          case None => Future.failed(new Throwable("no dataset release found"))
+        })
 
         // Read the metadata (manifest.json) file from S3
         metadata <- DBIO.from(
           ports.s3StreamClient
             .readDatasetMetadata(updatedVersion)
         )
+        _ = ports.log.info(s"finalizeRelease() metadata: ${metadata}")
 
         manifestFile = metadata.files
           .filter(_.path.equals("manifest.json"))
           .head
         files = manifestFile.copy(s3VersionId = Some(body.manifestVersionId)) :: metadata.files
           .filterNot(_.path.equals("manifest.json"))
+        _ = ports.log.info(s"finalizeRelease() files: ${files}")
 
         _ <- DBIO.from(updatedVersion.version match {
           case 1 =>
@@ -340,11 +355,44 @@ class ReleaseHandler(
             )
         })
 
-        // TODO: read release-asset-listing.json
-        //  create PublicDatasetReleaseAssets
+        // read release asset listing
+        releaseAssetListing <- DBIO.from(
+          ports.s3StreamClient
+            .readReleaseAssetListing(updatedVersion)
+        )
+        _ = ports.log.info(
+          s"finalizeRelease() releaseAssetListing: ${releaseAssetListing}"
+        )
+
+        // create PublicDatasetReleaseAssets
+        _ <- PublicDatasetReleaseAssetMapper.createMany(
+          updatedVersion,
+          release.get,
+          releaseAssetListing
+        )
 
         status <- PublicDatasetVersionsMapper.getDatasetStatus(publicDataset)
 
+        // TODO: queue message to make DOI visible
+        //      _ = ports.log.info("finalizeRelease() queue push DOI message")
+        //        _ <- queueMessage(
+        //          PushDoiRequest(
+        //            jobType = SQSNotificationType.PUSH_DOI,
+        //            datasetId = updatedVersion.datasetId,
+        //            version = updatedVersion.version,
+        //            doi = updatedVersion.doi
+        //          )
+        //        )
+
+        // TODO: invoke S3 Cleanup Lambda to delete publishing intermediate files
+        //      _ = ports.log.info("finalizeRelease() run S3 clean: TIDY")
+        //      _ <- ports.lambdaClient.runS3Clean(
+        //        updatedVersion.s3Key.value,
+        //        updatedVersion.s3Bucket.value,
+        //        updatedVersion.s3Bucket.value,
+        //        S3CleanupStage.Tidy,
+        //        updatedVersion.migrated
+        //      )
       } yield respond.OK(status)
 
       ports.db
@@ -352,15 +400,6 @@ class ReleaseHandler(
           query.transactionally
             .withTransactionIsolation(TransactionIsolation.Serializable)
         )
-    // TODO: queue message to execute making DOI visible
-    //        _ <- queueMessage(
-    //          PushDoiRequest(
-    //            jobType = SQSNotificationType.PUSH_DOI,
-    //            datasetId = updatedVersion.datasetId,
-    //            version = updatedVersion.version,
-    //            doi = updatedVersion.doi
-    //          )
-    //        )
 
     }.recover {
       case UnauthorizedException => respond.Unauthorized

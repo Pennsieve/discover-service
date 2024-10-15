@@ -267,11 +267,18 @@ class MockS3StreamClient extends S3StreamClient {
     )
 
   override def getFile(
-    bucket: String,
-    okey: String
+    bucket: S3Bucket,
+    key: S3Key.File
   )(implicit
     ec: ExecutionContext
   ): Future[ByteString] = Future.successful(ByteString.empty)
+
+  override def readReleaseAssetListing(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ReleaseAssetListing] =
+    Future.successful(ReleaseAssetListing(files = List.empty))
 
 }
 

@@ -13,6 +13,7 @@ import com.pennsieve.discover.models.{
   DownloadOrigin,
   FileChecksum,
   PennsieveSchemaVersion,
+  ReleaseAssetFileType,
   S3Bucket,
   S3Key
 }
@@ -106,6 +107,12 @@ trait PostgresProfile
 
     implicit val datasetTypeMapper = MappedColumnType
       .base[DatasetType, String](_.entryName, DatasetType.withName)
+
+    implicit val releaseAssetFileTypeMapper = MappedColumnType
+      .base[ReleaseAssetFileType, String](
+        _.entryName,
+        ReleaseAssetFileType.withName
+      )
   }
 
   override val pgjson = "jsonb" // jsonb support is in postgres 9.4.0 onward; for 9.3.x use "json"
