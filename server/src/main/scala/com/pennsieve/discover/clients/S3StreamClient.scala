@@ -1233,6 +1233,42 @@ class AlpakkaS3StreamClient(
     ByteString.fromArray(objectBytes.asByteArray())
   }
 
+  private def s3PutObject(
+    bucket: S3Bucket,
+    key: S3Key.File,
+    data: Option[String]
+  )(implicit
+    ec: ExecutionContext
+  ): Future[PutObjectResponse] = Future {
+    val credentialsProvider =
+      getCachedAssumeRoleCredentialsProvider(bucket)
+
+    var builder = PutObjectRequest
+      .builder()
+      .bucket(bucket.value)
+      .key(key.value)
+      .requestPayer(RequestPayer.REQUESTER)
+
+    builder = credentialsProvider match {
+      case Some(credentialsProvider) =>
+        logger.info(s"s3PutObject() adding credentialsProvider to request")
+        builder.overrideConfiguration(
+          AwsRequestOverrideConfiguration
+            .builder()
+            .credentialsProvider(credentialsProvider)
+            .build()
+        )
+      case None =>
+        builder
+    }
+
+    val s3request = builder.build()
+    s3Client.putObject(s3request, RequestBody.fromString(data match {
+      case Some(data) => data
+      case None => new String("") // an empty file
+    }))
+  }
+
   private def s3OperationGetObject(
     request: S3OperationRequest
   )(implicit
@@ -1262,53 +1298,19 @@ class AlpakkaS3StreamClient(
   )(implicit
     ec: ExecutionContext
   ): Future[S3OperationResponse] =
-    Future {
-      val credentialsProvider =
-        getCachedAssumeRoleCredentialsProvider(S3Bucket(request.s3Bucket))
-
-      var builder = PutObjectRequest
-        .builder()
-        .bucket(request.s3Bucket)
-        .key(request.s3Key)
-        .requestPayer(RequestPayer.REQUESTER)
-
-      builder = credentialsProvider match {
-        case Some(credentialsProvider) =>
-          logger.info(
-            s"s3OperationPutObject() adding credentialsProvider to request"
-          )
-          builder.overrideConfiguration(
-            AwsRequestOverrideConfiguration
-              .builder()
-              .credentialsProvider(credentialsProvider)
-              .build()
-          )
-        case None =>
-          builder
-      }
-
-      val s3request = builder.build()
-      val s3response = s3Client.putObject(
-        s3request,
-        RequestBody.fromString(request.data.getOrElse(""))
+    for {
+      response <- s3PutObject(
+        S3Bucket(request.s3Bucket),
+        S3Key.File(request.s3Key),
+        request.data
       )
-
+    } yield
       S3OperationResponse(
         request = request,
         status = S3OperationStatus.SUCCESS,
-        message = Some(s3response.toString),
+        message = Some(response.toString),
         data = None
       )
-
-    }.recover {
-      case t: Throwable =>
-        S3OperationResponse(
-          request,
-          status = S3OperationStatus.FAILURE,
-          message = Some(t.toString),
-          None
-        )
-    }
 
   private def s3OperationDeleteObject(
     request: S3OperationRequest
