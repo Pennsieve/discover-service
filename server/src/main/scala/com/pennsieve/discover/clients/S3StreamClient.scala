@@ -49,6 +49,7 @@ import com.pennsieve.discover.notifications.{
   S3OperationStatus
 }
 import software.amazon.awssdk.arns.Arn
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.core.sync.{ RequestBody, ResponseTransformer }
@@ -1201,23 +1202,38 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[S3OperationResponse] =
     Future {
-      val s3Request = request.s3Version match {
+      val credentialsProvider =
+        getCachedAssumeRoleCredentialsProvider(S3Bucket(request.s3Bucket))
+      var builder = GetObjectRequest
+        .builder()
+        .bucket(request.s3Bucket)
+        .key(request.s3Key)
+        .requestPayer(RequestPayer.REQUESTER)
+
+      builder = request.s3Version match {
         case Some(versionId) =>
-          GetObjectRequest
-            .builder()
-            .bucket(request.s3Bucket)
-            .key(request.s3Key)
-            .versionId(versionId)
-            .requestPayer(RequestPayer.REQUESTER)
-            .build()
-        case None =>
-          GetObjectRequest
-            .builder()
-            .bucket(request.s3Bucket)
-            .key(request.s3Key)
-            .requestPayer(RequestPayer.REQUESTER)
-            .build()
+          logger.info(s"s3OperationGetObject() adding versionId to request")
+          builder.versionId(versionId)
+        case None => builder
       }
+
+      builder = credentialsProvider match {
+        case Some(credentialsProvider) =>
+          logger.info(
+            s"s3OperationGetObject() adding credentialsProvider to request"
+          )
+          builder.overrideConfiguration(
+            AwsRequestOverrideConfiguration
+              .builder()
+              .credentialsProvider(credentialsProvider)
+              .build()
+          )
+        case None =>
+          builder
+      }
+      val s3Request = builder.build()
+
+      logger.info(s"s3OperationGetObject() s3Request: ${s3Request.toString}")
 
       val objectBytes: ResponseBytes[GetObjectResponse] =
         s3Client.getObject(s3Request, ResponseTransformer.toBytes())
