@@ -268,7 +268,8 @@ class MockS3StreamClient extends S3StreamClient {
 
   override def getFile(
     bucket: S3Bucket,
-    key: S3Key.File
+    key: S3Key.File,
+    versionId: Option[S3Key.Version]
   )(implicit
     ec: ExecutionContext
   ): Future[ByteString] = Future.successful(ByteString.empty)
