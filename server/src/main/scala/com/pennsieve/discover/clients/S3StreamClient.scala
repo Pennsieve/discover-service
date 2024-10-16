@@ -49,6 +49,7 @@ import com.pennsieve.discover.notifications.{
   S3OperationStatus
 }
 import software.amazon.awssdk.arns.Arn
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration
 import software.amazon.awssdk.core.ResponseBytes
 import software.amazon.awssdk.core.async.AsyncResponseTransformer
 import software.amazon.awssdk.core.sync.{ RequestBody, ResponseTransformer }
@@ -56,6 +57,7 @@ import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{
+  DeleteObjectRequest,
   GetObjectRequest,
   GetObjectResponse,
   PutObjectRequest,
@@ -69,6 +71,7 @@ import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest
 
 import scala.jdk.FunctionConverters._
+import scala.util.{ Failure, Success }
 
 final case class S3StreamObject(
   bucketName: String,
@@ -97,7 +100,8 @@ trait S3StreamClient {
 
   def getFile(
     bucket: S3Bucket,
-    key: S3Key.File
+    key: S3Key.File,
+    versionId: Option[S3Key.Version]
   )(implicit
     ec: ExecutionContext
   ): Future[ByteString]
@@ -1178,57 +1182,182 @@ class AlpakkaS3StreamClient(
 
   override def getFile(
     bucket: S3Bucket,
-    key: S3Key.File
+    key: S3Key.File,
+    versionId: Option[S3Key.Version]
   )(implicit
     ec: ExecutionContext
-  ): Future[ByteString] =
-    Future {
-      val s3Request = GetObjectRequest
-        .builder()
-        .bucket(bucket.value)
-        .key(key.value)
-        .requestPayer(RequestPayer.REQUESTER)
-        .build
+  ): Future[ByteString] = s3GetObject(bucket, key, versionId)
 
-      val objectBytes: ResponseBytes[GetObjectResponse] =
-        s3Client.getObject(s3Request, ResponseTransformer.toBytes())
-      ByteString.fromArray(objectBytes.asByteArray())
+  private def s3GetObject(
+    bucket: S3Bucket,
+    key: S3Key.File,
+    versionId: Option[S3Key.Version]
+  )(implicit
+    ec: ExecutionContext
+  ): Future[ByteString] = Future {
+    val credentialsProvider =
+      getCachedAssumeRoleCredentialsProvider(bucket)
+
+    var builder = GetObjectRequest
+      .builder()
+      .bucket(bucket.value)
+      .key(key.value)
+      .requestPayer(RequestPayer.REQUESTER)
+
+    builder = credentialsProvider match {
+      case Some(credentialsProvider) =>
+        logger.info(s"s3GetObject() adding credentialsProvider to request")
+        builder.overrideConfiguration(
+          AwsRequestOverrideConfiguration
+            .builder()
+            .credentialsProvider(credentialsProvider)
+            .build()
+        )
+      case None =>
+        builder
     }
+
+    builder = versionId match {
+      case Some(versionId) =>
+        logger.info(s"s3GetObject() adding versionId to request")
+        builder.versionId(versionId.value)
+      case None => builder
+    }
+
+    val s3Request = builder.build()
+    logger.info(s"s3GetObject() s3Request: ${s3Request.toString}")
+
+    val objectBytes: ResponseBytes[GetObjectResponse] =
+      s3Client.getObject(s3Request, ResponseTransformer.toBytes())
+
+    ByteString.fromArray(objectBytes.asByteArray())
+  }
+
+  private def s3PutObject(
+    bucket: S3Bucket,
+    key: S3Key.File,
+    data: Option[String]
+  )(implicit
+    ec: ExecutionContext
+  ): Future[PutObjectResponse] = Future {
+    val credentialsProvider =
+      getCachedAssumeRoleCredentialsProvider(bucket)
+
+    var builder = PutObjectRequest
+      .builder()
+      .bucket(bucket.value)
+      .key(key.value)
+      .requestPayer(RequestPayer.REQUESTER)
+
+    builder = credentialsProvider match {
+      case Some(credentialsProvider) =>
+        logger.info(s"s3PutObject() adding credentialsProvider to request")
+        builder.overrideConfiguration(
+          AwsRequestOverrideConfiguration
+            .builder()
+            .credentialsProvider(credentialsProvider)
+            .build()
+        )
+      case None =>
+        builder
+    }
+
+    val s3request = builder.build()
+    s3Client.putObject(s3request, RequestBody.fromString(data match {
+      case Some(data) => data
+      case None => new String("") // an empty file
+    }))
+  }
 
   private def s3OperationGetObject(
     request: S3OperationRequest
   )(implicit
     ec: ExecutionContext
   ): Future[S3OperationResponse] =
-    Future {
-      val s3Request = request.s3Version match {
-        case Some(versionId) =>
-          GetObjectRequest
-            .builder()
-            .bucket(request.s3Bucket)
-            .key(request.s3Key)
-            .versionId(versionId)
-            .requestPayer(RequestPayer.REQUESTER)
-            .build()
-        case None =>
-          GetObjectRequest
-            .builder()
-            .bucket(request.s3Bucket)
-            .key(request.s3Key)
-            .requestPayer(RequestPayer.REQUESTER)
-            .build()
-      }
-
-      val objectBytes: ResponseBytes[GetObjectResponse] =
-        s3Client.getObject(s3Request, ResponseTransformer.toBytes())
-      val data = objectBytes.asByteArray()
-
+    for {
+      byteString <- s3GetObject(
+        S3Bucket(request.s3Bucket),
+        S3Key.File(request.s3Key),
+        request.s3Version match {
+          case Some(versionId) =>
+            Some(S3Key.Version(versionId))
+          case None =>
+            None
+        }
+      )
+    } yield
       S3OperationResponse(
         request,
         status = S3OperationStatus.SUCCESS,
         message = None,
-        data = Some(new String(data, StandardCharsets.UTF_8))
+        data = Some(byteString.decodeString((ByteString.UTF_8)))
       )
+
+  private def s3OperationPutObject(
+    request: S3OperationRequest
+  )(implicit
+    ec: ExecutionContext
+  ): Future[S3OperationResponse] =
+    for {
+      response <- s3PutObject(
+        S3Bucket(request.s3Bucket),
+        S3Key.File(request.s3Key),
+        request.data
+      )
+    } yield
+      S3OperationResponse(
+        request = request,
+        status = S3OperationStatus.SUCCESS,
+        message = Some(response.toString),
+        data = None
+      )
+
+  private def s3OperationDeleteObject(
+    request: S3OperationRequest
+  )(implicit
+    ec: ExecutionContext
+  ): Future[S3OperationResponse] =
+    Future {
+      val credentialsProvider =
+        getCachedAssumeRoleCredentialsProvider(S3Bucket(request.s3Bucket))
+
+      var builder = DeleteObjectRequest
+        .builder()
+        .bucket(request.s3Bucket)
+        .key(request.s3Key)
+        .requestPayer(RequestPayer.REQUESTER)
+
+      builder = credentialsProvider match {
+        case Some(credentialsProvider) =>
+          logger.info(
+            s"s3OperationDeleteObject() adding credentialsProvider to request"
+          )
+          builder.overrideConfiguration(
+            AwsRequestOverrideConfiguration
+              .builder()
+              .credentialsProvider(credentialsProvider)
+              .build()
+          )
+        case None =>
+          builder
+      }
+
+      builder = request.s3Version match {
+        case Some(versionId) =>
+          builder.versionId(versionId)
+        case None =>
+          builder
+      }
+
+      val s3request = builder.build()
+      val s3response = s3Client.deleteObject(s3request)
+      S3OperationResponse(
+        request = request,
+        status = S3OperationStatus.SUCCESS,
+        message = Some(s3response.toString),
+        data = None
+      )
+
     }.recover {
       case t: Throwable =>
         S3OperationResponse(
@@ -1244,20 +1373,28 @@ class AlpakkaS3StreamClient(
   )(implicit
     ec: ExecutionContext
   ): Future[S3OperationResponse] = {
-    for {
-      response <- request.s3Operation.toLowerCase match {
-        case "getobject" => s3OperationGetObject(request)
-        case _ =>
-          Future.successful(
-            S3OperationResponse(
-              request = request,
-              status = S3OperationStatus.NOOP,
-              message = Some("unsupported"),
-              data = None
-            )
+    request.s3Operation.toLowerCase match {
+      case "getobject" => s3OperationGetObject(request)
+      case "putobject" => s3OperationPutObject(request)
+      case "deleteobject" => s3OperationDeleteObject(request)
+      case _ =>
+        Future.successful(
+          S3OperationResponse(
+            request = request,
+            status = S3OperationStatus.NOOP,
+            message = Some("unsupported"),
+            data = None
           )
-      }
-    } yield response
+        )
+    }
+  }.recover {
+    case t: Throwable =>
+      S3OperationResponse(
+        request,
+        status = S3OperationStatus.FAILURE,
+        message = Some(t.toString),
+        None
+      )
   }
 
   override def readReleaseAssetListing(
@@ -1266,7 +1403,11 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[ReleaseAssetListing] =
     for {
-      content <- getFile(version.s3Bucket, releaseAssetListingKey(version))
+      content <- getFile(
+        version.s3Bucket,
+        releaseAssetListingKey(version),
+        None
+      )
       output <- decode[ReleaseAssetListing](
         content.decodeString(akka.util.ByteString.UTF_8)
       ).fold(Future.failed, Future.successful)
