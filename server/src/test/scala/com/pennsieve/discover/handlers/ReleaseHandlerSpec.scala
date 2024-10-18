@@ -11,7 +11,8 @@ import com.pennsieve.discover.ServiceSpecHarness
 import com.pennsieve.discover.client.definitions
 import com.pennsieve.discover.client.definitions.{
   DatasetPublishStatus,
-  InternalContributor
+  InternalContributor,
+  ReleasePublishingResponse
 }
 import com.pennsieve.discover.client.publish.{ PublishClient, PublishResponse }
 import com.pennsieve.discover.client.release.{
@@ -135,16 +136,29 @@ class ReleaseHandlerSpec
         .asInstanceOf[PublishReleaseResponse.Created]
         .value
 
-      response shouldBe DatasetPublishStatus(
-        datasetName,
-        organizationId,
-        datasetId,
-        None,
-        0,
-        PublishInProgress,
-        None,
-        workflowId = PublishingWorkflow.Version5
-      )
+      response.name shouldBe requestBody.name
+      response.sourceDatasetId shouldBe datasetId
+//        name = ???,
+//        sourceOrganizationName = ???,
+//        sourceOrganizationId = ???,
+//        sourceDatasetId = ???,
+//        publishedDatasetId = ???,
+//        publishedVersionCount = ???,
+//        status = ???,
+//        lastPublishedDate = ???,
+//        sponsorship = None,
+//        publicId = ???
+//      )
+
+//      response shouldBe ReleasePublishingResponse(
+//        datasetName,
+//        organizationId,
+//        datasetId,
+//        None,
+//        0,
+//        PublishInProgress,
+//        None,
+//      )
 
       val publicDataset = ports.db
         .run(

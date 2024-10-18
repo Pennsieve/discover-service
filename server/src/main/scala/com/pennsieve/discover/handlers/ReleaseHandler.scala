@@ -229,7 +229,7 @@ class ReleaseHandler(
 
           } yield
             respond.Created(
-              definitions.PublishReleaseResponse(
+              definitions.ReleasePublishingResponse(
                 name = status.name,
                 sourceOrganizationName = publicDataset.sourceOrganizationName,
                 sourceOrganizationId = publicDataset.sourceOrganizationId,
@@ -409,7 +409,7 @@ class ReleaseHandler(
         //      )
       } yield
         respond.OK(
-          definitions.PublishReleaseResponse(
+          definitions.ReleasePublishingResponse(
             name = status.name,
             sourceOrganizationName = publicDataset.sourceOrganizationName,
             sourceOrganizationId = publicDataset.sourceOrganizationId,

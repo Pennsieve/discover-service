@@ -500,7 +500,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublishReleaseResponse"
+                $ref: "#/components/schemas/ReleasePublishingResponse"
         "400":
           description: Bad Request
           content:
@@ -557,7 +557,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublishReleaseResponse"
+                $ref: "#/components/schemas/ReleasePublishingResponse"
         "400":
           description: Bad Request
           content:
@@ -872,7 +872,7 @@ components:
         releaseStatus:
           type: string
 
-    PublishReleaseResponse:
+    ReleasePublishingResponse:
       type: object
       required:
         - name
