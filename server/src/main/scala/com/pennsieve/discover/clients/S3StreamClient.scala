@@ -191,6 +191,12 @@ trait S3StreamClient {
         .fold(Future.failed, Future.successful)
     } yield output
 
+  def loadDatasetMetadata(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[DatasetMetadata]
+
   def writeDatasetRevisionMetadata(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
@@ -221,7 +227,7 @@ trait S3StreamClient {
     version: Option[String] = None
   ): String
 
-  def readReleaseAssetListing(
+  def loadReleaseAssetListing(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
@@ -1397,7 +1403,19 @@ class AlpakkaS3StreamClient(
       )
   }
 
-  override def readReleaseAssetListing(
+  override def loadDatasetMetadata(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[DatasetMetadata] =
+    for {
+      content <- getFile(version.s3Bucket, metadataKey(version), None)
+      output <- decode[DatasetMetadata](
+        content.decodeString(akka.util.ByteString.UTF_8)
+      ).fold(Future.failed, Future.successful)
+    } yield output
+
+  override def loadReleaseAssetListing(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext

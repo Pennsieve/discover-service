@@ -322,10 +322,10 @@ class ReleaseHandler(
           case None => Future.failed(new Throwable("no dataset release found"))
         })
 
-        // Read the metadata (manifest.json) file from S3
+        // load the metadata (manifest.json) file from S3
         metadata <- DBIO.from(
           ports.s3StreamClient
-            .readDatasetMetadata(updatedVersion)
+            .loadDatasetMetadata(updatedVersion)
         )
         _ = ports.log.info(s"finalizeRelease() metadata: ${metadata}")
 
@@ -358,7 +358,7 @@ class ReleaseHandler(
         // read release asset listing
         releaseAssetListing <- DBIO.from(
           ports.s3StreamClient
-            .readReleaseAssetListing(updatedVersion)
+            .loadReleaseAssetListing(updatedVersion)
         )
         _ = ports.log.info(
           s"finalizeRelease() releaseAssetListing: ${releaseAssetListing}"
