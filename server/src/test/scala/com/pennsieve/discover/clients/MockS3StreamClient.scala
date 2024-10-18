@@ -39,6 +39,7 @@ import com.pennsieve.discover.notifications.{
   S3OperationStatus
 }
 import io.circe.syntax._
+import io.circe.parser.decode
 
 class MockS3StreamClient extends S3StreamClient {
 
@@ -274,7 +275,17 @@ class MockS3StreamClient extends S3StreamClient {
     ec: ExecutionContext
   ): Future[ByteString] = Future.successful(ByteString.empty)
 
-  override def readReleaseAssetListing(
+  override def loadDatasetMetadata(
+    version: PublicDatasetVersion
+  )(implicit
+    ec: ExecutionContext
+  ): Future[DatasetMetadata] =
+    for {
+      output <- decode[DatasetMetadata](sampleMetadata)
+        .fold(Future.failed, Future.successful)
+    } yield output
+
+  override def loadReleaseAssetListing(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
