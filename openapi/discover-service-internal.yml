@@ -500,7 +500,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetPublishStatus"
+                $ref: "#/components/schemas/ReleasePublishingResponse"
         "400":
           description: Bad Request
           content:
@@ -557,7 +557,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetPublishStatus"
+                $ref: "#/components/schemas/ReleasePublishingResponse"
         "400":
           description: Bad Request
           content:
@@ -870,6 +870,45 @@ components:
         markerUrl:
           type: string
         releaseStatus:
+          type: string
+
+    ReleasePublishingResponse:
+      type: object
+      required:
+        - name
+        - sourceOrganizationName
+        - sourceOrganizationId
+        - sourceDatasetId
+        - publishedDatasetId
+        - publishedVersionCount
+        - status
+        - publicId
+      properties:
+        name:
+          type: string
+        sourceOrganizationName:
+          type: string
+        sourceOrganizationId:
+          type: integer
+          format: int32
+        sourceDatasetId:
+          type: integer
+          format: int32
+        publishedDatasetId:
+          type: integer
+          format: int32
+        publishedVersionCount:
+          type: integer
+          format: int32
+        status:
+          type: string
+          x-scala-type: com.pennsieve.models.PublishStatus
+        lastPublishedDate:
+          type: string
+          format: date-time
+        sponsorship:
+          $ref: "#/components/schemas/SponsorshipRequest"
+        publicId:
           type: string
 
     FinalizeReleaseRequest:

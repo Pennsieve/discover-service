@@ -227,7 +227,21 @@ class ReleaseHandler(
             )
             _ = ports.log.info(s"Dataset Public Status: ${status}")
 
-          } yield respond.Created(status)
+          } yield
+            respond.Created(
+              definitions.ReleasePublishingResponse(
+                name = status.name,
+                sourceOrganizationName = publicDataset.sourceOrganizationName,
+                sourceOrganizationId = publicDataset.sourceOrganizationId,
+                sourceDatasetId = publicDataset.sourceDatasetId,
+                publishedDatasetId = status.publishedDatasetId.getOrElse(0),
+                publishedVersionCount = status.publishedVersionCount,
+                status = status.status,
+                lastPublishedDate = status.lastPublishedDate,
+                sponsorship = status.sponsorship,
+                publicId = version.doi
+              )
+            )
 
           ports.db
             .run(
@@ -393,7 +407,21 @@ class ReleaseHandler(
         //        S3CleanupStage.Tidy,
         //        updatedVersion.migrated
         //      )
-      } yield respond.OK(status)
+      } yield
+        respond.OK(
+          definitions.ReleasePublishingResponse(
+            name = status.name,
+            sourceOrganizationName = publicDataset.sourceOrganizationName,
+            sourceOrganizationId = publicDataset.sourceOrganizationId,
+            sourceDatasetId = publicDataset.sourceDatasetId,
+            publishedDatasetId = status.publishedDatasetId.getOrElse(0),
+            publishedVersionCount = status.publishedVersionCount,
+            status = status.status,
+            lastPublishedDate = status.lastPublishedDate,
+            sponsorship = status.sponsorship,
+            publicId = updatedVersion.doi
+          )
+        )
 
       ports.db
         .run(
