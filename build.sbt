@@ -54,7 +54,7 @@ lazy val circeVersion = SettingKey[String]("circeVersion")
 lazy val circe212Version = "0.11.1"
 lazy val circe213Version = "0.14.1"
 
-lazy val coreVersion = "350-3c297ea"
+lazy val coreVersion = "352-48b5973"
 lazy val authMiddlewareVersion = "5.1.3"
 lazy val serviceUtilitiesVersion = "8-9751ee3"
 lazy val utilitiesVersion = "4-55953e4"
