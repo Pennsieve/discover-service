@@ -114,6 +114,7 @@ object PublicDatasetDTO {
       .withFieldComputed(_.firstPublishedAt, _ => Some(dataset.createdAt))
       .withFieldComputed(_.versionPublishedAt, _ => Some(version.createdAt))
       .withFieldComputed(_.revisedAt, _ => revision.map(_.createdAt))
+      .withFieldComputed(_.datasetType, _ => dataset.datasetType.entryName)
       .transform
 
   def apply(
