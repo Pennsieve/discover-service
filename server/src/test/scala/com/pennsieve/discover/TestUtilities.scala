@@ -6,6 +6,7 @@ import com.pennsieve.discover.db._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models._
 import com.pennsieve.models.{
+  DatasetType,
   Degree,
   FileManifest,
   FileType,
@@ -75,7 +76,8 @@ object TestUtilities extends AwaitableImplicits {
     ownerLastName: String = "Blackwell",
     ownerOrcid: String = "0000-0001-2345-6789",
     license: License = License.`Apache 2.0`,
-    tags: List[String] = List(randomString(), randomString())
+    tags: List[String] = List(randomString(), randomString()),
+    datasetType: DatasetType = DatasetType.Research
   )(implicit
     executionContext: ExecutionContext
   ): PublicDataset = {
@@ -90,7 +92,8 @@ object TestUtilities extends AwaitableImplicits {
           ownerLastName = ownerLastName,
           ownerOrcid = ownerOrcid,
           license = license,
-          tags = tags
+          tags = tags,
+          datasetType = datasetType
         )
       )
       .await
@@ -119,7 +122,8 @@ object TestUtilities extends AwaitableImplicits {
     status: PublishStatus = PublishStatus.NotPublished,
     doi: String = randomString(),
     embargoReleaseDate: Option[LocalDate] = None,
-    migrated: Boolean = false
+    migrated: Boolean = false,
+    datasetType: DatasetType = DatasetType.Research
   )(implicit
     executionContext: ExecutionContext
   ): PublicDatasetVersion = {
