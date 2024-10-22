@@ -134,7 +134,7 @@ class ElasticSearchSpec
     organizationName = "University of Pennsylvania",
     doi = "10.21397/abcd-1234",
     size = 100L,
-    tags = Vector("research"),
+    tags = Vector("investigation"),
     createdAt = OffsetDateTime.now(),
     updatedAt = OffsetDateTime.now(),
     readmeContents = Readme("readme for dataset 1"),
@@ -158,7 +158,7 @@ class ElasticSearchSpec
     organizationId = 10,
     doi = "10.21397/wxyz-9876",
     size = 200L,
-    tags = Vector("research", "seizure"),
+    tags = Vector("investigation", "seizure"),
     createdAt = OffsetDateTime.now().plus(1.day.toJava),
     updatedAt = OffsetDateTime.now().plus(1.day.toJava),
     readmeContents = Readme("something else for dataset 2"),
@@ -255,7 +255,7 @@ class ElasticSearchSpec
       searchClient.insertDatasets(datasets).awaitFinite()
 
       searchClient
-        .searchDatasets(query = Some("researching"))
+        .searchDatasets(query = Some("investigation"))
         .awaitFinite()
         .datasets
         .to(Set) shouldBe Set(dataset1, dataset2)
@@ -281,7 +281,7 @@ class ElasticSearchSpec
       searchClient.insertDatasets(datasets).awaitFinite()
 
       searchClient
-        .searchDatasets(tags = Some(List("research")))
+        .searchDatasets(tags = Some(List("investigation")))
         .awaitFinite()
         .datasets
         .to(Set) shouldBe Set(dataset1, dataset2)
@@ -294,7 +294,7 @@ class ElasticSearchSpec
 
       // AND multiple tags
       searchClient
-        .searchDatasets(tags = Some(List("seizure", "research")))
+        .searchDatasets(tags = Some(List("seizure", "investigation")))
         .awaitFinite()
         .datasets
         .to(Set) shouldBe Set(dataset2)
@@ -370,13 +370,13 @@ class ElasticSearchSpec
         .to(Set) shouldBe Set(dataset2)
 
       searchClient
-        .searchDatasets(query = Some("research +readme"))
+        .searchDatasets(query = Some("investigation +readme"))
         .awaitFinite()
         .datasets
         .to(Set) shouldBe Set(dataset1)
 
       searchClient
-        .searchDatasets(query = Some("research -readme"))
+        .searchDatasets(query = Some("investigation -readme"))
         .awaitFinite()
         .datasets
         .to(Set) shouldBe Set(dataset2)
