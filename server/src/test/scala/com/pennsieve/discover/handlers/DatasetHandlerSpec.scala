@@ -56,6 +56,7 @@ import com.pennsieve.models.PublishStatus.{
   Unpublished
 }
 import com.pennsieve.models.{
+  DatasetType,
   FileType,
   Icon,
   PackageType,
@@ -2233,6 +2234,49 @@ class DatasetHandlerSpec
         s"/datasets/${v.datasetId}/versions/${v.version}/files?path=A/file1.txt"
       )
 
+    }
+  }
+
+  "DatasetDTO response" should {
+    "have default value for datasetType" in {
+      val dataset = TestUtilities.createDataset(ports.db)()
+      val version =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = dataset.id,
+          status = PublishSucceeded,
+          doi = "10.12345/zyxw-jklm"
+        )
+
+      val response = datasetClient
+        .getDatasetVersion(dataset.id, version.version)
+        .awaitFinite()
+        .value
+        .asInstanceOf[GetDatasetVersionResponse.OK]
+        .value
+
+      response.datasetType shouldBe DatasetType.Research.entryName
+    }
+
+    "have 'release' for Code Repos" in {
+      val dataset =
+        TestUtilities.createDataset(ports.db)(datasetType = DatasetType.Release)
+      val version =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = dataset.id,
+          status = PublishSucceeded,
+          doi = "10.12345/zyxw-jklm"
+        )
+
+      val response = datasetClient
+        .getDatasetVersion(dataset.id, version.version)
+        .awaitFinite()
+        .value
+        .asInstanceOf[GetDatasetVersionResponse.OK]
+        .value
+
+      response.datasetType shouldBe DatasetType.Release.entryName
+
+      val json = response.asJson.toString()
     }
   }
 }

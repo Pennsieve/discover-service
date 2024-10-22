@@ -1072,6 +1072,7 @@ components:
         - contributors
         - createdAt
         - updatedAt
+        - datasetType
       properties:
         id:
           type: integer
@@ -1186,6 +1187,9 @@ components:
         embargoAccess:
           type: string
           description: "embargo access type"
+        datasetType:
+          type: string
+          description: "the dataset type (research, release, collection)"
 
     SponsorshipDTO:
       type: object
