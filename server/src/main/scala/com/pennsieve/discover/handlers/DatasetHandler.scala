@@ -38,6 +38,8 @@ import com.pennsieve.discover.server.dataset.{
 }
 import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.server.definitions.{
+  AssetTreeNodeDto,
+  AssetTreePage,
   DownloadRequest,
   DownloadResponse,
   DownloadResponseHeader,
@@ -819,6 +821,60 @@ class DatasetHandler(
           )
         case DatasetUnderEmbargo =>
           GuardrailResource.BrowseFilesResponse.Forbidden(
+            "Dataset is under embargo"
+          )
+      }
+  }
+
+  override def browseAssets(
+    respond: GuardrailResource.BrowseAssetsResponse.type
+  )(
+    datasetId: Int,
+    versionId: Int,
+    path: Option[String],
+    limit: Option[Int],
+    offset: Option[Int]
+  ): Future[GuardrailResource.BrowseAssetsResponse] = {
+    val query = for {
+      dataset <- PublicDatasetsMapper.getDataset(datasetId)
+      version <- PublicDatasetVersionsMapper.getVisibleVersion(
+        dataset,
+        versionId
+      )
+      _ <- authorizeIfUnderEmbargo(dataset, version)
+
+      (totalCount, assets) <- PublicDatasetReleaseAssetMapper
+        .childrenOf(
+          version,
+          path,
+          limit = limit.getOrElse(defaultFileLimit),
+          offset = offset.getOrElse(defaultFileOffset)
+        )
+    } yield (totalCount, assets)
+
+    ports.db
+      .run(query)
+      .map {
+        case (totalCount, assets) =>
+          GuardrailResource.BrowseAssetsResponse.OK(
+            AssetTreePage(
+              limit = limit.getOrElse(defaultFileLimit),
+              offset = offset.getOrElse(defaultFileOffset),
+              totalCount = totalCount.value,
+              assets = assets.map(AssetTreeNodeDTO.apply).to(Vector)
+            )
+          )
+      }
+      .recover {
+        case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
+          GuardrailResource.BrowseAssetsResponse
+            .NotFound(datasetId.toString)
+        case UnauthorizedException =>
+          GuardrailResource.BrowseAssetsResponse.Unauthorized(
+            "Dataset is under embargo"
+          )
+        case DatasetUnderEmbargo =>
+          GuardrailResource.BrowseAssetsResponse.Forbidden(
             "Dataset is under embargo"
           )
       }

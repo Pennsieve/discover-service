@@ -531,6 +531,87 @@ paths:
               schema:
                 $ref: "#/components/schemas/TombstoneDTO"
 
+  "/datasets/{datasetId}/versions/{versionId}/assets/browse":
+    get:
+      tags:
+        - Datasets
+      security: []
+      summary: view release assets for a dataset
+      operationId: browseAssets
+      x-scala-package: dataset
+      description: >
+        Show all files and directories in a folder of the release asset. If
+        `directory` is not defined this will show files at the root of the
+        dataset.
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: versionId
+          in: path
+          description: version number
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: path
+          in: query
+          description: full path to a directory in the file tree
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: max number of files returned
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 100
+        - name: offset
+          in: query
+          description: offset used for pagination of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetTreePage"
+        "401":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
   "/datasets/{datasetId}/versions/{versionId}/files/download-manifest":
     post:
       tags:
@@ -1419,6 +1500,40 @@ components:
       description: A directory containing files in the dataset
       allOf:
         - $ref: "#/components/schemas/FileTreeNodeDto"
+
+    AssetTreePage:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/GenericResponsePage"
+        - type: object
+          required:
+            - assets
+          properties:
+            assets:
+              type: array
+              items:
+                $ref: "#/components/schemas/AssetTreeNodeDto"
+
+    AssetTreeNodeDto:
+      description: >
+        An object representing a node in the asset tree.
+      type: object
+      required:
+        - name
+        - path
+        - size
+        - type
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+          format: int64
+        type:
+          type: string
+          description: either file or folder
 
     GenericResponsePage:
       description: >

@@ -3,9 +3,11 @@
 package com.pennsieve.discover.db
 
 import akka.Done
+import cats.implicits._
 import com.github.tminglei.slickpg.LTree
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
+  AssetTreeNode,
   PublicDatasetRelease,
   PublicDatasetReleaseAsset,
   PublicDatasetVersion,
@@ -14,6 +16,8 @@ import com.pennsieve.discover.models.{
   ReleaseAssetListing,
   S3Key
 }
+import slick.jdbc.GetResult
+import slick.dbio.{ DBIOAction, Effect }
 
 import java.nio.charset.StandardCharsets
 import java.time.OffsetDateTime
@@ -57,12 +61,31 @@ class PublicDatasetReleaseAssetsTable(tag: Tag)
 object PublicDatasetReleaseAssetMapper
     extends TableQuery(new PublicDatasetReleaseAssetsTable(_)) {
 
-  private def convertPathToTree(path: String): String =
-    path
+  private def convertPathToTree(key: S3Key.File): String =
+    key.value
       .split("/")
       .map(_.getBytes(StandardCharsets.UTF_8))
       .map(pgSafeBase64)
       .mkString(".")
+
+  private def buildAssetNodeGetter(
+  ): GetResult[Either[TotalCount, AssetTreeNode]] =
+    GetResult(r => {
+      val nodeType = r.nextString()
+
+      nodeType match {
+        case "count" => Left(TotalCount(r.skip.skip.skip.nextLong()))
+        case "file" =>
+          Right(
+            AssetTreeNode(
+              `type` = r.nextString(),
+              file = r.nextString(),
+              name = r.nextString(),
+              size = r.nextLong()
+            )
+          )
+      }
+    })
 
   private def buildReleaseAsset(
     version: PublicDatasetVersion,
@@ -77,7 +100,9 @@ object PublicDatasetReleaseAssetMapper
       name = file.name,
       `type` = file.`type`,
       size = file.size,
-      path = LTree(PublicDatasetReleaseAssetMapper.convertPathToTree(file.file))
+      path = LTree(
+        PublicDatasetReleaseAssetMapper.convertPathToTree(S3Key.File(file.file))
+      )
     )
 
   def createMany(
@@ -101,4 +126,67 @@ object PublicDatasetReleaseAssetMapper
       )
       .map(_ => Done)
       .transactionally
+
+  def childrenOf(
+    version: PublicDatasetVersion,
+    path: Option[String],
+    limit: Int = 100,
+    offset: Int = 0
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    (TotalCount, Seq[AssetTreeNode]),
+    NoStream,
+    Effect.Read with Effect
+  ] = {
+    implicit val getTreeNodeResult
+      : GetResult[Either[TotalCount, AssetTreeNode]] =
+      buildAssetNodeGetter()
+
+    val parent = convertPathToTree(path match {
+      case Some(d) => version.s3Key / d
+      case None => version.s3Key / ""
+    })
+
+    // selects leaves of the tree one level under parent
+    val leafChildSelector = parent + ".*{1}"
+
+    val datasetId = version.datasetId
+    val datasetVersion = version.version
+
+    val result =
+      sql"""
+        WITH files AS (
+          SELECT type,
+                 file,
+                 name,
+                 size
+          FROM discover.public_dataset_release_assets
+          WHERE dataset_id = $datasetId
+          AND dataset_version = $datasetVersion
+          AND path ~ $leafChildSelector::lquery
+        ),
+        total_count as (
+          select null::text AS type,
+                 null::text AS file,
+                 null::text AS name,
+                 (SELECT COALESCE(COUNT(*), 0) FROM files) AS size
+        )
+        SELECT 'count', * FROM total_count
+        UNION (
+        SELECT 'file', * FROM files
+        )
+        ORDER BY 1 ASC
+        LIMIT $limit
+        OFFSET $offset;
+         """.as[Either[TotalCount, AssetTreeNode]]
+
+    for {
+      rows <- result
+      (counts, nodes) = rows.separate
+      totalCount <- counts.headOption
+        .map(DBIO.successful(_))
+        .getOrElse(DBIO.failed(new Exception("missing 'count'")))
+    } yield (totalCount, nodes)
+  }
 }
