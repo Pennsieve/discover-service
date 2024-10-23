@@ -67,6 +67,13 @@ paths:
           schema:
             type: boolean
             nullable: true
+        - name: datasetType
+          in: query
+          description: filter datasets by type
+          required: false
+          schema:
+            type: string
+            nullable: false
         - $ref: "#/components/parameters/orderBy"
         - $ref: "#/components/parameters/orderDirection"
       responses:

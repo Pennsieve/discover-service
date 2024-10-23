@@ -137,7 +137,8 @@ object TestUtilities extends AwaitableImplicits {
       ownerLastName,
       ownerOrcid,
       license,
-      tags
+      tags,
+      datasetType
     )
 
     db.run(

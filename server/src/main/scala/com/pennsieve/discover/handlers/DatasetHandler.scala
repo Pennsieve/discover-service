@@ -47,7 +47,7 @@ import com.pennsieve.discover.server.definitions.{
   PreviewAccessRequest,
   PublicDatasetDto
 }
-import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.{ DatasetType, PublishStatus }
 import com.pennsieve.models.PublishStatus.{
   EmbargoSucceeded,
   NotPublished,
@@ -55,7 +55,7 @@ import com.pennsieve.models.PublishStatus.{
   Unpublished
 }
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{ DurationInt, SECONDS }
 import scala.concurrent.{ ExecutionContext, Future }
 
 /**
@@ -150,6 +150,7 @@ class DatasetHandler(
     ids: Option[Iterable[String]],
     tags: Option[Iterable[String]],
     embargo: Option[Boolean],
+    datasetType: Option[String],
     orderBy: Option[String],
     orderDirection: Option[String]
   ): Future[GuardrailResource.GetDatasetsResponse] = {
@@ -169,6 +170,11 @@ class DatasetHandler(
 
       intIds = ids.map(_.map(_.toInt)).map(_.toList)
 
+      datasetTypeFilter = datasetType match {
+        case Some(t) => Some(DatasetType.withName(t))
+        case None => None
+      }
+
       pagedResult <- ports.db
         .run(
           PublicDatasetVersionsMapper.getPagedDatasets(
@@ -178,7 +184,8 @@ class DatasetHandler(
             offset = offset.getOrElse(defaultDatasetOffset),
             orderBy = orderBy,
             orderDirection = orderDirection,
-            ids = intIds
+            ids = intIds,
+            datasetType = datasetTypeFilter
           )
         )
     } yield

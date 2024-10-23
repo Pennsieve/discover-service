@@ -2279,4 +2279,230 @@ class DatasetHandlerSpec
       val json = response.asJson.toString()
     }
   }
+
+  "dataset type filtering" should {
+    "return everything when not specified" in {
+      // Dataset 1
+      val publicDataset1 = TestUtilities.createDataset(ports.db)(
+        name = "unfiltered dataset 1",
+        datasetType = DatasetType.Research,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 101
+      )
+      val publicDataset1_V1: PublicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = publicDataset1.id,
+          status = PublishStatus.PublishSucceeded
+        )
+      val contributor1 = TestUtilities.createContributor(ports.db)(
+        firstName = "Alberto",
+        lastName = "Ascari",
+        orcid = None,
+        datasetId = publicDataset1.id,
+        organizationId = 1,
+        version = publicDataset1_V1.version,
+        sourceContributorId = 51,
+        sourceUserId = Some(51)
+      )
+
+      // Dataset 2
+      val publicDataset2 = TestUtilities.createDataset(ports.db)(
+        name = "unfiltered dataset 2",
+        datasetType = DatasetType.Collection,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 102
+      )
+      val publicDataset2_V1: PublicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = publicDataset2.id,
+          status = PublishStatus.PublishSucceeded
+        )
+      val contributor2 = TestUtilities.createContributor(ports.db)(
+        firstName = "Tony",
+        lastName = "Bettenhausen",
+        orcid = None,
+        datasetId = publicDataset2.id,
+        organizationId = 1,
+        version = publicDataset2_V1.version,
+        sourceContributorId = 52,
+        sourceUserId = Some(52)
+      )
+
+      // Dataset 3
+      val publicDataset3 = TestUtilities.createDataset(ports.db)(
+        name = "unfiltered dataset 3",
+        datasetType = DatasetType.Release,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 103
+      )
+      val publicDataset3_V1: PublicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = publicDataset3.id,
+          status = PublishStatus.PublishSucceeded
+        )
+      val contributor3 = TestUtilities.createContributor(ports.db)(
+        firstName = "Prince",
+        lastName = "Bira",
+        orcid = None,
+        datasetId = publicDataset3.id,
+        organizationId = 1,
+        version = publicDataset3_V1.version,
+        sourceContributorId = 53,
+        sourceUserId = Some(53)
+      )
+
+      val allDatasets = IndexedSeq(
+        toClientDefinition(
+          PublicDatasetDTO.apply(
+            publicDataset3,
+            publicDataset3_V1,
+            IndexedSeq(PublicContributorDTO.apply(contributor3)),
+            None,
+            None,
+            Some(IndexedSeq.empty),
+            Some(IndexedSeq.empty),
+            None
+          )
+        ),
+        toClientDefinition(
+          PublicDatasetDTO.apply(
+            publicDataset2,
+            publicDataset2_V1,
+            IndexedSeq(PublicContributorDTO.apply(contributor2)),
+            None,
+            None,
+            Some(IndexedSeq.empty),
+            Some(IndexedSeq.empty),
+            None
+          )
+        ),
+        toClientDefinition(
+          PublicDatasetDTO(
+            publicDataset1,
+            publicDataset1_V1,
+            IndexedSeq(PublicContributorDTO.apply(contributor1)),
+            None,
+            None,
+            Some(IndexedSeq.empty),
+            Some(IndexedSeq.empty),
+            None
+          )
+        )
+      )
+
+      assert(
+        datasetClient
+          .getDatasets()
+          .awaitFinite()
+          .value === GetDatasetsResponse.OK(
+          DatasetsPage(
+            limit = 10,
+            offset = 0,
+            datasets = allDatasets.toVector,
+            totalCount = allDatasets.size.toLong
+          )
+        )
+      )
+    }
+
+    "return only requested types when specified" in {
+      // Dataset 1
+      val publicDataset1 = TestUtilities.createDataset(ports.db)(
+        name = "filtered dataset 1",
+        datasetType = DatasetType.Research,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 201
+      )
+      val publicDataset1_V1: PublicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = publicDataset1.id,
+          status = PublishStatus.PublishSucceeded
+        )
+      val contributor1 = TestUtilities.createContributor(ports.db)(
+        firstName = "Richard",
+        lastName = "Petty",
+        orcid = None,
+        datasetId = publicDataset1.id,
+        organizationId = 1,
+        version = publicDataset1_V1.version,
+        sourceContributorId = 61,
+        sourceUserId = Some(61)
+      )
+
+      // Dataset 2
+      val publicDataset2 = TestUtilities.createDataset(ports.db)(
+        name = "filtered dataset 2",
+        datasetType = DatasetType.Collection,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 202
+      )
+      val publicDataset2_V1: PublicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = publicDataset2.id,
+          status = PublishStatus.PublishSucceeded
+        )
+      val contributor2 = TestUtilities.createContributor(ports.db)(
+        firstName = "Junior",
+        lastName = "Johnson",
+        orcid = None,
+        datasetId = publicDataset2.id,
+        organizationId = 1,
+        version = publicDataset2_V1.version,
+        sourceContributorId = 62,
+        sourceUserId = Some(62)
+      )
+
+      // Dataset 3
+      val publicDataset3 = TestUtilities.createDataset(ports.db)(
+        name = "filtered dataset 3",
+        datasetType = DatasetType.Release,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 203
+      )
+      val publicDataset3_V1: PublicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = publicDataset3.id,
+          status = PublishStatus.PublishSucceeded
+        )
+      val contributor3 = TestUtilities.createContributor(ports.db)(
+        firstName = "Ned",
+        lastName = "Jarrett",
+        orcid = None,
+        datasetId = publicDataset3.id,
+        organizationId = 1,
+        version = publicDataset3_V1.version,
+        sourceContributorId = 63,
+        sourceUserId = Some(63)
+      )
+
+      val filteredDatasets = IndexedSeq(
+        toClientDefinition(
+          PublicDatasetDTO.apply(
+            publicDataset3,
+            publicDataset3_V1,
+            IndexedSeq(PublicContributorDTO.apply(contributor3)),
+            None,
+            None,
+            Some(IndexedSeq.empty),
+            Some(IndexedSeq.empty),
+            None
+          )
+        )
+      )
+
+      assert(
+        datasetClient
+          .getDatasets(datasetType = Some("release"))
+          .awaitFinite()
+          .value === GetDatasetsResponse.OK(
+          DatasetsPage(
+            limit = 10,
+            offset = 0,
+            datasets = filteredDatasets.toVector,
+            totalCount = filteredDatasets.size.toLong
+          )
+        )
+      )
+    }
+  }
 }

@@ -3,7 +3,6 @@
 package com.pennsieve.discover.db
 
 import java.time.OffsetDateTime
-
 import cats.Monoid
 import cats.implicits._
 import com.pennsieve.discover.{ db, _ }
@@ -13,7 +12,7 @@ import com.pennsieve.discover.server.definitions.{
   DatasetPublishStatus,
   SponsorshipRequest
 }
-import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.{ DatasetType, PublishStatus }
 import com.pennsieve.models.PublishStatus.{
   NotPublished,
   PublishFailed,
@@ -410,7 +409,8 @@ object PublicDatasetVersionsMapper
     limit: Int,
     offset: Int,
     orderBy: OrderBy,
-    orderDirection: OrderDirection
+    orderDirection: OrderDirection,
+    datasetType: Option[DatasetType] = None
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[PagedDatasetsResult, NoStream, Effect.Read] = {
@@ -435,7 +435,7 @@ object PublicDatasetVersionsMapper
     val latestDatasetVersions = getLatestDatasetVersions(status)
 
     val allDatasets = PublicDatasetsMapper
-      .getDatasets(tags, ids)
+      .getDatasets(tags, ids, datasetType)
       .join(latestDatasetVersions)
       .on(_.id === _.datasetId)
       .joinLeft(SponsorshipsMapper)
