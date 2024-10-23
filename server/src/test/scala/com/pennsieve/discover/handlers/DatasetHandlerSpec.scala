@@ -335,7 +335,8 @@ class DatasetHandlerSpec
             user = User("N:user:1", "Joe Schmo", 1),
             embargoAccess = "Requested"
           )
-        )
+        ),
+        None
       )
 
       val responseWithAuth =
@@ -357,6 +358,7 @@ class DatasetHandlerSpec
         None,
         Some(IndexedSeq(PublicCollectionDTO.apply(collection))),
         Some(IndexedSeq.empty),
+        None,
         None
       )
 
@@ -678,6 +680,7 @@ class DatasetHandlerSpec
         None,
         List(collection),
         List.empty,
+        None,
         None
       )
 
@@ -861,6 +864,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq(PublicCollectionDTO(collection3))),
             Some(IndexedSeq.empty),
+            None,
             None
           )
         )
@@ -876,6 +880,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq(PublicCollectionDTO(collection2))),
             Some(IndexedSeq.empty),
+            None,
             None
           )
         ),
@@ -889,6 +894,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq(PublicCollectionDTO(collection1))),
             Some(IndexedSeq.empty),
+            None,
             None
           )
         )
@@ -999,6 +1005,7 @@ class DatasetHandlerSpec
               None,
               Seq.empty,
               Seq.empty,
+              None,
               None
             )
           ),
@@ -1012,6 +1019,7 @@ class DatasetHandlerSpec
                 None,
                 Seq.empty,
                 Seq.empty,
+                None,
                 None
               )
           )
@@ -1088,6 +1096,7 @@ class DatasetHandlerSpec
               None,
               IndexedSeq(),
               IndexedSeq(),
+              None,
               None
             )
           ),
@@ -1101,6 +1110,7 @@ class DatasetHandlerSpec
                 None,
                 IndexedSeq(),
                 IndexedSeq(),
+                None,
                 None
               )
           )
@@ -1174,6 +1184,7 @@ class DatasetHandlerSpec
                   None,
                   IndexedSeq.empty,
                   IndexedSeq.empty,
+                  None,
                   None
                 )
             )
@@ -2257,7 +2268,7 @@ class DatasetHandlerSpec
       response.datasetType shouldBe DatasetType.Research.entryName
     }
 
-    "have 'release' for Code Repos" in {
+    "have datasetType 'release' for Code Repos" in {
       val dataset =
         TestUtilities.createDataset(ports.db)(datasetType = DatasetType.Release)
       val version =
@@ -2278,6 +2289,36 @@ class DatasetHandlerSpec
 
       val json = response.asJson.toString()
     }
+
+    "have release info for Code Repo" in {
+      val dataset = TestUtilities.createDataset(ports.db)(
+        name = "dataset-dto test for releaes",
+        datasetType = DatasetType.Release,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 901
+      )
+      val version = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = dataset.id,
+        status = PublishStatus.PublishSucceeded
+      )
+      val release = TestUtilities.createDatasetRelease(ports.db)(
+        datasetId = dataset.id,
+        versionId = version.version,
+        origin = "GitHub",
+        label = "v1.0.0",
+        repoUrl = "https://github.com/Pennsieve/test-repo"
+      )
+
+      val response = datasetClient
+        .getDatasetVersion(dataset.id, version.version)
+        .awaitFinite()
+        .value
+        .asInstanceOf[GetDatasetVersionResponse.OK]
+        .value
+
+      response.release.isDefined shouldBe true
+    }
+
   }
 
   "dataset type filtering" should {
@@ -2361,6 +2402,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq.empty),
             Some(IndexedSeq.empty),
+            None,
             None
           )
         ),
@@ -2373,6 +2415,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq.empty),
             Some(IndexedSeq.empty),
+            None,
             None
           )
         ),
@@ -2385,6 +2428,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq.empty),
             Some(IndexedSeq.empty),
+            None,
             None
           )
         )
@@ -2485,6 +2529,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq.empty),
             Some(IndexedSeq.empty),
+            None,
             None
           )
         )

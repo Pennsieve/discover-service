@@ -123,7 +123,8 @@ class DatasetHandler(
   def publicDatasetDTO(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
-    preview: Option[DatasetPreview] = None
+    preview: Option[DatasetPreview] = None,
+    release: Option[PublicDatasetRelease] = None
   ): DBIO[PublicDatasetDto] =
     for {
 
@@ -139,7 +140,8 @@ class DatasetHandler(
         revision,
         collections.toSeq,
         externalPublications.toSeq,
-        preview
+        preview,
+        release = release
       )
 
   override def getDatasets(
@@ -220,6 +222,8 @@ class DatasetHandler(
           case None => DBIO.failed(NoDatasetException(dataset.id))
         }
 
+      release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
+
       maybeDatasetPreview <- DBIO.from {
         claim
           .map {
@@ -240,7 +244,7 @@ class DatasetHandler(
           .getOrElse(Future.successful(None))
       }
 
-      dto <- publicDatasetDTO(dataset, version, maybeDatasetPreview)
+      dto <- publicDatasetDTO(dataset, version, maybeDatasetPreview, release)
 
     } yield dto
 
@@ -279,7 +283,9 @@ class DatasetHandler(
       (dataset, version) <- PublicDatasetVersionsMapper
         .getVersionByDoi(doi)
 
-      dto <- publicDatasetDTO(dataset, version)
+      release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
+
+      dto <- publicDatasetDTO(dataset, version, release = release)
 
     } yield dto
 
@@ -465,7 +471,9 @@ class DatasetHandler(
         versionId
       )
 
-      dto <- publicDatasetDTO(dataset, version)
+      release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
+
+      dto <- publicDatasetDTO(dataset, version, release = release)
 
     } yield dto
 

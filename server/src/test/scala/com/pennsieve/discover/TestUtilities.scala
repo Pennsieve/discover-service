@@ -238,6 +238,39 @@ object TestUtilities extends AwaitableImplicits {
       .await
   }
 
+  def createDatasetRelease(
+    db: Database
+  )(
+    datasetId: Int,
+    versionId: Int,
+    origin: String,
+    label: String,
+    repoUrl: String,
+    marker: String = randomString(32),
+    labelUrl: Option[String] = None,
+    markerUrl: Option[String] = None,
+    releaseStatus: Option[String] = None
+  )(implicit
+    executionContext: ExecutionContext
+  ): PublicDatasetRelease = {
+    db.run(
+        PublicDatasetReleaseMapper.add(
+          PublicDatasetRelease(
+            datasetId = datasetId,
+            datasetVersion = versionId,
+            origin = origin,
+            label = label,
+            marker = marker,
+            repoUrl = repoUrl,
+            labelUrl = labelUrl,
+            markerUrl = markerUrl,
+            releaseStatus = releaseStatus
+          )
+        )
+      )
+      .await
+  }
+
   def createRevision(
     db: Database
   )(

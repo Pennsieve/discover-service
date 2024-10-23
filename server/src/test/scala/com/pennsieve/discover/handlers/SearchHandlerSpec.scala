@@ -157,6 +157,7 @@ class SearchHandlerSpec
               None,
               Some(Vector(PublicCollectionDTO.apply(collection))),
               Some(Vector.empty),
+              None,
               None
             )
           ),
@@ -169,6 +170,7 @@ class SearchHandlerSpec
               None,
               Some(Vector.empty),
               Some(Vector.empty),
+              None,
               None
             )
           )

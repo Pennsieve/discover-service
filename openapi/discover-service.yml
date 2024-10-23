@@ -1278,6 +1278,8 @@ components:
         datasetType:
           type: string
           description: "the dataset type (research, release, collection)"
+        release:
+          $ref: "#/components/schemas/ReleaseInfo"
 
     SponsorshipDTO:
       type: object
@@ -1507,6 +1509,33 @@ components:
       description: A directory containing files in the dataset
       allOf:
         - $ref: "#/components/schemas/FileTreeNodeDto"
+
+    ReleaseInfo:
+      type: object
+      required:
+        - origin
+        - label
+        - marker
+        - repoUrl
+      properties:
+        origin:
+          type: string
+          description: where the repository resides
+        label:
+          type: string
+          description: the tag or label which identifies the release
+        marker:
+          type: string
+          description: the repository generated marker that identifies a point in time (commit hash)
+        repoUrl:
+          type: string
+          description: the URL of the repository
+        labelUrl:
+          type: string
+        markerUrl:
+          type: string
+        releaseStatus:
+          type: string
 
     AssetTreePage:
       type: object

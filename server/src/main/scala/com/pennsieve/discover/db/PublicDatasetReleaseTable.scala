@@ -3,7 +3,11 @@
 package com.pennsieve.discover.db
 
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.models.PublicDatasetRelease
+import com.pennsieve.discover.models.{
+  PublicDataset,
+  PublicDatasetRelease,
+  PublicDatasetVersion
+}
 import slick.dbio.Effect
 import slick.sql.FixedSqlAction
 
@@ -104,6 +108,29 @@ object PublicDatasetReleaseMapper
       .filter(_.datasetVersion === versionId)
       .result
       .headOption
+
+  def getFor(
+    targetDatasets: Seq[(PublicDataset, PublicDatasetVersion)]
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    Map[(PublicDataset, PublicDatasetVersion), PublicDatasetRelease],
+    NoStream,
+    Effect.Read
+  ] = {
+    PublicDatasetsMapper
+      .join(PublicDatasetVersionsMapper.getMany(targetDatasets.map(_._2)))
+      .on(_.id === _.datasetId)
+      .join(PublicDatasetReleaseMapper)
+      .on {
+        case ((dataset, version), release) =>
+          dataset.id === release.datasetId && version.version === release.datasetVersion
+      }
+      .result
+      .map {
+        _.toMap
+      }
+  }
 
   def delete(
     datasetId: Int,

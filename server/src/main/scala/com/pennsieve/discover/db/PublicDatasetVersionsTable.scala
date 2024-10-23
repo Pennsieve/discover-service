@@ -398,7 +398,7 @@ object PublicDatasetVersionsMapper
     datasets: List[
       (PublicDataset, PublicDatasetVersion, IndexedSeq[PublicContributor],
         Option[Sponsorship], Option[Revision], IndexedSeq[PublicCollection],
-        IndexedSeq[PublicExternalPublication])
+        IndexedSeq[PublicExternalPublication], Option[PublicDatasetRelease])
     ]
   )
 
@@ -484,6 +484,12 @@ object PublicDatasetVersionsMapper
           case ((_, version), _) => version
         }
       )
+
+      releasesMap <- PublicDatasetReleaseMapper.getFor(
+        pagedDatasetsWithSponsorships.map {
+          case ((dataset, version), _) => (dataset, version)
+        }
+      )
     } yield
       PagedDatasetsResult(
         limit,
@@ -504,7 +510,8 @@ object PublicDatasetVersionsMapper
               externalPublicationsMap
                 .get(dataset, version)
                 .getOrElse(Nil)
-                .toIndexedSeq
+                .toIndexedSeq,
+              releasesMap.get(dataset, version)
             )
         }.toList
       )
