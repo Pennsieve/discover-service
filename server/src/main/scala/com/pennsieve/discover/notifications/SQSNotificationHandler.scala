@@ -373,23 +373,25 @@ class SQSNotificationHandler(
       }
 
       // queue message to execute pushing DOI
-      _ <- queueMessage(
+      _ <- SQSMessenger.queueMessage(
+        ports.config.sqs.queueUrl,
         PushDoiRequest(
           jobType = SQSNotificationType.PUSH_DOI,
           datasetId = updatedVersion.datasetId,
           version = updatedVersion.version,
           doi = updatedVersion.doi
         )
-      )
+      )(executionContext, logContext, ports)
 
       // queue message to execute dataset indexing
-      _ <- queueMessage(
+      _ <- SQSMessenger.queueMessage(
+        ports.config.sqs.queueUrl,
         IndexDatasetRequest(
           jobType = SQSNotificationType.INDEX,
           datasetId = updatedVersion.datasetId,
           version = updatedVersion.version
         )
-      )
+      )(executionContext, logContext, ports)
 
       // Notify Pennsieve API that publishing has completed
       _ = ports.log.info("handleSuccess() notify API")
@@ -408,23 +410,6 @@ class SQSNotificationHandler(
         updatedVersion.migrated
       )
     } yield ()
-
-  private def queueMessage(
-    message: SQSNotification
-  )(implicit
-    logContext: LogContext
-  ): Future[Unit] = Future {
-    ports.log.info(s"queueMessage() queuing message: ${message}")
-
-    val sendMessageRequest = SendMessageRequest
-      .builder()
-      .queueUrl(ports.config.sqs.queueUrl)
-      .messageBody(message.asJson.toString)
-      .delaySeconds(5)
-      .build()
-
-    ports.sqsClient.sendMessage(sendMessageRequest)
-  }
 
   private def publishFirstVersion(
     version: PublicDatasetVersion,
