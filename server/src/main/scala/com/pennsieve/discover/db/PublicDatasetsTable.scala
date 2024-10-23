@@ -78,16 +78,27 @@ object PublicDatasetsMapper extends TableQuery(new PublicDatasetsTable(_)) {
 
   def getDatasets(
     tags: Option[List[String]] = None,
-    ids: Option[List[Int]] = None
+    ids: Option[List[Int]] = None,
+    datasetType: Option[DatasetType] = None
   ): Query[PublicDatasetsTable, PublicDataset, Seq] = {
     val givenTags: List[String] = tags.toList.flatten.map(_.toLowerCase)
 
     val givenIds: List[Int] = ids.toList.flatten
 
+    val givenType: List[DatasetType] = datasetType match {
+      case Some(t) => List(t)
+      case None => DatasetType.values.toList
+    }
+
     if (givenIds.nonEmpty)
-      this.filter(_.id inSet givenIds).filter(_.tags @> givenTags.bind)
+      this
+        .filter(_.datasetType inSet givenType)
+        .filter(_.id inSet givenIds)
+        .filter(_.tags @> givenTags.bind)
     else
-      this.filter(_.tags @> givenTags.bind)
+      this
+        .filter(_.datasetType inSet givenType)
+        .filter(_.tags @> givenTags.bind)
   }
 
   def getDatasetsByOrganization(

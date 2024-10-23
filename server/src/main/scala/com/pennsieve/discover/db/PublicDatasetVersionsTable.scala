@@ -3,7 +3,6 @@
 package com.pennsieve.discover.db
 
 import java.time.OffsetDateTime
-
 import cats.Monoid
 import cats.implicits._
 import com.pennsieve.discover.{ db, _ }
@@ -13,7 +12,7 @@ import com.pennsieve.discover.server.definitions.{
   DatasetPublishStatus,
   SponsorshipRequest
 }
-import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.{ DatasetType, PublishStatus }
 import com.pennsieve.models.PublishStatus.{
   NotPublished,
   PublishFailed,
@@ -399,7 +398,7 @@ object PublicDatasetVersionsMapper
     datasets: List[
       (PublicDataset, PublicDatasetVersion, IndexedSeq[PublicContributor],
         Option[Sponsorship], Option[Revision], IndexedSeq[PublicCollection],
-        IndexedSeq[PublicExternalPublication])
+        IndexedSeq[PublicExternalPublication], Option[PublicDatasetRelease])
     ]
   )
 
@@ -410,7 +409,8 @@ object PublicDatasetVersionsMapper
     limit: Int,
     offset: Int,
     orderBy: OrderBy,
-    orderDirection: OrderDirection
+    orderDirection: OrderDirection,
+    datasetType: Option[DatasetType] = None
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[PagedDatasetsResult, NoStream, Effect.Read] = {
@@ -435,7 +435,7 @@ object PublicDatasetVersionsMapper
     val latestDatasetVersions = getLatestDatasetVersions(status)
 
     val allDatasets = PublicDatasetsMapper
-      .getDatasets(tags, ids)
+      .getDatasets(tags, ids, datasetType)
       .join(latestDatasetVersions)
       .on(_.id === _.datasetId)
       .joinLeft(SponsorshipsMapper)
@@ -484,6 +484,12 @@ object PublicDatasetVersionsMapper
           case ((_, version), _) => version
         }
       )
+
+      releasesMap <- PublicDatasetReleaseMapper.getFor(
+        pagedDatasetsWithSponsorships.map {
+          case ((dataset, version), _) => (dataset, version)
+        }
+      )
     } yield
       PagedDatasetsResult(
         limit,
@@ -504,7 +510,8 @@ object PublicDatasetVersionsMapper
               externalPublicationsMap
                 .get(dataset, version)
                 .getOrElse(Nil)
-                .toIndexedSeq
+                .toIndexedSeq,
+              releasesMap.get(dataset, version)
             )
         }.toList
       )

@@ -47,7 +47,7 @@ import com.pennsieve.discover.server.definitions.{
   PreviewAccessRequest,
   PublicDatasetDto
 }
-import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.{ DatasetType, PublishStatus }
 import com.pennsieve.models.PublishStatus.{
   EmbargoSucceeded,
   NotPublished,
@@ -55,7 +55,7 @@ import com.pennsieve.models.PublishStatus.{
   Unpublished
 }
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{ DurationInt, SECONDS }
 import scala.concurrent.{ ExecutionContext, Future }
 
 /**
@@ -123,7 +123,8 @@ class DatasetHandler(
   def publicDatasetDTO(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
-    preview: Option[DatasetPreview] = None
+    preview: Option[DatasetPreview] = None,
+    release: Option[PublicDatasetRelease] = None
   ): DBIO[PublicDatasetDto] =
     for {
 
@@ -139,7 +140,8 @@ class DatasetHandler(
         revision,
         collections.toSeq,
         externalPublications.toSeq,
-        preview
+        preview,
+        release = release
       )
 
   override def getDatasets(
@@ -150,6 +152,7 @@ class DatasetHandler(
     ids: Option[Iterable[String]],
     tags: Option[Iterable[String]],
     embargo: Option[Boolean],
+    datasetType: Option[String],
     orderBy: Option[String],
     orderDirection: Option[String]
   ): Future[GuardrailResource.GetDatasetsResponse] = {
@@ -169,6 +172,11 @@ class DatasetHandler(
 
       intIds = ids.map(_.map(_.toInt)).map(_.toList)
 
+      datasetTypeFilter = datasetType match {
+        case Some(t) => Some(DatasetType.withName(t))
+        case None => None
+      }
+
       pagedResult <- ports.db
         .run(
           PublicDatasetVersionsMapper.getPagedDatasets(
@@ -178,7 +186,8 @@ class DatasetHandler(
             offset = offset.getOrElse(defaultDatasetOffset),
             orderBy = orderBy,
             orderDirection = orderDirection,
-            ids = intIds
+            ids = intIds,
+            datasetType = datasetTypeFilter
           )
         )
     } yield
@@ -213,6 +222,8 @@ class DatasetHandler(
           case None => DBIO.failed(NoDatasetException(dataset.id))
         }
 
+      release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
+
       maybeDatasetPreview <- DBIO.from {
         claim
           .map {
@@ -233,7 +244,7 @@ class DatasetHandler(
           .getOrElse(Future.successful(None))
       }
 
-      dto <- publicDatasetDTO(dataset, version, maybeDatasetPreview)
+      dto <- publicDatasetDTO(dataset, version, maybeDatasetPreview, release)
 
     } yield dto
 
@@ -272,7 +283,9 @@ class DatasetHandler(
       (dataset, version) <- PublicDatasetVersionsMapper
         .getVersionByDoi(doi)
 
-      dto <- publicDatasetDTO(dataset, version)
+      release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
+
+      dto <- publicDatasetDTO(dataset, version, release = release)
 
     } yield dto
 
@@ -458,7 +471,9 @@ class DatasetHandler(
         versionId
       )
 
-      dto <- publicDatasetDTO(dataset, version)
+      release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
+
+      dto <- publicDatasetDTO(dataset, version, release = release)
 
     } yield dto
 

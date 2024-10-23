@@ -29,7 +29,8 @@ object DatasetsPage {
                 sponsorship,
                 revision,
                 collections,
-                externalPublications
+                externalPublications,
+                release
                 ) =>
               PublicDatasetDTO
                 .apply(
@@ -40,7 +41,8 @@ object DatasetsPage {
                   revision,
                   collections,
                   externalPublications,
-                  None
+                  None,
+                  release
                 )
           }.toVector
       )

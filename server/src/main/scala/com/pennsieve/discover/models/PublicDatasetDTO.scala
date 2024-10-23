@@ -10,6 +10,25 @@ import io.scalaland.chimney.dsl._
 
 object PublicDatasetDTO {
 
+  def releaseInfo(
+    release: Option[PublicDatasetRelease]
+  ): Option[definitions.ReleaseInfo] =
+    release match {
+      case Some(r) =>
+        Some(
+          definitions.ReleaseInfo(
+            origin = r.origin,
+            label = r.label,
+            marker = r.marker,
+            repoUrl = r.repoUrl,
+            labelUrl = r.labelUrl,
+            markerUrl = r.markerUrl,
+            releaseStatus = r.releaseStatus
+          )
+        )
+      case None => None
+    }
+
   def apply(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
@@ -20,7 +39,8 @@ object PublicDatasetDTO {
     externalPublications: Option[
       IndexedSeq[definitions.PublicExternalPublicationDto]
     ],
-    datasetPreview: Option[DatasetPreview]
+    datasetPreview: Option[DatasetPreview],
+    release: Option[PublicDatasetRelease]
   )(implicit
     config: Config
   ): definitions.PublicDatasetDto =
@@ -100,6 +120,7 @@ object PublicDatasetDTO {
           )
       )
       .withFieldComputed(_.sponsorship, _ => sponsorship)
+      .withFieldComputed(_.release, _ => releaseInfo(release))
       // TODO: pennsieveSchemaVersion can be non-optional once ElasticSearch has
       // been reindexed in production so that all datasets have a schema
       // version.
@@ -125,7 +146,8 @@ object PublicDatasetDTO {
     revision: Option[Revision] = None,
     collections: Seq[PublicCollection],
     externalPublications: Seq[PublicExternalPublication],
-    datasetPreview: Option[DatasetPreview]
+    datasetPreview: Option[DatasetPreview],
+    release: Option[PublicDatasetRelease] = None
   )(implicit
     config: Config
   ): definitions.PublicDatasetDto = {
@@ -147,7 +169,8 @@ object PublicDatasetDTO {
           )
           .toIndexedSeq
       ),
-      datasetPreview = datasetPreview
+      datasetPreview = datasetPreview,
+      release
     )
   }
 }
