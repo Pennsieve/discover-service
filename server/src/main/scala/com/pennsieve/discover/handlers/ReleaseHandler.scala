@@ -28,7 +28,13 @@ import com.pennsieve.discover.models.{
   PublicDatasetRelease,
   PublicDatasetVersion,
   PublishingWorkflow,
+  S3CleanupStage,
   S3Key
+}
+import com.pennsieve.discover.notifications.{
+  PushDoiRequest,
+  SQSMessenger,
+  SQSNotificationType
 }
 import com.pennsieve.discover.{
   Config,
@@ -387,26 +393,31 @@ class ReleaseHandler(
 
         status <- PublicDatasetVersionsMapper.getDatasetStatus(publicDataset)
 
-        // TODO: queue message to make DOI visible
-        //      _ = ports.log.info("finalizeRelease() queue push DOI message")
-        //        _ <- queueMessage(
-        //          PushDoiRequest(
-        //            jobType = SQSNotificationType.PUSH_DOI,
-        //            datasetId = updatedVersion.datasetId,
-        //            version = updatedVersion.version,
-        //            doi = updatedVersion.doi
-        //          )
-        //        )
+        // queue message to make DOI visible
+        _ = ports.log.info("finalizeRelease() queue push DOI message")
+        _ <- DBIOAction.from(
+          SQSMessenger.queueMessage(
+            ports.config.sqs.queueUrl,
+            PushDoiRequest(
+              jobType = SQSNotificationType.PUSH_DOI,
+              datasetId = updatedVersion.datasetId,
+              version = updatedVersion.version,
+              doi = updatedVersion.doi
+            )
+          )(executionContext, logContext, ports)
+        )
 
-        // TODO: invoke S3 Cleanup Lambda to delete publishing intermediate files
-        //      _ = ports.log.info("finalizeRelease() run S3 clean: TIDY")
-        //      _ <- ports.lambdaClient.runS3Clean(
-        //        updatedVersion.s3Key.value,
-        //        updatedVersion.s3Bucket.value,
-        //        updatedVersion.s3Bucket.value,
-        //        S3CleanupStage.Tidy,
-        //        updatedVersion.migrated
-        //      )
+        // invoke S3 Cleanup Lambda to delete publishing intermediate files
+        _ = ports.log.info("finalizeRelease() run S3 clean: TIDY")
+        _ <- DBIOAction.from(
+          ports.lambdaClient.runS3Clean(
+            updatedVersion.s3Key.value,
+            updatedVersion.s3Bucket.value,
+            updatedVersion.s3Bucket.value,
+            S3CleanupStage.Tidy,
+            updatedVersion.migrated
+          )
+        )
       } yield
         respond.OK(
           definitions.ReleasePublishingResponse(
