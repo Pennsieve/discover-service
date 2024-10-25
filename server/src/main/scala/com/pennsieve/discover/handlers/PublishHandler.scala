@@ -126,7 +126,16 @@ class PublishHandler(
       userId = Some(body.ownerId)
     )
 
-    val shouldEmbargo = embargo.getOrElse(false)
+    // the requested Embargo Release date must be after today
+    def permitEmbargo(ask: Boolean, date: Option[LocalDate]): Boolean =
+      (ask, date) match {
+        case (false, _) => false
+        case (true, None) => false
+        case (true, Some(date)) => date.isAfter(LocalDate.now())
+      }
+
+    val shouldEmbargo =
+      permitEmbargo(embargo.getOrElse(false), embargoReleaseDate)
 
     val (publishBucket, embargoBucket) =
       resolveBucketConfig(body.bucketConfig, body.workflowId)
@@ -222,7 +231,10 @@ class PublishHandler(
                 fileCount = body.fileCount,
                 recordCount = body.recordCount,
                 s3Bucket = targetS3Bucket,
-                embargoReleaseDate = embargoReleaseDate,
+                embargoReleaseDate = shouldEmbargo match {
+                  case true => embargoReleaseDate
+                  case false => None
+                },
                 doi = doi.doi,
                 schemaVersion = PennsieveSchemaVersion.`4.0`,
                 migrated = workflowVersion == PublishingWorkflow.Version5
