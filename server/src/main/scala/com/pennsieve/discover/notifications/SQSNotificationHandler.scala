@@ -516,7 +516,7 @@ class SQSNotificationHandler(
       // if this is a Publishing 5.0 dataset, then update the S3 Version of the Files
       _ <- updatedVersion.migrated match {
         case true =>
-          releaseUpdateFileVersions(version)
+          releaseUpdateFileVersions(updatedVersion)
         case false =>
           Future.successful(())
       }
