@@ -1651,7 +1651,7 @@ class PublishHandlerSpec
           organizationId,
           datasetId,
           Some(true),
-          Some(LocalDate.now),
+          Some(LocalDate.now().plusDays(1)),
           requestBody,
           authToken
         )
