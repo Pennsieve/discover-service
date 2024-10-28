@@ -1651,7 +1651,7 @@ class PublishHandlerSpec
           organizationId,
           datasetId,
           Some(true),
-          Some(LocalDate.now),
+          Some(LocalDate.now().plusDays(1)),
           requestBody,
           authToken
         )
@@ -2089,6 +2089,174 @@ class PublishHandlerSpec
           .run(SponsorshipsMapper.getByDataset(dataset))
           .awaitFinite()
       }
+    }
+  }
+
+  "Embargo request" should {
+    "not Embargo with a release date before today" in {
+      val expectedEmbargoReleaseDate = LocalDate.now().minusDays(1)
+
+      val response = client
+        .publish(
+          organizationId,
+          datasetId,
+          Some(true),
+          Some(expectedEmbargoReleaseDate),
+          requestBody,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      response shouldBe DatasetPublishStatus(
+        datasetName,
+        organizationId,
+        datasetId,
+        None,
+        0,
+        PublishStatus.PublishInProgress,
+        None,
+        workflowId = PublishingWorkflow.Version4
+      )
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      publicDataset.name shouldBe requestBody.name
+      publicDataset.sourceOrganizationId shouldBe organizationId
+      publicDataset.sourceDatasetId shouldBe datasetId
+      publicDataset.ownerId shouldBe requestBody.ownerId
+      publicDataset.ownerFirstName shouldBe requestBody.ownerFirstName
+      publicDataset.ownerLastName shouldBe requestBody.ownerLastName
+      publicDataset.ownerOrcid shouldBe requestBody.ownerOrcid
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      val doiDto = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .getMockDoi(organizationId, datasetId)
+        .get
+
+      publicVersion.version shouldBe 1
+      publicVersion.modelCount shouldBe Map[String, Long]("myConcept" -> 100L)
+      publicVersion.recordCount shouldBe requestBody.recordCount
+      publicVersion.fileCount shouldBe requestBody.fileCount
+      publicVersion.size shouldBe requestBody.size
+      publicVersion.description shouldBe requestBody.description
+      publicVersion.status shouldBe PublishStatus.PublishInProgress
+      publicVersion.s3Bucket shouldBe config.s3.publishBucket
+      publicVersion.s3Key shouldBe S3Key.Version(
+        s"${publicDataset.id}/${publicVersion.version}/"
+      )
+      publicVersion.doi shouldBe doiDto.doi
+      publicVersion.embargoReleaseDate shouldBe None
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.s3Bucket shouldBe config.s3.publishBucket
+    }
+
+    "not Embargo with release date of today" in {
+      val expectedEmbargoReleaseDate = LocalDate.now()
+
+      val response = client
+        .publish(
+          organizationId,
+          datasetId,
+          Some(true),
+          Some(expectedEmbargoReleaseDate),
+          requestBody,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      response shouldBe DatasetPublishStatus(
+        datasetName,
+        organizationId,
+        datasetId,
+        None,
+        0,
+        PublishStatus.PublishInProgress,
+        None,
+        workflowId = PublishingWorkflow.Version4
+      )
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      publicDataset.name shouldBe requestBody.name
+      publicDataset.sourceOrganizationId shouldBe organizationId
+      publicDataset.sourceDatasetId shouldBe datasetId
+      publicDataset.ownerId shouldBe requestBody.ownerId
+      publicDataset.ownerFirstName shouldBe requestBody.ownerFirstName
+      publicDataset.ownerLastName shouldBe requestBody.ownerLastName
+      publicDataset.ownerOrcid shouldBe requestBody.ownerOrcid
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      val doiDto = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .getMockDoi(organizationId, datasetId)
+        .get
+
+      publicVersion.version shouldBe 1
+      publicVersion.modelCount shouldBe Map[String, Long]("myConcept" -> 100L)
+      publicVersion.recordCount shouldBe requestBody.recordCount
+      publicVersion.fileCount shouldBe requestBody.fileCount
+      publicVersion.size shouldBe requestBody.size
+      publicVersion.description shouldBe requestBody.description
+      publicVersion.status shouldBe PublishStatus.PublishInProgress
+      publicVersion.s3Bucket shouldBe config.s3.publishBucket
+      publicVersion.s3Key shouldBe S3Key.Version(
+        s"${publicDataset.id}/${publicVersion.version}/"
+      )
+      publicVersion.doi shouldBe doiDto.doi
+      publicVersion.embargoReleaseDate shouldBe None
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.s3Bucket shouldBe config.s3.publishBucket
+    }
+
+    "check Release Dates are after today" in {
+      val yesterday = LocalDate.now().minusDays(1)
+      val today = LocalDate.now()
+      val tomorrow = LocalDate.now().plusDays(1)
+
+      yesterday.isAfter(today) shouldBe false
+      today.isAfter(today) shouldBe false
+      tomorrow.isAfter(today) shouldBe true
     }
   }
 

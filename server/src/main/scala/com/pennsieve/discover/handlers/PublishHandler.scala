@@ -126,7 +126,22 @@ class PublishHandler(
       userId = Some(body.ownerId)
     )
 
-    val shouldEmbargo = embargo.getOrElse(false)
+    // it must be asked for, and the requested Embargo Release date must be after today
+    def validEmbargoRequest(ask: Boolean, date: Option[LocalDate]): Boolean =
+      (ask, date) match {
+        case (false, _) => false
+        case (true, None) => false
+        case (true, Some(date)) => date.isAfter(LocalDate.now())
+      }
+
+    val requestedEmbargo = embargo.getOrElse(false)
+    val shouldEmbargo =
+      validEmbargoRequest(requestedEmbargo, embargoReleaseDate)
+
+    if (requestedEmbargo && embargoReleaseDate.isDefined && shouldEmbargo == false)
+      ports.log.warn(
+        s"Embargo requested but release date is in the past: ${embargoReleaseDate.get}"
+      )
 
     val (publishBucket, embargoBucket) =
       resolveBucketConfig(body.bucketConfig, body.workflowId)
@@ -159,7 +174,7 @@ class PublishHandler(
 
             _ = ports.log.info(s"Public dataset: $publicDataset")
 
-            _ <- if (shouldEmbargo && embargoReleaseDate.isEmpty)
+            _ <- if (requestedEmbargo && embargoReleaseDate.isEmpty)
               DBIO.failed(MissingParameterException("embargoReleaseDate"))
             else
               DBIO.successful(())
@@ -168,7 +183,9 @@ class PublishHandler(
               .getLatestVisibleVersion(publicDataset)
               .flatMap {
                 case Some(version) =>
-                  if (shouldEmbargo && !version.underEmbargo && version.status != Unpublished) {
+                  // TODO: rewrite this expression to be a more positive evaluation (improves readability)
+                  // TODO: may also need to reconsider this, given the check on Embargo Release Date in the past
+                  if (requestedEmbargo && !version.underEmbargo && version.status != Unpublished) {
                     DBIO.failed(
                       ForbiddenException(
                         s"Cannot embargo a dataset after successful publication. Found published version ${version.version}"
@@ -222,7 +239,8 @@ class PublishHandler(
                 fileCount = body.fileCount,
                 recordCount = body.recordCount,
                 s3Bucket = targetS3Bucket,
-                embargoReleaseDate = embargoReleaseDate,
+                embargoReleaseDate =
+                  if (shouldEmbargo) embargoReleaseDate else None,
                 doi = doi.doi,
                 schemaVersion = PennsieveSchemaVersion.`4.0`,
                 migrated = workflowVersion == PublishingWorkflow.Version5
