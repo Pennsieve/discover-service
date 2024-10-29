@@ -17,10 +17,8 @@ package object logging {
           req => {
             case RouteResult.Complete(resp) =>
               ports.logger.noContext
-                .info(s"${req.method} ${req.uri} Completed: ${resp.status}")
-            case RouteResult.Rejected(rejection) =>
-              ports.logger.noContext
-                .info(s"${req.method} ${req.uri} Rejected: ${rejection}")
+                .info(s"${req.method} ${req.uri} ${resp.status}")
+            case _ => ()
           }
       )
     )
