@@ -89,7 +89,7 @@ class ReleaseHandler(
       releaseRepoUrl = Some(body.repoUrl),
       releaseLabel = Some(body.label)
     )
-    ports.log.info("publish release starting")
+    ports.log.info(s"publishRelease() starting [request]:$body")
     val bucketResolver = BucketResolver(ports)
     val (targetS3Bucket, _) =
       bucketResolver.resolveBucketConfig(
@@ -104,7 +104,7 @@ class ReleaseHandler(
     ) { _ =>
       getOrCreateDoi(ports, organizationId, datasetId)
         .flatMap { doi =>
-          ports.log.info(s"DOI: $doi")
+          ports.log.info(s"publishRelease() [stored] DOI: $doi")
 
           val query = for {
             publicDataset <- PublicDatasetsMapper
@@ -121,7 +121,9 @@ class ReleaseHandler(
                 tags = body.tags.toList,
                 datasetType = DatasetType.Release
               )
-            _ = ports.log.info(s"Public dataset: $publicDataset")
+            _ = ports.log.info(
+              s"publishRelease() [stored] dataset: $publicDataset"
+            )
 
             // get the latest published version
             _ <- PublicDatasetVersionsMapper
@@ -156,7 +158,7 @@ class ReleaseHandler(
                 schemaVersion = PennsieveSchemaVersion.`4.0`,
                 migrated = true
               )
-            _ = ports.log.info(s"Public dataset version : $version")
+            _ = ports.log.info(s"publishRelease() [stored] version: $version")
 
             release <- PublicDatasetReleaseMapper.add(
               PublicDatasetRelease(
@@ -171,9 +173,11 @@ class ReleaseHandler(
                 releaseStatus = body.releaseStatus
               )
             )
-            _ = ports.log.info(s"Public dataset release : $release")
+            _ = ports.log.info(s"publishRelease() [stored] release: $release")
 
-            _ = ports.log.info(s"Internal Contributors : ${body.contributors}")
+            _ = ports.log.info(
+              s"publishRelease() [request] contributors: ${body.contributors}"
+            )
             contributors <- DBIO.sequence(body.contributors.map { c =>
               PublicContributorsMapper
                 .create(
@@ -188,9 +192,13 @@ class ReleaseHandler(
                   sourceUserId = c.userId
                 )
             }.toList)
-            _ = ports.log.info(s"Public dataset contributors: $contributors")
+            _ = ports.log.info(
+              s"publishRelease() [stored] contributors: $contributors"
+            )
 
-            _ = ports.log.info(s"Collections: ${body.collections}")
+            _ = ports.log.info(
+              s"publishRelease() [request] collections: ${body.collections}"
+            )
             collections <- DBIO.sequence(
               body.collections
                 .getOrElse(IndexedSeq())
@@ -205,10 +213,12 @@ class ReleaseHandler(
                 }
                 .toList
             )
-            _ = ports.log.info(s"Public dataset collections: $collections")
+            _ = ports.log.info(
+              s"publishRelease() [stored] collections: $collections"
+            )
 
             _ = ports.log.info(
-              s"External Publications: ${body.externalPublications}"
+              s"publishRelease() [request] externalPublications: ${body.externalPublications}"
             )
             externalPublications <- DBIO.sequence(
               body.externalPublications
@@ -225,29 +235,27 @@ class ReleaseHandler(
                 .toList
             )
             _ = ports.log.info(
-              s"Public external publications: $externalPublications"
+              s"publishRelease() [stored] externalPublications:: $externalPublications"
             )
 
-            status <- PublicDatasetVersionsMapper.getDatasetStatus(
-              publicDataset
+            response = definitions.ReleasePublishingResponse(
+              name = publicDataset.name,
+              sourceOrganizationName = publicDataset.sourceOrganizationName,
+              sourceOrganizationId = publicDataset.sourceOrganizationId,
+              sourceDatasetId = publicDataset.sourceDatasetId,
+              publishedDatasetId = version.datasetId,
+              publishedVersionCount = version.version,
+              status = version.status,
+              lastPublishedDate = None,
+              sponsorship = None,
+              publicId = version.doi
             )
-            _ = ports.log.info(s"Dataset Public Status: ${status}")
 
-          } yield
-            respond.Created(
-              definitions.ReleasePublishingResponse(
-                name = status.name,
-                sourceOrganizationName = publicDataset.sourceOrganizationName,
-                sourceOrganizationId = publicDataset.sourceOrganizationId,
-                sourceDatasetId = publicDataset.sourceDatasetId,
-                publishedDatasetId = status.publishedDatasetId.getOrElse(0),
-                publishedVersionCount = status.publishedVersionCount,
-                status = status.status,
-                lastPublishedDate = status.lastPublishedDate,
-                sponsorship = status.sponsorship,
-                publicId = version.doi
-              )
+            _ = ports.log.info(
+              s"publishRelease() finished [response]: $response"
             )
+
+          } yield respond.Created(response)
 
           ports.db
             .run(
@@ -289,7 +297,7 @@ class ReleaseHandler(
       organizationId = Some(sourceOrganizationId),
       datasetId = Some(sourceDatasetId)
     )
-    ports.log.info("finalize release starting")
+    ports.log.info(s"finalizeRelease() starting [request]: $body")
 
     withServiceOwnerAuthorization[FinalizeResponse](
       claim,
@@ -299,13 +307,15 @@ class ReleaseHandler(
       val query = for {
         publicDataset <- PublicDatasetsMapper
           .getDatasetFromSourceIds(sourceOrganizationId, sourceDatasetId)
-        _ = ports.log.info(s"finalizeRelease() publicDataset: ${publicDataset}")
+        _ = ports.log.info(
+          s"finalizeRelease() [retrieved] dataset: ${publicDataset}"
+        )
 
         version <- PublicDatasetVersionsMapper.getVersion(
           publicDataset.id,
           body.versionId
         )
-        _ = ports.log.info(s"finalizeRelease() version: ${version}")
+        _ = ports.log.info(s"finalizeRelease() [retrieved] version: ${version}")
 
         updatedStatus <- PublicDatasetVersionsMapper.setStatus(
           id = publicDataset.id,
@@ -317,7 +327,9 @@ class ReleaseHandler(
               PublishStatus.PublishFailed
           }
         )
-        _ = ports.log.info(s"finalizeRelease() updatedStatus: ${updatedStatus}")
+        _ = ports.log.info(
+          s"finalizeRelease() [updated] status: ${updatedStatus}"
+        )
 
         updatedVersion <- PublicDatasetVersionsMapper.setResultMetadata(
           version = updatedStatus,
@@ -328,14 +340,14 @@ class ReleaseHandler(
           changelog = s3KeyFor(body.changelogKey)
         )
         _ = ports.log.info(
-          s"finalizeRelease() updatedVersion: ${updatedVersion}"
+          s"finalizeRelease() [updated] version: ${updatedVersion}"
         )
 
         release <- PublicDatasetReleaseMapper.get(
           publicDataset.id,
           updatedVersion.version
         )
-        _ = ports.log.info(s"finalizeRelease() release: ${release}")
+        _ = ports.log.info(s"finalizeRelease() [retrieved] release: ${release}")
 
         _ <- DBIO.from(release match {
           case Some(_) => Future.successful(())
@@ -347,14 +359,14 @@ class ReleaseHandler(
           ports.s3StreamClient
             .loadDatasetMetadata(updatedVersion)
         )
-        _ = ports.log.info(s"finalizeRelease() metadata: ${metadata}")
+        _ = ports.log.info(s"finalizeRelease() [loaded] metadata: ${metadata}")
 
         manifestFile = metadata.files
           .filter(_.path.equals("manifest.json"))
           .head
         files = manifestFile.copy(s3VersionId = Some(body.manifestVersionId)) :: metadata.files
           .filterNot(_.path.equals("manifest.json"))
-        _ = ports.log.info(s"finalizeRelease() files: ${files}")
+        _ = ports.log.info(s"finalizeRelease() [updated] files: ${files}")
 
         _ <- DBIO.from(updatedVersion.version match {
           case 1 =>
@@ -381,7 +393,7 @@ class ReleaseHandler(
             .loadReleaseAssetListing(updatedVersion)
         )
         _ = ports.log.info(
-          s"finalizeRelease() releaseAssetListing: ${releaseAssetListing}"
+          s"finalizeRelease() [loaded] assets: ${releaseAssetListing}"
         )
 
         // create PublicDatasetReleaseAssets
@@ -391,10 +403,8 @@ class ReleaseHandler(
           releaseAssetListing
         )
 
-        status <- PublicDatasetVersionsMapper.getDatasetStatus(publicDataset)
-
         // queue message to make DOI visible
-        _ = ports.log.info("finalizeRelease() queue push DOI message")
+        _ = ports.log.info("finalizeRelease() [action] queue push DOI message")
         _ <- DBIOAction.from(
           SQSMessenger.queueMessage(
             ports.config.sqs.queueUrl,
@@ -408,7 +418,7 @@ class ReleaseHandler(
         )
 
         // invoke S3 Cleanup Lambda to delete publishing intermediate files
-        _ = ports.log.info("finalizeRelease() run S3 clean: TIDY")
+        _ = ports.log.info("finalizeRelease() [action] run S3 clean: TIDY")
         _ <- DBIOAction.from(
           ports.lambdaClient.runS3Clean(
             updatedVersion.s3Key.value,
@@ -418,21 +428,22 @@ class ReleaseHandler(
             updatedVersion.migrated
           )
         )
-      } yield
-        respond.OK(
-          definitions.ReleasePublishingResponse(
-            name = status.name,
-            sourceOrganizationName = publicDataset.sourceOrganizationName,
-            sourceOrganizationId = publicDataset.sourceOrganizationId,
-            sourceDatasetId = publicDataset.sourceDatasetId,
-            publishedDatasetId = status.publishedDatasetId.getOrElse(0),
-            publishedVersionCount = status.publishedVersionCount,
-            status = status.status,
-            lastPublishedDate = status.lastPublishedDate,
-            sponsorship = status.sponsorship,
-            publicId = updatedVersion.doi
-          )
+
+        response = definitions.ReleasePublishingResponse(
+          name = publicDataset.name,
+          sourceOrganizationName = publicDataset.sourceOrganizationName,
+          sourceOrganizationId = publicDataset.sourceOrganizationId,
+          sourceDatasetId = publicDataset.sourceDatasetId,
+          publishedDatasetId = updatedVersion.datasetId,
+          publishedVersionCount = updatedVersion.version,
+          status = updatedVersion.status,
+          lastPublishedDate = None, // TODO: change this?
+          sponsorship = None,
+          publicId = updatedVersion.doi
         )
+        _ = ports.log.info("finalizeRelease() finished [response]: $response")
+
+      } yield respond.OK(response)
 
       ports.db
         .run(
