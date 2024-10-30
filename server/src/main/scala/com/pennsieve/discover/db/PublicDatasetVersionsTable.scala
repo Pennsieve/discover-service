@@ -16,6 +16,7 @@ import com.pennsieve.models.{ DatasetType, PublishStatus }
 import com.pennsieve.models.PublishStatus.{
   NotPublished,
   PublishFailed,
+  PublishInProgress,
   PublishSucceeded
 }
 import org.postgresql.util.PSQLException
@@ -277,6 +278,23 @@ object PublicDatasetVersionsMapper
       }
       .map(_._2)
       .sortBy(_.createdAt.desc)
+  }
+
+  def getVersionAndRelease(
+    dataset: PublicDataset,
+    label: String,
+    marker: String
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Option[(PublicDatasetRelease, PublicDatasetVersion)], NoStream, Effect.Read with Effect.Transactional with Effect] = {
+    PublicDatasetReleaseMapper
+      .filter(_.datasetId === dataset.id)
+      .filter(_.label === label)
+      .filter(_.marker === marker)
+      .join(this.filter(_.datasetId === dataset.id))
+      .on(_.datasetId === _.datasetId)
+      .result
+      .headOption
   }
 
   def getDatasetStatus(
@@ -747,6 +765,75 @@ object PublicDatasetVersionsMapper
       case Failure(exception: Throwable) =>
         DBIO.failed(exception)
     }
+  }
+
+  def createNewVersionAndRelease(
+    dataset: PublicDataset,
+    doi: String,
+    description: String,
+    fileCount: Long,
+    size: Long,
+    s3Bucket: S3Bucket,
+    origin: String,
+    repoUrl: String,
+    label: String,
+    marker: String,
+    labelUrl: Option[String] = None,
+    markerUrl: Option[String] = None,
+    releaseStatus: Option[String] = None
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    (PublicDatasetRelease, PublicDatasetVersion),
+    NoStream,
+    Effect.Write with Effect.Transactional with Effect.Read with Effect
+  ] = {
+    for {
+      version <- create(
+        id = dataset.id,
+        status = PublishStatus.PublishInProgress,
+        size = size,
+        description = description,
+        modelCount = Map.empty,
+        fileCount = fileCount,
+        s3Bucket = s3Bucket,
+        embargoReleaseDate = None,
+        doi = doi,
+        schemaVersion = PennsieveSchemaVersion.`5.0`,
+        migrated = true
+      )
+      release <- PublicDatasetReleaseMapper.add(
+        PublicDatasetRelease(
+          datasetId = dataset.id,
+          datasetVersion = version.version,
+          origin = origin,
+          label = label,
+          marker = marker,
+          repoUrl = repoUrl,
+          labelUrl = labelUrl,
+          markerUrl = markerUrl,
+          releaseStatus = releaseStatus
+        )
+      )
+    } yield (release, version)
+  }
+
+  def resumeReleasePublishing(
+    version: PublicDatasetVersion,
+    release: PublicDatasetRelease
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    (PublicDatasetRelease, PublicDatasetVersion),
+    NoStream,
+    Effect.Write with Effect.Read with Effect.Transactional with Effect
+  ] = {
+    val updated = version.copy(status = PublishInProgress)
+    this
+      .filter(_.datasetId === version.datasetId)
+      .filter(_.version === version.version)
+      .update(updated)
+      .map(_ => (release, updated))
   }
 
   def rollbackIfNeeded(

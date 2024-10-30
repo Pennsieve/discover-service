@@ -25,9 +25,11 @@ import com.pennsieve.discover.logging.{
 }
 import com.pennsieve.discover.models.{
   PennsieveSchemaVersion,
+  PublicDataset,
   PublicDatasetRelease,
   PublicDatasetVersion,
   PublishingWorkflow,
+  S3Bucket,
   S3CleanupStage,
   S3Key
 }
@@ -53,6 +55,7 @@ import com.pennsieve.discover.server.release.{
 }
 import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.utils.BucketResolver
+import com.pennsieve.doi.models.DoiDTO
 import com.pennsieve.models.PublishStatus.PublishSucceeded
 import com.pennsieve.models.{ DatasetType, PublishStatus, RelationshipType }
 import io.circe.DecodingFailure
@@ -89,7 +92,7 @@ class ReleaseHandler(
       releaseRepoUrl = Some(body.repoUrl),
       releaseLabel = Some(body.label)
     )
-    ports.log.info(s"publishRelease() starting [request]:$body")
+    ports.log.info(s"publishRelease() starting request: ${body}")
     val bucketResolver = BucketResolver(ports)
     val (targetS3Bucket, _) =
       bucketResolver.resolveBucketConfig(
@@ -104,7 +107,7 @@ class ReleaseHandler(
     ) { _ =>
       getOrCreateDoi(ports, organizationId, datasetId)
         .flatMap { doi =>
-          ports.log.info(s"publishRelease() [stored] DOI: $doi")
+          ports.log.info(s"publishRelease() DOI: ${doi}")
 
           val query = for {
             publicDataset <- PublicDatasetsMapper
@@ -121,59 +124,48 @@ class ReleaseHandler(
                 tags = body.tags.toList,
                 datasetType = DatasetType.Release
               )
-            _ = ports.log.info(
-              s"publishRelease() [stored] dataset: $publicDataset"
-            )
+            _ = ports.log.info(s"publishRelease() dataset: ${publicDataset}")
 
-            // get the latest published version
-            _ <- PublicDatasetVersionsMapper
-              .getLatestVisibleVersion(publicDataset)
+            (release, version) <- PublicDatasetVersionsMapper
+              .getVersionAndRelease(publicDataset, body.label, body.marker)
               .flatMap {
-                // if the previous publish job failed, then this will remove the record of the public
-                // dataset version and release in preparation for attempting publishing (again).
-                case Some(version) if version.status != PublishSucceeded =>
-                  for {
-                    _ <- PublicDatasetReleaseMapper.delete(
-                      publicDataset.id,
-                      version.version
-                    )
-                    _ <- PublicDatasetVersionsMapper.deleteVersion(version)
-                  } yield ()
-                case _ =>
-                  DBIOAction.from(Future.successful(()))
+                case Some((release, version))
+                    if version.status == PublishSucceeded =>
+                  val message =
+                    s"release already published [dataset:${version.datasetId}, version${version.version}] ${release.repoUrl} ${release.label} ${release.marker}"
+                  ports.log.error(message)
+                  DBIO.failed(ForbiddenException(message))
+                case Some((release, version)) =>
+                  // resume an in progress or failed publication
+                  ports.log.info(
+                    s"publishRelease() resuming publication of version: ${version} and release: ${release}"
+                  )
+                  PublicDatasetVersionsMapper
+                    .resumeReleasePublishing(version, release)
+                case None =>
+                  // create version and release
+                  ports.log.info(
+                    s"publishRelease() creating new version and release"
+                  )
+                  PublicDatasetVersionsMapper.createNewVersionAndRelease(
+                    publicDataset,
+                    doi.doi,
+                    body.description,
+                    body.fileCount,
+                    body.size,
+                    targetS3Bucket,
+                    body.origin,
+                    body.repoUrl,
+                    body.label,
+                    body.marker,
+                    body.labelUrl,
+                    body.markerUrl,
+                    body.releaseStatus
+                  )
               }
 
-            version <- PublicDatasetVersionsMapper
-              .create(
-                id = publicDataset.id,
-                status = PublishStatus.PublishInProgress,
-                size = body.size,
-                description = body.description,
-                modelCount = Map.empty,
-                fileCount = body.fileCount,
-                s3Bucket = targetS3Bucket,
-                embargoReleaseDate = None,
-                doi = doi.doi,
-                // TODO: we need to generate a new schema version and DatasetMetadata_V?
-                schemaVersion = PennsieveSchemaVersion.`4.0`,
-                migrated = true
-              )
-            _ = ports.log.info(s"publishRelease() [stored] version: $version")
-
-            release <- PublicDatasetReleaseMapper.add(
-              PublicDatasetRelease(
-                datasetId = publicDataset.id,
-                datasetVersion = version.version,
-                origin = body.origin,
-                label = body.label,
-                marker = body.marker,
-                repoUrl = body.repoUrl,
-                labelUrl = body.labelUrl,
-                markerUrl = body.markerUrl,
-                releaseStatus = body.releaseStatus
-              )
-            )
-            _ = ports.log.info(s"publishRelease() [stored] release: $release")
+            _ = ports.log.info(s"publishRelease() version: ${version}")
+            _ = ports.log.info(s"publishRelease() release: ${release}")
 
             _ = ports.log.info(
               s"publishRelease() [request] contributors: ${body.contributors}"
@@ -252,7 +244,7 @@ class ReleaseHandler(
             )
 
             _ = ports.log.info(
-              s"publishRelease() finished [response]: $response"
+              s"publishRelease() finished response: ${response}"
             )
 
           } yield respond.Created(response)
