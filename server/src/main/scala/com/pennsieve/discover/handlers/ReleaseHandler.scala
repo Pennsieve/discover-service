@@ -289,7 +289,7 @@ class ReleaseHandler(
       organizationId = Some(sourceOrganizationId),
       datasetId = Some(sourceDatasetId)
     )
-    ports.log.info(s"finalizeRelease() starting [request]: $body")
+    ports.log.info(s"finalizeRelease() starting request: ${body}")
 
     withServiceOwnerAuthorization[FinalizeResponse](
       claim,
@@ -299,15 +299,13 @@ class ReleaseHandler(
       val query = for {
         publicDataset <- PublicDatasetsMapper
           .getDatasetFromSourceIds(sourceOrganizationId, sourceDatasetId)
-        _ = ports.log.info(
-          s"finalizeRelease() [retrieved] dataset: ${publicDataset}"
-        )
+        _ = ports.log.info(s"finalizeRelease() dataset: ${publicDataset}")
 
         version <- PublicDatasetVersionsMapper.getVersion(
           publicDataset.id,
           body.versionId
         )
-        _ = ports.log.info(s"finalizeRelease() [retrieved] version: ${version}")
+        _ = ports.log.info(s"finalizeRelease() version: ${version}")
 
         updatedStatus <- PublicDatasetVersionsMapper.setStatus(
           id = publicDataset.id,
@@ -320,7 +318,7 @@ class ReleaseHandler(
           }
         )
         _ = ports.log.info(
-          s"finalizeRelease() [updated] status: ${updatedStatus}"
+          s"finalizeRelease() updated status: ${updatedStatus}"
         )
 
         updatedVersion <- PublicDatasetVersionsMapper.setResultMetadata(
@@ -332,14 +330,14 @@ class ReleaseHandler(
           changelog = s3KeyFor(body.changelogKey)
         )
         _ = ports.log.info(
-          s"finalizeRelease() [updated] version: ${updatedVersion}"
+          s"finalizeRelease() updated version: ${updatedVersion}"
         )
 
         release <- PublicDatasetReleaseMapper.get(
           publicDataset.id,
           updatedVersion.version
         )
-        _ = ports.log.info(s"finalizeRelease() [retrieved] release: ${release}")
+        _ = ports.log.info(s"finalizeRelease() release: ${release}")
 
         _ <- DBIO.from(release match {
           case Some(_) => Future.successful(())
@@ -351,14 +349,21 @@ class ReleaseHandler(
           ports.s3StreamClient
             .loadDatasetMetadata(updatedVersion)
         )
-        _ = ports.log.info(s"finalizeRelease() [loaded] metadata: ${metadata}")
+        _ = ports.log.info(s"finalizeRelease() metadata: ${metadata}")
 
-        manifestFile = metadata.files
+        _ <- DBIO.from(metadata match {
+          case Some(_) => Future.successful(())
+          case None =>
+            Future.failed(new Throwable("dataset metadata not found"))
+        })
+
+        manifestFiles = metadata.get.files
+        manifestFile = manifestFiles
           .filter(_.path.equals("manifest.json"))
           .head
-        files = manifestFile.copy(s3VersionId = Some(body.manifestVersionId)) :: metadata.files
+        files = manifestFile.copy(s3VersionId = Some(body.manifestVersionId)) :: manifestFiles
           .filterNot(_.path.equals("manifest.json"))
-        _ = ports.log.info(s"finalizeRelease() [updated] files: ${files}")
+        _ = ports.log.info(s"finalizeRelease() updated manifestFiles: ${files}")
 
         _ <- DBIO.from(updatedVersion.version match {
           case 1 =>
@@ -385,15 +390,25 @@ class ReleaseHandler(
             .loadReleaseAssetListing(updatedVersion)
         )
         _ = ports.log.info(
-          s"finalizeRelease() [loaded] assets: ${releaseAssetListing}"
+          s"finalizeRelease() releaseAssetListing: ${releaseAssetListing}"
         )
 
-        // create PublicDatasetReleaseAssets
-        _ <- PublicDatasetReleaseAssetMapper.createMany(
-          updatedVersion,
-          release.get,
-          releaseAssetListing
-        )
+        _ <- releaseAssetListing match {
+          case Some(releaseAssetListing) =>
+            ports.log.info(
+              s"finalizeRelease() storing ${releaseAssetListing.files.length} release asset items"
+            )
+            PublicDatasetReleaseAssetMapper.createMany(
+              updatedVersion,
+              release.get,
+              releaseAssetListing
+            )
+          case None =>
+            ports.log.warn(
+              s"finalizeRelease() release asset listing was not loaded"
+            )
+            DBIO.successful(akka.Done)
+        }
 
         // queue message to make DOI visible
         _ = ports.log.info("finalizeRelease() [action] queue push DOI message")
