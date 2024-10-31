@@ -104,7 +104,7 @@ trait S3StreamClient {
     versionId: Option[S3Key.Version]
   )(implicit
     ec: ExecutionContext
-  ): Future[ByteString]
+  ): Future[Option[ByteString]]
 
   def datasetFilesSource(
     version: PublicDatasetVersion,
@@ -195,7 +195,7 @@ trait S3StreamClient {
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
-  ): Future[DatasetMetadata]
+  ): Future[Option[DatasetMetadata]]
 
   def writeDatasetRevisionMetadata(
     dataset: PublicDataset,
@@ -231,7 +231,7 @@ trait S3StreamClient {
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
-  ): Future[ReleaseAssetListing]
+  ): Future[Option[ReleaseAssetListing]]
 }
 
 class AssumeRoleResourceCache(val region: Region, stsClient: => StsClient)
@@ -1192,7 +1192,7 @@ class AlpakkaS3StreamClient(
     versionId: Option[S3Key.Version]
   )(implicit
     ec: ExecutionContext
-  ): Future[ByteString] = s3GetObject(bucket, key, versionId)
+  ): Future[Option[ByteString]] = s3GetObject(bucket, key, versionId)
 
   private def s3GetObject(
     bucket: S3Bucket,
@@ -1200,7 +1200,7 @@ class AlpakkaS3StreamClient(
     versionId: Option[S3Key.Version]
   )(implicit
     ec: ExecutionContext
-  ): Future[ByteString] = Future {
+  ): Future[Option[ByteString]] = Future {
     val credentialsProvider =
       getCachedAssumeRoleCredentialsProvider(bucket)
 
@@ -1233,10 +1233,17 @@ class AlpakkaS3StreamClient(
     val s3Request = builder.build()
     logger.info(s"s3GetObject() s3Request: ${s3Request.toString}")
 
-    val objectBytes: ResponseBytes[GetObjectResponse] =
-      s3Client.getObject(s3Request, ResponseTransformer.toBytes())
+    try {
+      val objectBytes: ResponseBytes[GetObjectResponse] =
+        s3Client.getObject(s3Request, ResponseTransformer.toBytes())
+      Some(ByteString.fromArray(objectBytes.asByteArray()))
+    } catch {
+      case _: software.amazon.awssdk.services.s3.model.NoSuchKeyException =>
+        None
+      case t: Throwable =>
+        throw t
+    }
 
-    ByteString.fromArray(objectBytes.asByteArray())
   }
 
   private def s3PutObject(
@@ -1296,7 +1303,11 @@ class AlpakkaS3StreamClient(
         request,
         status = S3OperationStatus.SUCCESS,
         message = None,
-        data = Some(byteString.decodeString((ByteString.UTF_8)))
+        data = byteString match {
+          case Some(byteString) =>
+            Some(byteString.decodeString((ByteString.UTF_8)))
+          case None => None
+        }
       )
 
   private def s3OperationPutObject(
@@ -1407,28 +1418,36 @@ class AlpakkaS3StreamClient(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
-  ): Future[DatasetMetadata] =
+  ): Future[Option[DatasetMetadata]] =
     for {
       content <- getFile(version.s3Bucket, metadataKey(version), None)
-      output <- decode[DatasetMetadata](
-        content.decodeString(akka.util.ByteString.UTF_8)
-      ).fold(Future.failed, Future.successful)
+      output: Option[DatasetMetadata] = content match {
+        case Some(byteString) =>
+          decode[DatasetMetadata](
+            byteString.decodeString(akka.util.ByteString.UTF_8)
+          ).fold(l => None, r => Some(r))
+        case None => None
+      }
     } yield output
 
   override def loadReleaseAssetListing(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
-  ): Future[ReleaseAssetListing] =
+  ): Future[Option[ReleaseAssetListing]] =
     for {
       content <- getFile(
         version.s3Bucket,
         releaseAssetListingKey(version),
         None
       )
-      output <- decode[ReleaseAssetListing](
-        content.decodeString(akka.util.ByteString.UTF_8)
-      ).fold(Future.failed, Future.successful)
+      output: Option[ReleaseAssetListing] = content match {
+        case Some(byteString) =>
+          decode[ReleaseAssetListing](
+            byteString.decodeString(akka.util.ByteString.UTF_8)
+          ).fold(l => None, r => Some(r))
+        case None => None
+      }
     } yield output
 
 }

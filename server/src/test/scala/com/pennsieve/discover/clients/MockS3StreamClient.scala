@@ -273,24 +273,24 @@ class MockS3StreamClient extends S3StreamClient {
     versionId: Option[S3Key.Version]
   )(implicit
     ec: ExecutionContext
-  ): Future[ByteString] = Future.successful(ByteString.empty)
+  ): Future[Option[ByteString]] = Future.successful(Some(ByteString.empty))
 
   override def loadDatasetMetadata(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
-  ): Future[DatasetMetadata] =
+  ): Future[Option[DatasetMetadata]] =
     for {
-      output <- decode[DatasetMetadata](sampleMetadata)
+      output: DatasetMetadata <- decode[DatasetMetadata](sampleMetadata)
         .fold(Future.failed, Future.successful)
-    } yield output
+    } yield Some(output)
 
   override def loadReleaseAssetListing(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
-  ): Future[ReleaseAssetListing] =
-    Future.successful(ReleaseAssetListing(files = List.empty))
+  ): Future[Option[ReleaseAssetListing]] =
+    Future.successful(Some(ReleaseAssetListing(files = List.empty)))
 
 }
 
