@@ -238,7 +238,7 @@ class ReleaseHandler(
               publishedDatasetId = version.datasetId,
               publishedVersionCount = version.version,
               status = version.status,
-              lastPublishedDate = None,
+              lastPublishedDate = Some(version.createdAt),
               sponsorship = None,
               publicId = version.doi
             )
