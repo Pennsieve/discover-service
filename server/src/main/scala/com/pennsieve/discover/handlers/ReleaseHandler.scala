@@ -444,7 +444,7 @@ class ReleaseHandler(
           publishedDatasetId = updatedVersion.datasetId,
           publishedVersionCount = updatedVersion.version,
           status = updatedVersion.status,
-          lastPublishedDate = None, // TODO: change this?
+          lastPublishedDate = Some(updatedVersion.createdAt),
           sponsorship = None,
           publicId = updatedVersion.doi
         )
