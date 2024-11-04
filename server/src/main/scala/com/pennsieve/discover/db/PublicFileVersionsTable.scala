@@ -697,6 +697,9 @@ object PublicFileVersionStore {
     slickSession: SlickSession,
     logContext: LogContext
   ): Future[Unit] = {
+    ports.log.info(
+      s"publishFirstVersion() datasetId: ${version.datasetId} version: ${version.version} number-of-files: ${files.length}"
+    )
     for {
       fileVersionLinks <- Source(files)
         .via(
@@ -730,6 +733,9 @@ object PublicFileVersionStore {
     slickSession: SlickSession,
     logContext: LogContext
   ): Future[Unit] = {
+    ports.log.info(
+      s"publishNextVersion() datasetId: ${version.datasetId} version: ${version.version} number-of-files: ${files.length}"
+    )
     for {
       existingLinks <- ports.db.run(
         PublicDatasetVersionFilesTableMapper

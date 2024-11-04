@@ -367,6 +367,9 @@ class ReleaseHandler(
 
         _ <- DBIO.from(updatedVersion.version match {
           case 1 =>
+            ports.log.info(
+              s"finalizeRelease() storing files for first publication"
+            )
             PublicFileVersionStore.publishFirstVersion(updatedVersion, files)(
               ec = executionContext,
               system = system,
@@ -375,6 +378,9 @@ class ReleaseHandler(
               logContext = logContext
             )
           case _ =>
+            ports.log.info(
+              s"finalizeRelease() storing files for next publication"
+            )
             PublicFileVersionStore.publishNextVersion(updatedVersion, files)(
               ec = executionContext,
               system = system,

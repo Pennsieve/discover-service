@@ -214,5 +214,177 @@ class JsonEncodingSpec extends AnyWordSpec with Suite with Matchers {
         .fold(l => (), r => r)
       decoded shouldEqual expected
     }
+
+    "fail to decode a manifest.json missing contributors" in {
+      val jsonString =
+        s"""
+           |{
+           |  "datePublished": "2024-11-04",
+           |  "pennsieveDatasetId": 5168,
+           |  "version": 1,
+           |  "name": "muftring/test-github-publishing-manual",
+           |  "description": "a test repo to test the manual publishing of this code repo",
+           |  "creator": {
+           |    "id": 0,
+           |    "first_name": "Michael",
+           |    "last_name": "Uftring",
+           |    "degree": "M.S.",
+           |    "orcid": "0000-0001-7054-4685"
+           |  },
+           |  "sourceOrganization": "Publishing 5.0 Workspace",
+           |  "keywords": [],
+           |  "license": "MIT License",
+           |  "@id": "10.21397/mo22-xgzv",
+           |  "publisher": "The University of Pennsylvania",
+           |  "@context": "http://schema.org/",
+           |  "@type": "Release",
+           |  "schemaVersion": "http://schema.org/version/3.7/",
+           |  "files": [
+           |    {
+           |      "name": "changelog.md",
+           |      "path": "changelog.md",
+           |      "size": 244,
+           |      "fileType": "Markdown",
+           |      "s3VersionId": "WYOGVhtNTYcdw81VRUXmLcoGj_bM7rSF"
+           |    },
+           |    {
+           |      "name": "readme.md",
+           |      "path": "readme.md",
+           |      "size": 286,
+           |      "fileType": "Markdown",
+           |      "s3VersionId": "dS9fC3I4q7OfrPbxSYjYRXFi2t3d1mwy"
+           |    },
+           |    {
+           |      "name": "muftring-test-github-publishing-manual-v1.0.2-0-g3931565.zip",
+           |      "path": "assets/muftring-test-github-publishing-manual-v1.0.2-0-g3931565.zip",
+           |      "size": 8586,
+           |      "fileType": "ZIP"
+           |    },
+           |    {
+           |      "name": "manifest.json",
+           |      "path": "manifest.json",
+           |      "size": 1947,
+           |      "fileType": "Json"
+           |    }
+           |  ],
+           |  "release": {
+           |    "origin": "GitHub",
+           |    "url": "https://github.com/muftring/test-github-publishing-manual",
+           |    "label": "v1.0.2",
+           |    "marker": "3931565f392628e48c4158f8262a6e728207cb84"
+           |  },
+           |  "pennsieveSchemaVersion": "5.0"
+           |}
+           |""".stripMargin
+
+      val decoded = decode[DatasetMetadata](jsonString)
+      decoded.isRight shouldBe false
+    }
+
+    "decode release-asset-listing.json" in {
+      val jsonString =
+        s"""
+           |{
+           |  "files": [
+           |    {
+           |      "file": "LICENSE",
+           |      "name": "LICENSE",
+           |      "type": "file",
+           |      "size": 1072
+           |    },
+           |    {
+           |      "file": "README.md",
+           |      "name": "README.md",
+           |      "type": "file",
+           |      "size": 286
+           |    },
+           |    {
+           |      "file": "code/",
+           |      "name": "code",
+           |      "type": "folder",
+           |      "size": 0
+           |    },
+           |    {
+           |      "file": "code/graph.py",
+           |      "name": "graph.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "code/main.py",
+           |      "name": "main.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "code/package.py",
+           |      "name": "package.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "code/reporting.py",
+           |      "name": "reporting.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "code/testing.py",
+           |      "name": "testing.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "data/",
+           |      "name": "data",
+           |      "type": "folder",
+           |      "size": 0
+           |    },
+           |    {
+           |      "file": "data/patient.dat",
+           |      "name": "patient.dat",
+           |      "type": "file",
+           |      "size": 1048576
+           |    },
+           |    {
+           |      "file": "data/sample.dat",
+           |      "name": "sample.dat",
+           |      "type": "file",
+           |      "size": 1048576
+           |    },
+           |    {
+           |      "file": "data/study.dat",
+           |      "name": "study.dat",
+           |      "type": "file",
+           |      "size": 1048576
+           |    },
+           |    {
+           |      "file": "data/visit.dat",
+           |      "name": "visit.dat",
+           |      "type": "file",
+           |      "size": 1048576
+           |    },
+           |    {
+           |      "file": "model/",
+           |      "name": "model",
+           |      "type": "folder",
+           |      "size": 0
+           |    },
+           |    {
+           |      "file": "model/metadata.json",
+           |      "name": "metadata.json",
+           |      "type": "file",
+           |      "size": 582
+           |    }
+           |  ]
+           |}
+           |
+           |""".stripMargin
+
+      val decoded = decode[ReleaseAssetListing](jsonString)
+      decoded.isRight shouldBe true
+      val listing = decoded.toOption.get
+      listing.files.length shouldEqual 15
+    }
   }
 }
