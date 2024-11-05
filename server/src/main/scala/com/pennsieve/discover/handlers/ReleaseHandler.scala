@@ -4,6 +4,8 @@ package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
+import akka.stream.alpakka.slick.scaladsl.{ Slick, SlickSession }
+import akka.stream.scaladsl.{ Sink, Source }
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.utils.getOrCreateDoi
@@ -13,10 +15,11 @@ import com.pennsieve.discover.db.{
   PublicContributorsMapper,
   PublicDatasetReleaseAssetMapper,
   PublicDatasetReleaseMapper,
+  PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   PublicExternalPublicationsMapper,
-  PublicFileVersionStore
+  PublicFileVersionsMapper
 }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.logging.{
@@ -57,7 +60,13 @@ import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.utils.BucketResolver
 import com.pennsieve.doi.models.DoiDTO
 import com.pennsieve.models.PublishStatus.PublishSucceeded
-import com.pennsieve.models.{ DatasetType, PublishStatus, RelationshipType }
+import com.pennsieve.models.{
+  DatasetType,
+  FileManifest,
+  PublishStatus,
+  RelationshipType
+}
+import com.pennsieve.service.utilities.LogContext
 import io.circe.DecodingFailure
 import slick.dbio.{ DBIO, DBIOAction }
 import slick.jdbc.TransactionIsolation
@@ -365,30 +374,30 @@ class ReleaseHandler(
           .filterNot(_.path.equals("manifest.json"))
         _ = ports.log.info(s"finalizeRelease() updated manifestFiles: ${files}")
 
-        _ <- DBIO.from(updatedVersion.version match {
-          case 1 =>
-            PublicFileVersionStore.publishFirstVersion(updatedVersion, files)(
-              ec = executionContext,
-              system = system,
-              ports = ports,
-              slickSession = ports.slickSession,
-              logContext = logContext
-            )
-          case _ =>
-            PublicFileVersionStore.publishNextVersion(updatedVersion, files)(
-              ec = executionContext,
-              system = system,
-              ports = ports,
-              slickSession = ports.slickSession,
-              logContext = logContext
-            )
+        publicFileVersions <- DBIO.sequence(files.map { file =>
+          PublicFileVersionsMapper.createOne(updatedVersion, file)
         })
+        _ = ports.log.info(
+          s"finalizeRelease() publicFileVersions: ${publicFileVersions}"
+        )
+
+        publicFileVersionLinks <- DBIO.sequence(
+          publicFileVersions
+            .map { pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(updatedVersion, pfv)
+            }
+        )
+        _ = ports.log.info(
+          s"finalizeRelease() publicFileVersionLinks: ${publicFileVersionLinks}"
+        )
 
         // read release asset listing
         releaseAssetListing <- DBIO.from(
           ports.s3StreamClient
             .loadReleaseAssetListing(updatedVersion)
         )
+
         _ = ports.log.info(
           s"finalizeRelease() releaseAssetListing: ${releaseAssetListing}"
         )
@@ -475,7 +484,6 @@ class ReleaseHandler(
       case Some(value) => Some(S3Key.File(value))
       case None => None
     }
-
 }
 
 object ReleaseHandler {

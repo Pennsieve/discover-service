@@ -8,6 +8,7 @@ import com.github.tminglei.slickpg.LTree
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
   AssetTreeNode,
+  PublicDataset,
   PublicDatasetRelease,
   PublicDatasetReleaseAsset,
   PublicDatasetVersion,
@@ -104,6 +105,17 @@ object PublicDatasetReleaseAssetMapper
         PublicDatasetReleaseAssetMapper.convertPathToTree(S3Key.File(file.file))
       )
     )
+
+  def get(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Seq[PublicDatasetReleaseAsset], NoStream, Effect.Read with Effect] =
+    this
+      .filter(_.datasetId === dataset.id)
+      .filter(_.datasetVersion === version.version)
+      .result
 
   def createMany(
     version: PublicDatasetVersion,
