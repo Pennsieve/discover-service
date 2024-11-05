@@ -19,7 +19,6 @@ import com.pennsieve.discover.db.{
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   PublicExternalPublicationsMapper,
-  PublicFileVersionStore,
   PublicFileVersionsMapper
 }
 import com.pennsieve.discover.db.profile.api._
@@ -485,75 +484,6 @@ class ReleaseHandler(
       case Some(value) => Some(S3Key.File(value))
       case None => None
     }
-
-  private def publishFirstVersion(
-    version: PublicDatasetVersion,
-    files: List[FileManifest]
-  )(implicit
-    slickSession: SlickSession,
-    logContext: LogContext
-  ): Future[Unit] = {
-    println(s"publishFirstVersion() version: ${version}")
-    println(s"publishFirstVersion() files: ${files}")
-    for {
-      fileVersionLinks <- Source(files)
-        .via(
-          Slick.flowWithPassThrough(
-            parallelism = 8,
-            file => PublicFileVersionsMapper.createOne(version, file)
-          )
-        )
-        .via(
-          Slick.flowWithPassThrough(
-            parallelism = 8,
-            pfv =>
-              PublicDatasetVersionFilesTableMapper
-                .storeLink(version, pfv)
-          )
-        )
-        .runWith(Sink.seq)
-      _ = ports.log.info(
-        s"publishFirstVersion() stored ${fileVersionLinks.length} files and links"
-      )
-    } yield ()
-  }
-
-  private def publishNextVersion(
-    version: PublicDatasetVersion,
-    files: List[FileManifest]
-  )(implicit
-    slickSession: SlickSession,
-    logContext: LogContext
-  ): Future[Unit] = {
-    for {
-      existingLinks <- ports.db.run(
-        PublicDatasetVersionFilesTableMapper
-          .getLinks(version.datasetId, version.version)
-      )
-      linkedFileIds = existingLinks.map(_.fileId).toSet
-
-      fileVersionLinks <- Source(files)
-        .via(
-          Slick.flowWithPassThrough(
-            parallelism = 8,
-            file => PublicFileVersionsMapper.findOrCreate(version, file)
-          )
-        )
-        .filterNot(pfv => linkedFileIds.contains(pfv.id))
-        .via(
-          Slick.flowWithPassThrough(
-            parallelism = 8,
-            pfv =>
-              PublicDatasetVersionFilesTableMapper
-                .storeLink(version, pfv)
-          )
-        )
-        .runWith(Sink.seq)
-      _ = ports.log.info(
-        s"publishNextVersion() stored ${fileVersionLinks.length} files and links"
-      )
-    } yield ()
-  }
 }
 
 object ReleaseHandler {
