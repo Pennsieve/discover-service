@@ -4,6 +4,8 @@ package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
+import akka.stream.alpakka.slick.scaladsl.{ Slick, SlickSession }
+import akka.stream.scaladsl.{ Sink, Source }
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.utils.getOrCreateDoi
@@ -13,10 +15,12 @@ import com.pennsieve.discover.db.{
   PublicContributorsMapper,
   PublicDatasetReleaseAssetMapper,
   PublicDatasetReleaseMapper,
+  PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   PublicExternalPublicationsMapper,
-  PublicFileVersionStore
+  PublicFileVersionStore,
+  PublicFileVersionsMapper
 }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.logging.{
@@ -57,7 +61,13 @@ import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.utils.BucketResolver
 import com.pennsieve.doi.models.DoiDTO
 import com.pennsieve.models.PublishStatus.PublishSucceeded
-import com.pennsieve.models.{ DatasetType, PublishStatus, RelationshipType }
+import com.pennsieve.models.{
+  DatasetType,
+  FileManifest,
+  PublishStatus,
+  RelationshipType
+}
+import com.pennsieve.service.utilities.LogContext
 import io.circe.DecodingFailure
 import slick.dbio.{ DBIO, DBIOAction }
 import slick.jdbc.TransactionIsolation
@@ -365,36 +375,30 @@ class ReleaseHandler(
           .filterNot(_.path.equals("manifest.json"))
         _ = ports.log.info(s"finalizeRelease() updated manifestFiles: ${files}")
 
-        _ <- DBIO.from(updatedVersion.version match {
-          case 1 =>
-            ports.log.info(
-              s"finalizeRelease() storing files for first publication"
-            )
-            PublicFileVersionStore.publishFirstVersion(updatedVersion, files)(
-              ec = executionContext,
-              system = system,
-              ports = ports,
-              slickSession = ports.slickSession,
-              logContext = logContext
-            )
-          case _ =>
-            ports.log.info(
-              s"finalizeRelease() storing files for next publication"
-            )
-            PublicFileVersionStore.publishNextVersion(updatedVersion, files)(
-              ec = executionContext,
-              system = system,
-              ports = ports,
-              slickSession = ports.slickSession,
-              logContext = logContext
-            )
+        publicFileVersions <- DBIO.sequence(files.map { file =>
+          PublicFileVersionsMapper.createOne(updatedVersion, file)
         })
+        _ = ports.log.info(
+          s"finalizeRelease() publicFileVersions: ${publicFileVersions}"
+        )
+
+        publicFileVersionLinks <- DBIO.sequence(
+          publicFileVersions
+            .map { pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(updatedVersion, pfv)
+            }
+        )
+        _ = ports.log.info(
+          s"finalizeRelease() publicFileVersionLinks: ${publicFileVersionLinks}"
+        )
 
         // read release asset listing
         releaseAssetListing <- DBIO.from(
           ports.s3StreamClient
             .loadReleaseAssetListing(updatedVersion)
         )
+
         _ = ports.log.info(
           s"finalizeRelease() releaseAssetListing: ${releaseAssetListing}"
         )
@@ -482,6 +486,74 @@ class ReleaseHandler(
       case None => None
     }
 
+  private def publishFirstVersion(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  )(implicit
+    slickSession: SlickSession,
+    logContext: LogContext
+  ): Future[Unit] = {
+    println(s"publishFirstVersion() version: ${version}")
+    println(s"publishFirstVersion() files: ${files}")
+    for {
+      fileVersionLinks <- Source(files)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            file => PublicFileVersionsMapper.createOne(version, file)
+          )
+        )
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(version, pfv)
+          )
+        )
+        .runWith(Sink.seq)
+      _ = ports.log.info(
+        s"publishFirstVersion() stored ${fileVersionLinks.length} files and links"
+      )
+    } yield ()
+  }
+
+  private def publishNextVersion(
+    version: PublicDatasetVersion,
+    files: List[FileManifest]
+  )(implicit
+    slickSession: SlickSession,
+    logContext: LogContext
+  ): Future[Unit] = {
+    for {
+      existingLinks <- ports.db.run(
+        PublicDatasetVersionFilesTableMapper
+          .getLinks(version.datasetId, version.version)
+      )
+      linkedFileIds = existingLinks.map(_.fileId).toSet
+
+      fileVersionLinks <- Source(files)
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            file => PublicFileVersionsMapper.findOrCreate(version, file)
+          )
+        )
+        .filterNot(pfv => linkedFileIds.contains(pfv.id))
+        .via(
+          Slick.flowWithPassThrough(
+            parallelism = 8,
+            pfv =>
+              PublicDatasetVersionFilesTableMapper
+                .storeLink(version, pfv)
+          )
+        )
+        .runWith(Sink.seq)
+      _ = ports.log.info(
+        s"publishNextVersion() stored ${fileVersionLinks.length} files and links"
+      )
+    } yield ()
+  }
 }
 
 object ReleaseHandler {

@@ -16,24 +16,32 @@ import com.pennsieve.discover.client.definitions.{
 }
 import com.pennsieve.discover.client.publish.{ PublishClient, PublishResponse }
 import com.pennsieve.discover.client.release.{
+  FinalizeReleaseResponse,
   PublishReleaseResponse,
   ReleaseClient
 }
-import com.pennsieve.discover.clients.MockDoiClient
+import com.pennsieve.discover.clients.{ MockDoiClient, MockS3StreamClient }
 import com.pennsieve.discover.db.{
+  PublicDatasetReleaseAssetMapper,
   PublicDatasetReleaseMapper,
+  PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
-  PublicDatasetsMapper
+  PublicDatasetsMapper,
+  PublicFileVersionsMapper
 }
 import com.pennsieve.discover.models.PublishingWorkflow
 import com.pennsieve.discover.client.definitions.BucketConfig
-import com.pennsieve.models.{ Degree, License, RelationshipType }
+import com.pennsieve.discover.server.definitions.FinalizeReleaseRequest
+import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
 import com.pennsieve.models.PublishStatus.PublishInProgress
 import com.pennsieve.test.EitherValue._
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import io.circe.parser.decode
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
 
 class ReleaseHandlerSpec
     extends AnyWordSpec
@@ -197,6 +205,277 @@ class ReleaseHandlerSpec
     }
   }
 
+  "ReleaseHandler" should {
+    "publish a Code Repo" in {
+      // step 1: initialize publication
+      val requestBody = releaseRequest(origin, label, marker, repoUrl)
+      val publishReleaseResponse = client
+        .publishRelease(organizationId, datasetId, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishReleaseResponse.Created]
+        .value
+
+      publishReleaseResponse.name shouldBe requestBody.name
+      publishReleaseResponse.sourceDatasetId shouldBe datasetId
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      // generate manifest.json
+      val metadataJson =
+        s"""
+           |{
+           |    "datePublished": "2024-11-04",
+           |    "pennsieveDatasetId": 5169,
+           |    "version": 1,
+           |    "name": "muftring/test-github-publishing-manual",
+           |    "description": "a test repo to test the manual publishing of this code repo",
+           |    "creator": {
+           |        "id": 0,
+           |        "first_name": "Michael",
+           |        "last_name": "Uftring",
+           |        "degree": "M.S.",
+           |        "orcid": "0000-0001-7054-4685"
+           |    },
+           |    "contributors": [
+           |        {
+           |            "id": 0,
+           |            "first_name": "Michael",
+           |            "last_name": "Uftring"
+           |        }
+           |    ],
+           |    "sourceOrganization": "Publishing 5.0 Workspace",
+           |    "keywords": [],
+           |    "license": "MIT License",
+           |    "@id": "10.21397/u4cj-xqpt",
+           |    "publisher": "The University of Pennsylvania",
+           |    "@context": "http://schema.org/",
+           |    "@type": "Release",
+           |    "schemaVersion": "http://schema.org/version/3.7/",
+           |    "files": [
+           |        {
+           |            "name": "changelog.md",
+           |            "path": "changelog.md",
+           |            "size": 122,
+           |            "fileType": "Markdown",
+           |            "s3VersionId": "lQajWqKYKuA76Ax7Jj5osiIWJP9E1DMJ"
+           |        },
+           |        {
+           |            "name": "readme.md",
+           |            "path": "readme.md",
+           |            "size": 286,
+           |            "fileType": "Markdown",
+           |            "s3VersionId": "pQ4CLbmcpOOXKDb6VNfKvuldpzs_b0wH"
+           |        },
+           |        {
+           |            "name": "muftring-test-github-publishing-manual-v1.0.3-0-g3931565.zip",
+           |            "path": "assets/muftring-test-github-publishing-manual-v1.0.3-0-g3931565.zip",
+           |            "size": 8586,
+           |            "fileType": "ZIP",
+           |            "s3VersionId": "qWBDnQf47ZTYB97Tal7vIeSJpSqYMQiq"
+           |        },
+           |        {
+           |            "name": "manifest.json",
+           |            "path": "manifest.json",
+           |            "size": 2010,
+           |            "fileType": "Json"
+           |        }
+           |    ],
+           |    "release": {
+           |        "origin": "GitHub",
+           |        "url": "https://github.com/muftring/test-github-publishing-manual",
+           |        "label": "v1.0.3",
+           |        "marker": "3931565f392628e48c4158f8262a6e728207cb84"
+           |    },
+           |    "pennsieveSchemaVersion": "5.0"
+           |}
+           |""".stripMargin
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .storeDatasetMetadata(publicVersion, metadataJson)
+
+      // generate release-asset-listing.json
+      val releaseAssetListingJson =
+        s"""
+           |{
+           |  "files": [
+           |    {
+           |      "file": "LICENSE",
+           |      "name": "LICENSE",
+           |      "type": "file",
+           |      "size": 1072
+           |    },
+           |    {
+           |      "file": "README.md",
+           |      "name": "README.md",
+           |      "type": "file",
+           |      "size": 286
+           |    },
+           |    {
+           |      "file": "code/",
+           |      "name": "code",
+           |      "type": "folder",
+           |      "size": 0
+           |    },
+           |    {
+           |      "file": "code/graph.py",
+           |      "name": "graph.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "code/main.py",
+           |      "name": "main.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "code/package.py",
+           |      "name": "package.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "code/reporting.py",
+           |      "name": "reporting.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "code/testing.py",
+           |      "name": "testing.py",
+           |      "type": "file",
+           |      "size": 1024
+           |    },
+           |    {
+           |      "file": "data/",
+           |      "name": "data",
+           |      "type": "folder",
+           |      "size": 0
+           |    },
+           |    {
+           |      "file": "data/patient.dat",
+           |      "name": "patient.dat",
+           |      "type": "file",
+           |      "size": 1048576
+           |    },
+           |    {
+           |      "file": "data/sample.dat",
+           |      "name": "sample.dat",
+           |      "type": "file",
+           |      "size": 1048576
+           |    },
+           |    {
+           |      "file": "data/study.dat",
+           |      "name": "study.dat",
+           |      "type": "file",
+           |      "size": 1048576
+           |    },
+           |    {
+           |      "file": "data/visit.dat",
+           |      "name": "visit.dat",
+           |      "type": "file",
+           |      "size": 1048576
+           |    },
+           |    {
+           |      "file": "model/",
+           |      "name": "model",
+           |      "type": "folder",
+           |      "size": 0
+           |    },
+           |    {
+           |      "file": "model/metadata.json",
+           |      "name": "metadata.json",
+           |      "type": "file",
+           |      "size": 582
+           |    }
+           |  ]
+           |}
+           |""".stripMargin
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .storeReleaseAssetListing(publicVersion, releaseAssetListingJson)
+
+      // step 2: finalize publication
+      val finalizeRequest =
+        com.pennsieve.discover.client.definitions.FinalizeReleaseRequest(
+          publishId = publicVersion.datasetId,
+          versionId = publicVersion.version,
+          publishSuccess = true,
+          fileCount = 4,
+          totalSize = 1234,
+          manifestKey =
+            s"${publicVersion.datasetId}/${publicVersion.version}/manifest.json",
+          manifestVersionId = "c56773cdf2ea4f45b24b98f4a3580bdc",
+          bannerKey = None,
+          changelogKey = Some(
+            s"${publicVersion.datasetId}/${publicVersion.version}/changelog.md"
+          ),
+          readmeKey = Some(
+            s"${publicVersion.datasetId}/${publicVersion.version}/readme.md"
+          )
+        )
+      val finalizeReleaseResponse = client
+        .finalizeRelease(organizationId, datasetId, finalizeRequest, authToken)
+        .awaitFinite(Duration(30, TimeUnit.SECONDS))
+        .value
+        .asInstanceOf[FinalizeReleaseResponse.OK]
+        .value
+
+      // check: dataset, version, release, assets, files
+      val publicDatasetFinal = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersionFinal = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDatasetFinal.id)
+        )
+        .awaitFinite()
+        .get
+
+      val links = ports.db
+        .run(
+          PublicDatasetVersionFilesTableMapper
+            .getLinks(publicDatasetFinal.id, publicVersionFinal.version)
+        )
+        .awaitFinite()
+
+      val files = ports.db
+        .run(PublicFileVersionsMapper.getAll(publicDatasetFinal.id))
+        .awaitFinite()
+
+      val assets = ports.db
+        .run(
+          PublicDatasetReleaseAssetMapper
+            .get(publicDatasetFinal, publicVersionFinal)
+        )
+        .awaitFinite()
+
+      publicVersionFinal.status shouldBe PublishStatus.PublishSucceeded
+      files.length shouldEqual 4
+      links.length shouldEqual 4
+      assets.length shouldEqual 15
+    }
+  }
+
   "JSON encoder/decoder" should {
     "decode PublishReleaseRequest message" in {
       val jsonMessage =
@@ -285,11 +564,11 @@ class ReleaseHandlerSpec
     }
   }
 
-  "Auth Middleware" should {
-    "parse Service CLaim" in {
-      val serviceClaim = ""
-
-    }
-  }
+//  "Auth Middleware" should {
+//    "parse Service CLaim" in {
+//      val serviceClaim = ""
+//
+//    }
+//  }
 
 }

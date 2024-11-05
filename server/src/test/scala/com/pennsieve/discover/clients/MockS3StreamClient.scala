@@ -74,6 +74,9 @@ class MockS3StreamClient extends S3StreamClient {
     source
   }
 
+  val datasetMetadataStorage = scala.collection.mutable.Map[String, String]()
+  val releaseAssetStorage = scala.collection.mutable.Map[String, String]()
+
   val sampleMetadata =
     """
 {
@@ -275,22 +278,39 @@ class MockS3StreamClient extends S3StreamClient {
     ec: ExecutionContext
   ): Future[Option[ByteString]] = Future.successful(Some(ByteString.empty))
 
+  def storeDatasetMetadata(version: PublicDatasetVersion, metadata: String) =
+    datasetMetadataStorage(version.doi) = metadata
+
   override def loadDatasetMetadata(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
   ): Future[Option[DatasetMetadata]] =
     for {
-      output: DatasetMetadata <- decode[DatasetMetadata](sampleMetadata)
-        .fold(Future.failed, Future.successful)
+      output: DatasetMetadata <- decode[DatasetMetadata](
+        datasetMetadataStorage.getOrElse(version.doi, sampleMetadata)
+      ).fold(Future.failed, Future.successful)
     } yield Some(output)
+
+  def storeReleaseAssetListing(version: PublicDatasetVersion, listing: String) =
+    releaseAssetStorage(version.doi) = listing
 
   override def loadReleaseAssetListing(
     version: PublicDatasetVersion
   )(implicit
     ec: ExecutionContext
-  ): Future[Option[ReleaseAssetListing]] =
-    Future.successful(Some(ReleaseAssetListing(files = List.empty)))
+  ): Future[Option[ReleaseAssetListing]] = {
+    releaseAssetStorage.get(version.doi) match {
+      case Some(listing) =>
+        decode[ReleaseAssetListing](listing) match {
+          case Right(ral) => Future.successful(Some(ral))
+          case Left(error) => throw error
+        }
+      case None =>
+        Future.successful(Some(ReleaseAssetListing(files = List.empty)))
+    }
+
+  }
 
 }
 
