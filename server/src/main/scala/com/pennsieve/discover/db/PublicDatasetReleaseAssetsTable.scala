@@ -204,13 +204,10 @@ object PublicDatasetReleaseAssetMapper
       : GetResult[Either[TotalCount, AssetTreeNode]] =
       buildAssetNodeGetter()
 
-    val parent = convertPathToTree(path match {
-      case Some(d) => version.s3Key / d
-      case None => version.s3Key / ""
-    })
-
-    // selects leaves of the tree one level under parent
-    val leafChildSelector = parent + ".*{1}"
+    val leafChildSelector = path match {
+      case Some(path) => convertPathToTree(S3Key.File(path)) + ".*{1}"
+      case None => "*{1}"
+    }
 
     val datasetId = version.datasetId
     val datasetVersion = version.version
