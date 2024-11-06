@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover
 
+import akka.Done
 import com.pennsieve.discover.db._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models._
@@ -267,6 +268,21 @@ object TestUtilities extends AwaitableImplicits {
             releaseStatus = releaseStatus
           )
         )
+      )
+      .await
+  }
+
+  def addReleaseAssetFiles(
+    db: Database
+  )(
+    version: PublicDatasetVersion,
+    release: PublicDatasetRelease,
+    listing: ReleaseAssetListing
+  )(implicit
+    executionContext: ExecutionContext
+  ): Done = {
+    db.run(
+        PublicDatasetReleaseAssetMapper.createMany(version, release, listing)
       )
       .await
   }

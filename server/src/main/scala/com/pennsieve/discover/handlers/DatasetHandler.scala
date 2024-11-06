@@ -895,6 +895,52 @@ class DatasetHandler(
       }
   }
 
+  override def browseAllAssets(
+    respond: GuardrailResource.BrowseAllAssetsResponse.type
+  )(
+    datasetId: Int,
+    versionId: Int
+  ): Future[GuardrailResource.BrowseAllAssetsResponse] = {
+    val query = for {
+      dataset <- PublicDatasetsMapper.getDataset(datasetId)
+      version <- PublicDatasetVersionsMapper.getVisibleVersion(
+        dataset,
+        versionId
+      )
+      _ <- authorizeIfUnderEmbargo(dataset, version)
+
+      (totalCount, assets) <- PublicDatasetReleaseAssetMapper
+        .fullTree(version)
+    } yield (totalCount, assets)
+
+    ports.db
+      .run(query)
+      .map {
+        case (totalCount, assets) =>
+          GuardrailResource.BrowseAllAssetsResponse.OK(
+            AssetTreePage(
+              limit = -1,
+              offset = -1,
+              totalCount = totalCount.value,
+              assets = assets.map(AssetTreeNodeDTO.apply).to(Vector)
+            )
+          )
+      }
+      .recover {
+        case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
+          GuardrailResource.BrowseAllAssetsResponse
+            .NotFound(datasetId.toString)
+        case UnauthorizedException =>
+          GuardrailResource.BrowseAllAssetsResponse.Unauthorized(
+            "Dataset is under embargo"
+          )
+        case DatasetUnderEmbargo =>
+          GuardrailResource.BrowseAllAssetsResponse.Forbidden(
+            "Dataset is under embargo"
+          )
+      }
+  }
+
   override def downloadManifest(
     respond: GuardrailResource.DownloadManifestResponse.type
   )(

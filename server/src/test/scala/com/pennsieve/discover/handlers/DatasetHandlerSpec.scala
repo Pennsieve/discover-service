@@ -47,7 +47,10 @@ import com.pennsieve.discover.db.{
   SponsorshipsMapper
 }
 import com.pennsieve.discover.models._
-import com.pennsieve.discover.server.definitions.SponsorshipDto
+import com.pennsieve.discover.server.definitions.{
+  AssetTreePage,
+  SponsorshipDto
+}
 import com.pennsieve.models.PublishStatus.{
   EmbargoSucceeded,
   NotPublished,
@@ -2548,6 +2551,183 @@ class DatasetHandlerSpec
           )
         )
       )
+    }
+  }
+
+  def setupForReleaseAssetTesting(
+  ): (PublicDataset, PublicDatasetVersion, ReleaseAssetListing) = {
+    // create dataset
+    val dataset = TestUtilities.createDataset(ports.db)(
+      name = "filtered dataset 1",
+      datasetType = DatasetType.Release,
+      sourceOrganizationId = 1,
+      sourceDatasetId = 333
+    )
+
+    // create version
+    val version: PublicDatasetVersion =
+      TestUtilities.createNewDatasetVersion(ports.db)(
+        id = dataset.id,
+        status = PublishStatus.PublishSucceeded
+      )
+    // create release
+    val release: PublicDatasetRelease =
+      TestUtilities.createDatasetRelease(ports.db)(
+        dataset.id,
+        version.version,
+        "GitHub",
+        "v1.2.3",
+        "https://github.com/pennsieve/test-browse-repo",
+        "1a2b3c4d5e6f7g8h9i"
+      )
+
+    // create assets
+    val listing = ReleaseAssetListing(
+      files = List(
+        ReleaseAssetFile(
+          file = "LICENSE",
+          name = "LICENSE",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "README.md",
+          name = "README.md",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "CHANGELOG.md",
+          name = "CHANGELOG.md",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "code/",
+          name = "code",
+          `type` = ReleaseAssetFileType.Folder,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "code/main.py",
+          name = "main.py",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "code/utils.py",
+          name = "utils.py",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "code/reporting.py",
+          name = "reporting.py",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "code/testing/",
+          name = "testing",
+          `type` = ReleaseAssetFileType.Folder,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "code/testing/run-tests.py",
+          name = "run-tests.py",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "data/",
+          name = "data",
+          `type` = ReleaseAssetFileType.Folder,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "data/subjects.csv",
+          name = "subjects.csv",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        ),
+        ReleaseAssetFile(
+          file = "data/metadata.dat",
+          name = "metadata.dat",
+          `type` = ReleaseAssetFileType.File,
+          size = 0
+        )
+      )
+    )
+    val _ =
+      TestUtilities.addReleaseAssetFiles(ports.db)(version, release, listing)
+
+    (dataset, version, listing)
+  }
+
+  "release asset browse" should {
+    "return all assets" in {
+      val (dataset, version, listing) = setupForReleaseAssetTesting()
+
+      val response = datasetClient
+        .browseAllAssets(dataset.id, version.version)
+        .awaitFinite()
+        .value
+        .asInstanceOf[BrowseAllAssetsResponse.OK]
+        .value
+
+      response.assets.length shouldEqual listing.files.length
+    }
+
+    "return top-level assets" in {
+      val (dataset, version, listing) = setupForReleaseAssetTesting()
+
+      val response = datasetClient
+        .browseAssets(dataset.id, version.version, path = None)
+        .awaitFinite()
+        .value
+        .asInstanceOf[BrowseAssetsResponse.OK]
+        .value
+
+      response.assets.length shouldEqual 5
+    }
+
+    "return only selected assets" in {
+      val (dataset, version, listing) = setupForReleaseAssetTesting()
+
+      val response = datasetClient
+        .browseAssets(dataset.id, version.version, path = Some("code"))
+        .awaitFinite()
+        .value
+        .asInstanceOf[BrowseAssetsResponse.OK]
+        .value
+
+      response.assets.length shouldEqual 4
+    }
+
+    "return assets from nested folder" in {
+      val (dataset, version, listing) = setupForReleaseAssetTesting()
+
+      val response = datasetClient
+        .browseAssets(dataset.id, version.version, path = Some("code/testing"))
+        .awaitFinite()
+        .value
+        .asInstanceOf[BrowseAssetsResponse.OK]
+        .value
+
+      response.assets.length shouldEqual 1
+    }
+
+    "return nothing when path does not exist" in {
+      val (dataset, version, listing) = setupForReleaseAssetTesting()
+
+      val response = datasetClient
+        .browseAssets(dataset.id, version.version, path = Some("nothing"))
+        .awaitFinite()
+        .value
+        .asInstanceOf[BrowseAssetsResponse.OK]
+        .value
+
+      response.assets.length shouldEqual 0
     }
   }
 }
