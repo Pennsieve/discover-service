@@ -287,8 +287,6 @@ object TestUtilities extends AwaitableImplicits {
       .await
   }
 
-  //def setupForReleaseAssetTesting(db: Database)
-
   def createRevision(
     db: Database
   )(
