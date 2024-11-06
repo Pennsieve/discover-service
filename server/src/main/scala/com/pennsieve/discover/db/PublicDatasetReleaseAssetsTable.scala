@@ -139,6 +139,55 @@ object PublicDatasetReleaseAssetMapper
       .map(_ => Done)
       .transactionally
 
+  def fullTree(
+    version: PublicDatasetVersion
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    (TotalCount, Seq[AssetTreeNode]),
+    NoStream,
+    Effect.Read with Effect
+  ] = {
+    implicit val getTreeNodeResult
+      : GetResult[Either[TotalCount, AssetTreeNode]] =
+      buildAssetNodeGetter()
+
+    val datasetId = version.datasetId
+    val datasetVersion = version.version
+
+    val result =
+      sql"""
+        WITH files AS (
+          SELECT type,
+                 file,
+                 name,
+                 size
+          FROM discover.public_dataset_release_assets
+          WHERE dataset_id = $datasetId
+          AND dataset_version = $datasetVersion
+        ),
+        total_count as (
+          select null::text AS type,
+                 null::text AS file,
+                 null::text AS name,
+                 (SELECT COALESCE(COUNT(*), 0) FROM files) AS size
+        )
+        SELECT 'count', * FROM total_count
+        UNION (
+        SELECT 'file', * FROM files
+        )
+        ORDER BY 1 ASC
+         """.as[Either[TotalCount, AssetTreeNode]]
+
+    for {
+      rows <- result
+      (counts, nodes) = rows.separate
+      totalCount <- counts.headOption
+        .map(DBIO.successful(_))
+        .getOrElse(DBIO.failed(new Exception("missing 'count'")))
+    } yield (totalCount, nodes)
+  }
+
   def childrenOf(
     version: PublicDatasetVersion,
     path: Option[String],

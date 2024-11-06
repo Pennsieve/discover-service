@@ -2550,4 +2550,9 @@ class DatasetHandlerSpec
       )
     }
   }
+
+  "release asset browse" should {
+    "return all assets" in {}
+    "return only selected assets" in {}
+  }
 }
