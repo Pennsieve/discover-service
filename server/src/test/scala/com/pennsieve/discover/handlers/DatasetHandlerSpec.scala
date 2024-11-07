@@ -2729,5 +2729,18 @@ class DatasetHandlerSpec
 
       response.assets.length shouldEqual 0
     }
+
+    "not throw Internal Server Error when path is the empty string" in {
+      val (dataset, version, listing) = setupForReleaseAssetTesting()
+
+      val response = datasetClient
+        .browseAssets(dataset.id, version.version, path = Some(""))
+        .awaitFinite()
+        .value
+        .asInstanceOf[BrowseAssetsResponse.OK]
+        .value
+
+      response.assets.length shouldEqual 5
+    }
   }
 }
