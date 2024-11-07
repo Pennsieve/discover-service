@@ -850,6 +850,16 @@ class DatasetHandler(
     limit: Option[Int],
     offset: Option[Int]
   ): Future[GuardrailResource.BrowseAssetsResponse] = {
+    def valid(path: Option[String]): Option[String] =
+      path match {
+        case None => None
+        case Some(path) =>
+          path.length match {
+            case 0 => None
+            case _ => Some(path)
+          }
+      }
+
     val query = for {
       dataset <- PublicDatasetsMapper.getDataset(datasetId)
       version <- PublicDatasetVersionsMapper.getVisibleVersion(
@@ -861,7 +871,7 @@ class DatasetHandler(
       (totalCount, assets) <- PublicDatasetReleaseAssetMapper
         .childrenOf(
           version,
-          path,
+          valid(path),
           limit = limit.getOrElse(defaultFileLimit),
           offset = offset.getOrElse(defaultFileOffset)
         )
