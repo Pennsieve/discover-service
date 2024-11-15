@@ -120,7 +120,7 @@ class ElasticSearchSpec
       createdAt = createdAt,
       updatedAt = updatedAt,
       contributors = contributors.toVector,
-      datasetType = DatasetType.Research.entryName
+      datasetType = Some(DatasetType.Research.entryName)
     ),
     readmeContents
   )

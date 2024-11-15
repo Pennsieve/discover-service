@@ -1219,7 +1219,6 @@ components:
         - contributors
         - createdAt
         - updatedAt
-        - datasetType
       properties:
         id:
           type: integer

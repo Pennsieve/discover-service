@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.models
 
+import com.pennsieve.discover.server.definitions.PublicDatasetDto
 import com.pennsieve.models.{
   DatasetMetadata,
   DatasetMetadataV5_0,
@@ -385,6 +386,126 @@ class JsonEncodingSpec extends AnyWordSpec with Suite with Matchers {
       decoded.isRight shouldBe true
       val listing = decoded.toOption.get
       listing.files.length shouldEqual 15
+    }
+
+    "decode a dataset into a DatasetDTO" in {
+      val jsonString =
+        s"""
+           |{
+           |    "id": 5160,
+           |    "sourceDatasetId": 86,
+           |    "name": "test-publishing-2024-10-10-a",
+           |    "description": "test",
+           |    "ownerId": 177,
+           |    "ownerFirstName": "Michael",
+           |    "ownerLastName": "Uftring",
+           |    "ownerOrcid": "0000-0001-7054-4685",
+           |    "organizationName": "Publishing 5.0 Workspace",
+           |    "organizationId": 39,
+           |    "license": "Community Data License Agreement – Permissive",
+           |    "tags": [
+           |        "publishing"
+           |    ],
+           |    "version": 1,
+           |    "revision": null,
+           |    "size": 5087,
+           |    "modelCount": [],
+           |    "fileCount": 5,
+           |    "recordCount": 0,
+           |    "uri": "s3://pennsieve-dev-discover-publish50-use1/5160/",
+           |    "arn": "arn:aws:s3:::pennsieve-dev-discover-publish50-use1/5160/",
+           |    "status": "PUBLISH_SUCCEEDED",
+           |    "doi": "10.21397/y2oo-9twc",
+           |    "banner": "https://assets.discover.pennsieve.net/dataset-assets/5160/1/banner.jpg",
+           |    "readme": "https://assets.discover.pennsieve.net/dataset-assets/5160/1/readme.md",
+           |    "changelog": "https://assets.discover.pennsieve.net/dataset-assets/5160/1/changelog.md",
+           |    "contributors": [
+           |        {
+           |            "firstName": "Michael",
+           |            "middleInitial": null,
+           |            "lastName": "Uftring",
+           |            "degree": null,
+           |            "orcid": "0000-0001-7054-4685"
+           |        }
+           |    ],
+           |    "collections": [],
+           |    "externalPublications": [],
+           |    "sponsorship": null,
+           |    "pennsieveSchemaVersion": "4.0",
+           |    "createdAt": "2024-10-10T15:55:10.785499Z",
+           |    "updatedAt": "2024-10-10T15:59:48.854633Z",
+           |    "firstPublishedAt": "2024-10-10T15:55:10.771915Z",
+           |    "versionPublishedAt": "2024-10-10T15:55:10.785499Z",
+           |    "revisedAt": null,
+           |    "embargo": false,
+           |    "embargoReleaseDate": null,
+           |    "embargoAccess": null,
+           |    "datasetType": "research",
+           |    "release": null
+           |}
+           |""".stripMargin
+
+      val decoded = decode[PublicDatasetDto](jsonString)
+      decoded.isRight shouldBe true
+    }
+
+    "decode a dataset missing datasetType into a DatasetDto" in {
+      val jsonString =
+        s"""
+           |{
+           |    "id": 5160,
+           |    "sourceDatasetId": 86,
+           |    "name": "test-publishing-2024-10-10-a",
+           |    "description": "test",
+           |    "ownerId": 177,
+           |    "ownerFirstName": "Michael",
+           |    "ownerLastName": "Uftring",
+           |    "ownerOrcid": "0000-0001-7054-4685",
+           |    "organizationName": "Publishing 5.0 Workspace",
+           |    "organizationId": 39,
+           |    "license": "Community Data License Agreement – Permissive",
+           |    "tags": [
+           |        "publishing"
+           |    ],
+           |    "version": 1,
+           |    "revision": null,
+           |    "size": 5087,
+           |    "modelCount": [],
+           |    "fileCount": 5,
+           |    "recordCount": 0,
+           |    "uri": "s3://pennsieve-dev-discover-publish50-use1/5160/",
+           |    "arn": "arn:aws:s3:::pennsieve-dev-discover-publish50-use1/5160/",
+           |    "status": "PUBLISH_SUCCEEDED",
+           |    "doi": "10.21397/y2oo-9twc",
+           |    "banner": "https://assets.discover.pennsieve.net/dataset-assets/5160/1/banner.jpg",
+           |    "readme": "https://assets.discover.pennsieve.net/dataset-assets/5160/1/readme.md",
+           |    "changelog": "https://assets.discover.pennsieve.net/dataset-assets/5160/1/changelog.md",
+           |    "contributors": [
+           |        {
+           |            "firstName": "Michael",
+           |            "middleInitial": null,
+           |            "lastName": "Uftring",
+           |            "degree": null,
+           |            "orcid": "0000-0001-7054-4685"
+           |        }
+           |    ],
+           |    "collections": [],
+           |    "externalPublications": [],
+           |    "sponsorship": null,
+           |    "pennsieveSchemaVersion": "4.0",
+           |    "createdAt": "2024-10-10T15:55:10.785499Z",
+           |    "updatedAt": "2024-10-10T15:59:48.854633Z",
+           |    "firstPublishedAt": "2024-10-10T15:55:10.771915Z",
+           |    "versionPublishedAt": "2024-10-10T15:55:10.785499Z",
+           |    "revisedAt": null,
+           |    "embargo": false,
+           |    "embargoReleaseDate": null,
+           |    "embargoAccess": null
+           |}
+           |""".stripMargin
+
+      val decoded = decode[PublicDatasetDto](jsonString)
+      decoded.isRight shouldBe true
     }
   }
 }
