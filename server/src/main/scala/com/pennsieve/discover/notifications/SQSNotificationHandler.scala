@@ -123,12 +123,18 @@ class SQSNotificationHandler(
           )
         } yield (dataset, version)
 
-        for {
+        (for {
           (dataset, version) <- ports.db.run(query)
 
           // Add dataset to search index
           _ <- Search.indexDataset(dataset, version, ports, overwrite = true)
-        } yield MessageAction.Delete(sqsMessage)
+          _ = ports.log.info(s"IndexDatasetRequest COMPLETED ${message}")
+        } yield MessageAction.Delete(sqsMessage))
+          .recoverWith {
+            case error: Throwable =>
+              ports.log.error(s"IndexDatasetRequest FAILED $message", error)
+              Future.successful(MessageAction.Delete(sqsMessage))
+          }
 
       case Right(message: PushDoiRequest) =>
         implicit val logContext: LogContext =
