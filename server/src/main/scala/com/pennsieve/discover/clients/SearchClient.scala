@@ -302,6 +302,7 @@ class AwsElasticSearchClient(
     executionContext: ExecutionContext,
     system: ActorSystem
   ): Future[Done] = {
+    logger.info(s"indexDataset id: ${dataset.id} version: ${version.version}")
 
     val datasetDocument = DatasetDocument(
       dataset,
@@ -315,22 +316,43 @@ class AwsElasticSearchClient(
     )(config)
 
     for {
-      _ <- insertDataset(datasetDocument, datasetIndex)
+      datasetDone <- insertDataset(datasetDocument, datasetIndex)
+      _ = logger.info(s"indexDataset insertDataset() ${datasetDone}")
 
-      _ <- overwrite match {
+      prepareForOverwriteDone <- overwrite match {
         case true => prepareForOverwrite(dataset.id, version.version)
         case false => Future.successful(())
       }
+      _ = logger.info(
+        s"indexDataset prepareForOverwrite() ${prepareForOverwriteDone}"
+      )
 
-      _ <- insertFileStream(
+      insertFileStreamDone <- insertFileStream(
         files.map(FileDocument(_, datasetDocument)),
         fileIndex
       )
-      _ <- insertRecordStream(records, recordIndex)
+      _ = logger.info(
+        s"indexDataset insertFileStream() ${insertFileStreamDone}"
+      )
+
+      insertRecordStreamDone <- insertRecordStream(records, recordIndex)
+      _ = logger.info(
+        s"indexDataset insertRecordStream() ${insertRecordStreamDone}"
+      )
 
       // Remove files and records from previously published versions
-      _ <- deleteFiles(dataset.id, Some(version.version), fileIndex)
-      _ <- deleteRecords(dataset.id, Some(version.version), recordIndex)
+      deleteFilesDone <- deleteFiles(
+        dataset.id,
+        Some(version.version),
+        fileIndex
+      )
+      _ = logger.info(s"indexDataset deleteFiles() ${deleteFilesDone}")
+      deleteRecordsDone <- deleteRecords(
+        dataset.id,
+        Some(version.version),
+        recordIndex
+      )
+      _ = logger.info(s"indexDataset deleteRecords() ${deleteRecordsDone}")
     } yield Done
   }
 
