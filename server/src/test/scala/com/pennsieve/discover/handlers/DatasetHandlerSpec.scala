@@ -2268,7 +2268,7 @@ class DatasetHandlerSpec
         .asInstanceOf[GetDatasetVersionResponse.OK]
         .value
 
-      response.datasetType shouldBe DatasetType.Research.entryName
+      response.datasetType shouldBe Some(DatasetType.Research.entryName)
     }
 
     "have datasetType 'release' for Code Repos" in {
@@ -2288,7 +2288,7 @@ class DatasetHandlerSpec
         .asInstanceOf[GetDatasetVersionResponse.OK]
         .value
 
-      response.datasetType shouldBe DatasetType.Release.entryName
+      response.datasetType shouldBe Some(DatasetType.Release.entryName)
 
       val json = response.asJson.toString()
     }
