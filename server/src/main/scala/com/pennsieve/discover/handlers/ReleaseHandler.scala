@@ -316,7 +316,7 @@ class ReleaseHandler(
         )
         _ = ports.log.info(s"finalizeRelease() version: ${version}")
 
-        updatedStatus <- PublicDatasetVersionsMapper.setStatus(
+        updatedVersion <- PublicDatasetVersionsMapper.setStatus(
           id = publicDataset.id,
           version = version.version,
           status = body.publishSuccess match {
@@ -327,120 +327,27 @@ class ReleaseHandler(
           }
         )
         _ = ports.log.info(
-          s"finalizeRelease() updated status: ${updatedStatus}"
-        )
-
-        updatedVersion <- PublicDatasetVersionsMapper.setResultMetadata(
-          version = updatedStatus,
-          size = body.totalSize,
-          fileCount = body.fileCount,
-          banner = s3KeyFor(body.bannerKey),
-          readme = s3KeyFor(body.readmeKey),
-          changelog = s3KeyFor(body.changelogKey)
-        )
-        _ = ports.log.info(
           s"finalizeRelease() updated version: ${updatedVersion}"
         )
 
-        release <- PublicDatasetReleaseMapper.get(
-          publicDataset.id,
-          updatedVersion.version
-        )
-        _ = ports.log.info(s"finalizeRelease() release: ${release}")
+        cleanupStage <- updatedVersion.status match {
+          case PublishStatus.PublishSucceeded =>
+            publishSucceeded(publicDataset, updatedVersion, body)
+          case _ =>
+            publishFailed(publicDataset, updatedVersion, body)
 
-        _ <- DBIO.from(release match {
-          case Some(_) => Future.successful(())
-          case None => Future.failed(new Throwable("no dataset release found"))
-        })
-
-        // load the metadata (manifest.json) file from S3
-        metadata <- DBIO.from(
-          ports.s3StreamClient
-            .loadDatasetMetadata(updatedVersion)
-        )
-        _ = ports.log.info(s"finalizeRelease() metadata: ${metadata}")
-
-        _ <- DBIO.from(metadata match {
-          case Some(_) => Future.successful(())
-          case None =>
-            Future.failed(new Throwable("dataset metadata not found"))
-        })
-
-        manifestFiles = metadata.get.files
-        manifestFile = manifestFiles
-          .filter(_.path.equals("manifest.json"))
-          .head
-        files = manifestFile.copy(s3VersionId = Some(body.manifestVersionId)) :: manifestFiles
-          .filterNot(_.path.equals("manifest.json"))
-        _ = ports.log.info(s"finalizeRelease() updated manifestFiles: ${files}")
-
-        publicFileVersions <- DBIO.sequence(files.map { file =>
-          PublicFileVersionsMapper.createOne(updatedVersion, file)
-        })
-        _ = ports.log.info(
-          s"finalizeRelease() publicFileVersions: ${publicFileVersions}"
-        )
-
-        publicFileVersionLinks <- DBIO.sequence(
-          publicFileVersions
-            .map { pfv =>
-              PublicDatasetVersionFilesTableMapper
-                .storeLink(updatedVersion, pfv)
-            }
-        )
-        _ = ports.log.info(
-          s"finalizeRelease() publicFileVersionLinks: ${publicFileVersionLinks}"
-        )
-
-        // read release asset listing
-        releaseAssetListing <- DBIO.from(
-          ports.s3StreamClient
-            .loadReleaseAssetListing(updatedVersion)
-        )
-
-        _ = ports.log.info(
-          s"finalizeRelease() releaseAssetListing: ${releaseAssetListing}"
-        )
-
-        _ <- releaseAssetListing match {
-          case Some(releaseAssetListing) =>
-            ports.log.info(
-              s"finalizeRelease() storing ${releaseAssetListing.files.length} release asset items"
-            )
-            PublicDatasetReleaseAssetMapper.createMany(
-              updatedVersion,
-              release.get,
-              releaseAssetListing
-            )
-          case None =>
-            ports.log.warn(
-              s"finalizeRelease() release asset listing was not loaded"
-            )
-            DBIO.successful(akka.Done)
         }
 
-        // queue message to make DOI visible
-        _ = ports.log.info("finalizeRelease() [action] queue push DOI message")
-        _ <- DBIOAction.from(
-          SQSMessenger.queueMessage(
-            ports.config.sqs.queueUrl,
-            PushDoiRequest(
-              jobType = SQSNotificationType.PUSH_DOI,
-              datasetId = updatedVersion.datasetId,
-              version = updatedVersion.version,
-              doi = updatedVersion.doi
-            )
-          )(executionContext, logContext, ports)
-        )
-
         // invoke S3 Cleanup Lambda to delete publishing intermediate files
-        _ = ports.log.info("finalizeRelease() [action] run S3 clean: TIDY")
+        _ = ports.log.info(
+          s"finalizeRelease() [action] run S3 clean: ${cleanupStage}"
+        )
         _ <- DBIOAction.from(
           ports.lambdaClient.runS3Clean(
             updatedVersion.s3Key.value,
             updatedVersion.s3Bucket.value,
             updatedVersion.s3Bucket.value,
-            S3CleanupStage.Tidy,
+            cleanupStage,
             updatedVersion.migrated
           )
         )
@@ -479,7 +386,134 @@ class ReleaseHandler(
     }
   }
 
-  def s3KeyFor(value: Option[String]): Option[S3Key.File] =
+  private def publishSucceeded(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion,
+    body: definitions.FinalizeReleaseRequest
+  )(implicit
+    logContext: DiscoverLogContext
+  ): DBIOAction[
+    String,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] =
+    for {
+      finalizedVersion <- PublicDatasetVersionsMapper.setResultMetadata(
+        version = version,
+        size = body.totalSize,
+        fileCount = body.fileCount,
+        banner = s3KeyFor(body.bannerKey),
+        readme = s3KeyFor(body.readmeKey),
+        changelog = s3KeyFor(body.changelogKey)
+      )
+      _ = ports.log.info(
+        s"publishSucceeded() finalized version: ${finalizedVersion}"
+      )
+
+      release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
+      _ = ports.log.info(s"publishSucceeded() release: ${release}")
+
+      _ <- DBIO.from(release match {
+        case Some(_) => Future.successful(())
+        case None => Future.failed(new Throwable("no dataset release found"))
+      })
+
+      // load the metadata (manifest.json) file from S3
+      metadata <- DBIO.from(
+        ports.s3StreamClient
+          .loadDatasetMetadata(finalizedVersion)
+      )
+      _ = ports.log.info(s"publishSucceeded() metadata: ${metadata}")
+
+      _ <- DBIO.from(metadata match {
+        case Some(_) => Future.successful(())
+        case None =>
+          Future.failed(new Throwable("dataset metadata not found"))
+      })
+
+      manifestFiles = metadata.get.files
+      manifestFile = manifestFiles
+        .filter(_.path.equals("manifest.json"))
+        .head
+      files = manifestFile.copy(s3VersionId = Some(body.manifestVersionId)) :: manifestFiles
+        .filterNot(_.path.equals("manifest.json"))
+      _ = ports.log.info(s"publishSucceeded() updated manifestFiles: ${files}")
+
+      publicFileVersions <- DBIO.sequence(files.map { file =>
+        PublicFileVersionsMapper.createOne(finalizedVersion, file)
+      })
+      _ = ports.log.info(
+        s"publishSucceeded() publicFileVersions: ${publicFileVersions}"
+      )
+
+      publicFileVersionLinks <- DBIO.sequence(
+        publicFileVersions
+          .map { pfv =>
+            PublicDatasetVersionFilesTableMapper
+              .storeLink(finalizedVersion, pfv)
+          }
+      )
+      _ = ports.log.info(
+        s"publishSucceeded() publicFileVersionLinks: ${publicFileVersionLinks}"
+      )
+
+      // read release asset listing
+      releaseAssetListing <- DBIO.from(
+        ports.s3StreamClient
+          .loadReleaseAssetListing(finalizedVersion)
+      )
+
+      _ = ports.log.info(
+        s"publishSucceeded() releaseAssetListing: ${releaseAssetListing}"
+      )
+
+      _ <- releaseAssetListing match {
+        case Some(releaseAssetListing) =>
+          ports.log.info(
+            s"publishSucceeded() storing ${releaseAssetListing.files.length} release asset items"
+          )
+          PublicDatasetReleaseAssetMapper.createMany(
+            finalizedVersion,
+            release.get,
+            releaseAssetListing
+          )
+        case None =>
+          ports.log.warn(
+            s"publishSucceeded() release asset listing was not loaded"
+          )
+          DBIO.successful(akka.Done)
+      }
+
+      // queue message to make DOI visible
+      _ = ports.log.info("publishSucceeded() [action] queue push DOI message")
+      _ <- DBIOAction.from(
+        SQSMessenger.queueMessage(
+          ports.config.sqs.queueUrl,
+          PushDoiRequest(
+            jobType = SQSNotificationType.PUSH_DOI,
+            datasetId = finalizedVersion.datasetId,
+            version = finalizedVersion.version,
+            doi = finalizedVersion.doi
+          )
+        )(executionContext, logContext, ports)
+      )
+
+    } yield (S3CleanupStage.Tidy)
+
+  private def publishFailed(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion,
+    body: definitions.FinalizeReleaseRequest
+  )(implicit
+    logContext: DiscoverLogContext
+  ): DBIOAction[String, NoStream, Effect] = {
+    ports.log.warn(
+      s"publishFailed() datasetId: ${dataset.id} version: ${version.version}"
+    )
+    DBIO.from(Future.successful(S3CleanupStage.Failure))
+  }
+
+  private def s3KeyFor(value: Option[String]): Option[S3Key.File] =
     value match {
       case Some(value) => Some(S3Key.File(value))
       case None => None

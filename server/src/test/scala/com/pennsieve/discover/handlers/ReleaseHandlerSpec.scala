@@ -20,7 +20,11 @@ import com.pennsieve.discover.client.release.{
   PublishReleaseResponse,
   ReleaseClient
 }
-import com.pennsieve.discover.clients.{ MockDoiClient, MockS3StreamClient }
+import com.pennsieve.discover.clients.{
+  MockDoiClient,
+  MockLambdaClient,
+  MockS3StreamClient
+}
 import com.pennsieve.discover.db.{
   PublicDatasetReleaseAssetMapper,
   PublicDatasetReleaseMapper,
@@ -29,7 +33,7 @@ import com.pennsieve.discover.db.{
   PublicDatasetsMapper,
   PublicFileVersionsMapper
 }
-import com.pennsieve.discover.models.PublishingWorkflow
+import com.pennsieve.discover.models.{ PublishingWorkflow, S3CleanupStage }
 import com.pennsieve.discover.client.definitions.BucketConfig
 import com.pennsieve.discover.server.definitions.FinalizeReleaseRequest
 import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
@@ -564,11 +568,76 @@ class ReleaseHandlerSpec
     }
   }
 
-//  "Auth Middleware" should {
-//    "parse Service CLaim" in {
-//      val serviceClaim = ""
-//
-//    }
-//  }
+  "Finalize" should {
+    "handle Failure notifications" in {
+      // step 1: initialize publication
+      val requestBody = releaseRequest(origin, label, marker, repoUrl)
+      val publishReleaseResponse = client
+        .publishRelease(organizationId, datasetId, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishReleaseResponse.Created]
+        .value
+
+      publishReleaseResponse.name shouldBe requestBody.name
+      publishReleaseResponse.sourceDatasetId shouldBe datasetId
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      publicVersion.status shouldBe PublishStatus.PublishInProgress
+
+      // step 2. notify of failure
+      val finalizeRequest =
+        com.pennsieve.discover.client.definitions.FinalizeReleaseRequest(
+          publishId = publicVersion.datasetId,
+          versionId = publicVersion.version,
+          publishSuccess = false,
+          fileCount = 0,
+          totalSize = 0,
+          manifestKey = "",
+          manifestVersionId = "",
+          bannerKey = None,
+          changelogKey = None,
+          readmeKey = None
+        )
+      val finalizeReleaseResponse = client
+        .finalizeRelease(organizationId, datasetId, finalizeRequest, authToken)
+        .awaitFinite(Duration(30, TimeUnit.SECONDS))
+        .value
+        .asInstanceOf[FinalizeReleaseResponse.OK]
+        .value
+
+      finalizeReleaseResponse.status shouldBe PublishStatus.PublishFailed
+
+      val updatedVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      updatedVersion.status shouldBe PublishStatus.PublishFailed
+
+      // check that S3 Clean was invoked with action = "failure"
+      val s3CleanRequests =
+        ports.lambdaClient.asInstanceOf[MockLambdaClient].requests
+      s3CleanRequests.length shouldEqual 1
+      s3CleanRequests.head.cleanupStage shouldBe S3CleanupStage.Failure
+    }
+  }
 
 }
