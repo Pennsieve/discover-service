@@ -324,7 +324,7 @@ resource "aws_ssm_parameter" "sparc_bucket_access_glue_table" {
 resource "aws_ssm_parameter" "rejoin_bucket_access_glue_table" {
   name  = "/${var.environment_name}/${var.service_name}/rejoin-bucket-access-glue-table"
   type  = "String"
-  value = "${var.sparc_glue_catalog}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_table}"
+  value = "${var.rejoin_glue_catalog}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_table}"
 }
 
 // SNS CONFIGURATION
