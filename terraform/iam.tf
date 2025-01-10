@@ -11,18 +11,18 @@ resource "aws_iam_role_policy_attachment" "iam_role_policy_attachment" {
 
 data "aws_iam_policy_document" "iam_policy_document" {
   statement {
-    sid       = "KMSDecryptPermissions"
-    effect    = "Allow"
-    actions   = ["kms:Decrypt"]
+    sid    = "KMSDecryptPermissions"
+    effect = "Allow"
+    actions = ["kms:Decrypt"]
     resources = [
       "arn:aws:kms:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:key/alias/aws/ssm"
     ]
   }
 
   statement {
-    sid       = "SecretsManagerListPermissions"
-    effect    = "Allow"
-    actions   = ["secretsmanager:ListSecrets"]
+    sid    = "SecretsManagerListPermissions"
+    effect = "Allow"
+    actions = ["secretsmanager:ListSecrets"]
     resources = ["*"]
   }
 
@@ -228,9 +228,9 @@ data "aws_iam_policy_document" "iam_policy_document" {
   }
 
   statement {
-    sid       = "AssumeSPARCPublishBucketRole"
-    effect    = "Allow"
-    actions   = ["sts:AssumeRole"]
+    sid    = "AssumeSPARCPublishBucketRole"
+    effect = "Allow"
+    actions = ["sts:AssumeRole"]
     resources = [
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_bucket_role_arn,
       data.terraform_remote_state.platform_infrastructure.outputs.rejoin_bucket_role_arn
@@ -238,32 +238,38 @@ data "aws_iam_policy_document" "iam_policy_document" {
   }
 
   statement {
-    sid       = "AllowAccessToSPARCS3AccessLogTable"
-    effect    = "Allow"
-    actions   = ["glue:*"]
+    sid    = "AllowAccessToExternalS3AccessLogTables"
+    effect = "Allow"
+    actions = ["glue:*"]
     resources = [
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:catalog",
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:database/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_db}",
-      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:table/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_db}/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_table}"
+      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:table/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_db}/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_table}",
+      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_account_id}:catalog",
+      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_account_id}:database/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}",
+      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_account_id}:table/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_table}"
     ]
   }
 
   statement {
-    sid       = "AllowAccessToSPARCS3AccessLogBucket"
-    effect    = "Allow"
-    actions   = ["s3:*"]
+    sid    = "AllowAccessToExternalS3AccessLogBuckets"
+    effect = "Allow"
+    actions = ["s3:*"]
     resources = [
       "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_bucket}",
-      "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_bucket}/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_prefix}*"
+      "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_bucket}/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_prefix}*",
+      "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_bucket}",
+      "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_bucket}/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_prefix}*"
     ]
   }
 
   statement {
-    sid       = "AllowAccessToSPARCDataCatalog"
-    effect    = "Allow"
-    actions   = ["athena:GetDataCatalog"]
+    sid    = "AllowAccessToExternalDataCatalogs"
+    effect = "Allow"
+    actions = ["athena:GetDataCatalog"]
     resources = [
-      "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:datacatalog/${aws_athena_data_catalog.sparc_glue_catalog.name}"
+      "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:datacatalog/${aws_athena_data_catalog.sparc_glue_catalog.name}",
+      "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:datacatalog/${aws_athena_data_catalog.rejoin_glue_catalog.name}"
     ]
   }
 
