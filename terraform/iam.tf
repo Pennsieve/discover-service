@@ -159,7 +159,9 @@ data "aws_iam_policy_document" "iam_policy_document" {
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish_bucket_arn,
       "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish_bucket_arn}/*",
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_arn,
-      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_arn}/*"
+      "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_arn}/*",
+      data.terraform_remote_state.af_south_1.outputs.af_south_s3_bucket_arn,
+      "${data.terraform_remote_state.af_south_1.outputs.af_south_s3_bucket_arn}/*",
     ]
   }
 
