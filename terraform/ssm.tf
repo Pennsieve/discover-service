@@ -327,6 +327,32 @@ resource "aws_ssm_parameter" "rejoin_bucket_access_glue_table" {
   value = "${var.rejoin_glue_catalog}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_table}"
 }
 
+// AF-SOUTH
+resource "aws_ssm_parameter" "af_south_s3_embargo_bucket_arn" {
+  name  = "/${var.environment_name}/${var.service_name}/af-south-1-embargo-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.africa_south_region.outputs.af_south_s3_embargo_bucket_id
+}
+
+resource "aws_ssm_parameter" "af_south_s3_discover_bucket_arn" {
+  name  = "/${var.environment_name}/${var.service_name}/af-south-1-discover-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.africa_south_region.outputs.af_south_s3_discover_bucket_id
+}
+
+resource "aws_ssm_parameter" "af_south_s3_logs_bucket_arn" {
+  name  = "/${var.environment_name}/${var.service_name}/af-south-1-log-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.africa_south_region.outputs.af_south_s3_logs_bucket_id
+}
+
+resource "aws_ssm_parameter" "af_south_s3_bucket_arn" {
+  name  = "/${var.environment_name}/${var.service_name}/af-south-1-storage-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.africa_south_region.outputs.af_south_s3_bucket_id
+}
+
+
 // SNS CONFIGURATION
 
 # resource "aws_ssm_parameter" "sns_alert_topic" {
