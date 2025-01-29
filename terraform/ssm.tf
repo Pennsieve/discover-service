@@ -349,7 +349,7 @@ resource "aws_ssm_parameter" "af_south_s3_logs_bucket_arn" {
 resource "aws_ssm_parameter" "af_south_s3_bucket_arn" {
   name  = "/${var.environment_name}/${var.service_name}/af-south-1-storage-bucket"
   type  = "String"
-  value = data.terraform_remote_state.africa_south_region.outputs.af_south_s3_bucket_id
+  value = data.terraform_remote_state.africa_south_region.outputs.af_south_s3_storage_bucket_id
 }
 
 
