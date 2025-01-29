@@ -327,7 +327,6 @@ resource "aws_ssm_parameter" "rejoin_bucket_access_glue_table" {
   value = "${var.rejoin_glue_catalog}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}.${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_table}"
 }
 
-
 // SNS CONFIGURATION
 
 # resource "aws_ssm_parameter" "sns_alert_topic" {
