@@ -162,8 +162,8 @@ data "aws_iam_policy_document" "iam_policy_document" {
       "${data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_arn}/*",
       data.terraform_remote_state.africa_south_region.outputs.af_south_s3_discover_bucket_arn,
       "${data.terraform_remote_state.africa_south_region.outputs.af_south_s3_discover_bucket_arn}/*",
-      data.terraform_remote_state.africa_south_region.outputs.regional_embargo_discover_bucket_arn,
-      "${data.terraform_remote_state.africa_south_region.outputs.regional_embargo_discover_bucket_arn}/*",
+      data.terraform_remote_state.africa_south_region.outputs.af_south_s3_embargo_bucket_arn,
+      "${data.terraform_remote_state.africa_south_region.outputs.af_south_s3_embargo_bucket_arn}/*",
     ]
   }
 
