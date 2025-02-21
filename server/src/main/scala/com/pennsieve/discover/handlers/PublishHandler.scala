@@ -226,6 +226,12 @@ class PublishHandler(
               case _ => requestedWorkflow
             }
 
+            // ensure we use the same S3 Bucket as previous published versions
+            destinationS3Bucket = latest match {
+              case Some(version) => version.s3Bucket
+              case None => targetS3Bucket
+            }
+
             version <- PublicDatasetVersionsMapper
               .create(
                 id = publicDataset.id,
@@ -238,7 +244,7 @@ class PublishHandler(
                   body.modelCount.map(o => o.modelName -> o.count).toMap,
                 fileCount = body.fileCount,
                 recordCount = body.recordCount,
-                s3Bucket = targetS3Bucket,
+                s3Bucket = destinationS3Bucket,
                 embargoReleaseDate =
                   if (shouldEmbargo) embargoReleaseDate else None,
                 doi = doi.doi,
