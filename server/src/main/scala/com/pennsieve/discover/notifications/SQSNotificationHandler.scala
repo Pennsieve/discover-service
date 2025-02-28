@@ -39,7 +39,12 @@ import com.pennsieve.discover.server.definitions.{
 import com.pennsieve.discover.{ Authenticator, Ports, UnauthorizedException }
 import com.pennsieve.doi.client.definitions.PublishDoiRequest
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
-import com.pennsieve.models.{ DatasetMetadata, FileManifest, PublishStatus }
+import com.pennsieve.models.{
+  DatasetMetadata,
+  DatasetType,
+  FileManifest,
+  PublishStatus
+}
 import com.pennsieve.service.utilities.LogContext
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
@@ -584,13 +589,23 @@ class SQSNotificationHandler(
         .map(_.getYear)
         .getOrElse(Calendar.getInstance().get(Calendar.YEAR))
 
+      doiRedirectUrl = publicDataset.datasetType match {
+        case DatasetType.Research =>
+          doiRedirect.getDatasetUrl(publicDataset.id, version.version)
+        case DatasetType.Release =>
+          doiRedirect.getReleaseUrl(publicDataset.id, version.version)
+        case _ =>
+          // TODO: do we need different values for Trial and Collection?
+          doiRedirect.getDatasetUrl(publicDataset.id, version.version)
+      }
+
       doi <- ports.doiClient.publishDoi(
         doi = version.doi,
         name = publicDataset.name,
         publicationYear = publicationYear,
         contributors = contributors,
         publisher = Some(doiRedirect.getPublisher()),
-        url = doiRedirect.getUrl(publicDataset.id, version.version),
+        url = doiRedirectUrl,
         owner = Some(
           InternalContributor(
             id = publicDataset.ownerId, //id is not used so the value does not matter

@@ -14,6 +14,7 @@ import akka.util.ByteString
 import com.pennsieve.models.{
   DatasetMetadata,
   DatasetMetadataV4_0,
+  DatasetMetadataV5_0,
   FileManifest,
   FileType
 }
@@ -214,6 +215,9 @@ class MockS3StreamClient extends S3StreamClient {
   val publishMetadata: mutable.Map[S3Key.Version, DatasetMetadataV4_0] =
     mutable.Map.empty
 
+  val publishMetadataV5_0: mutable.Map[S3Key.Version, DatasetMetadataV5_0] =
+    mutable.Map.empty
+
   val releaseResults = List.empty[ReleaseAction]
 
   def withNextPublishResult(key: S3Key.Version, result: PublishJobOutput) =
@@ -224,6 +228,12 @@ class MockS3StreamClient extends S3StreamClient {
     metadata: DatasetMetadataV4_0
   ) =
     publishMetadata += key -> metadata
+
+  def withNextPublishMetadata(
+    key: S3Key.Version,
+    metadata: DatasetMetadataV5_0
+  ) =
+    publishMetadataV5_0 += key -> metadata
 
   def readPublishJobOutput(
     version: PublicDatasetVersion

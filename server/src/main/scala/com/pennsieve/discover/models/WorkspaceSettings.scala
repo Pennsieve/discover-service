@@ -9,6 +9,7 @@ case class WorkspaceSettings(
   organizationId: Int,
   publisherName: String,
   redirectUrl: String,
+  redirectReleaseUrl: Option[String] = None,
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC)
 )
@@ -19,7 +20,9 @@ object WorkspaceSettings {
     WorkspaceSettings(
       organizationId = 0,
       publisherName = defaultPublisher,
-      redirectUrl = s"${publicUrl}/datasets/{{datasetId}}/version/{{versionId}}"
+      redirectUrl = s"${publicUrl}/datasets/{{datasetId}}/version/{{versionId}}",
+      redirectReleaseUrl =
+        Some(s"${publicUrl}/code/{{datasetId}}/version/{{versionId}}")
     )
 
   val tupled = (this.apply _).tupled
