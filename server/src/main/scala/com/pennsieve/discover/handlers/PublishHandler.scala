@@ -179,7 +179,7 @@ class PublishHandler(
             else
               DBIO.successful(())
 
-            latest <- PublicDatasetVersionsMapper
+            _ <- PublicDatasetVersionsMapper
               .getLatestVisibleVersion(publicDataset)
               .flatMap {
                 case Some(version) =>
@@ -212,6 +212,9 @@ class PublishHandler(
                 }
               }
             )
+
+            latest <- PublicDatasetVersionsMapper
+              .getLatestVisibleVersion(publicDataset)
 
             requestedWorkflow = body.workflowId.getOrElse(
               PublishingWorkflow.Version4
