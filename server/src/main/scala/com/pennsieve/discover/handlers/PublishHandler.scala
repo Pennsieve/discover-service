@@ -183,8 +183,8 @@ class PublishHandler(
               .getLatestVisibleVersion(publicDataset)
               .flatMap {
                 case Some(version) =>
-                  // TODO: rewrite this expression to be a more positive evaluation (improves readability)
-                  // TODO: may also need to reconsider this, given the check on Embargo Release Date in the past
+                  // if the current request is asking for embargo, and the latest published version is not under
+                  // embargo and the latest version is not unpublished, then the request is invalid and rejected.
                   if (requestedEmbargo && !version.underEmbargo && version.status != Unpublished) {
                     DBIO.failed(
                       ForbiddenException(
