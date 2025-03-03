@@ -357,7 +357,9 @@ object TestUtilities extends AwaitableImplicits {
     path: String,
     fileType: String,
     size: Long = 100,
-    sourcePackageId: Option[String] = None
+    sourcePackageId: Option[String] = None,
+    s3VersionId: Option[String] = None,
+    sha256: Option[String] = None
   )(implicit
     executionContext: ExecutionContext
   ): PublicFileVersion =
@@ -370,10 +372,17 @@ object TestUtilities extends AwaitableImplicits {
             fileType = FileType.Text,
             sourcePackageId = None,
             s3VersionId = version.migrated match {
-              case true => Some(defaultS3VersionId)
+              case true =>
+                s3VersionId match {
+                  case Some(s3VersionId) => Some(s3VersionId)
+                  case None => Some(defaultS3VersionId)
+                }
               case false => None
             }
-          )
+          ).withSHA256(sha256 match {
+              case Some(sha256) => sha256
+              case None => ""
+            })
         )
       )
       .awaitFinite()

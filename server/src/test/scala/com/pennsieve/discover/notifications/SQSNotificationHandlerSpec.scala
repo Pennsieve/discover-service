@@ -32,7 +32,9 @@ import com.pennsieve.discover.models.{
   PublicFileVersion,
   PublishJobOutput,
   PublishingWorkflow,
+  ReleaseActionV50,
   S3Bucket,
+  S3Key,
   WorkspaceSettings
 }
 import com.pennsieve.discover.db.{
@@ -193,35 +195,35 @@ class SQSNotificationHandlerSpec
       )
 
       // pushing the DOI is now done asynchronously via separate SQS Message request
-//      val actualDoi: DoiDTO = ports.doiClient
-//        .asInstanceOf[MockDoiClient]
-//        .dois(doi.doi)
-//      actualDoi.title shouldBe Some(publicDataset.name)
-//      actualDoi.creators shouldBe Some(List())
-//      actualDoi.publicationYear shouldBe Some(futureYear)
-//      actualDoi.url shouldBe Some(
-//        s"https://discover.pennsieve.org/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
-//      )
+      //      val actualDoi: DoiDTO = ports.doiClient
+      //        .asInstanceOf[MockDoiClient]
+      //        .dois(doi.doi)
+      //      actualDoi.title shouldBe Some(publicDataset.name)
+      //      actualDoi.creators shouldBe Some(List())
+      //      actualDoi.publicationYear shouldBe Some(futureYear)
+      //      actualDoi.url shouldBe Some(
+      //        s"https://discover.pennsieve.org/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
+      //      )
 
       // indexing the published dataset is now done asynchronously via separate SQS Message request
-//      val (
-//        indexedVersion,
-//        indexedRevision,
-//        indexedSponsorship,
-//        indexedFiles,
-//        indexedRecords
-//      ) =
-//        ports.searchClient
-//          .asInstanceOf[MockSearchClient]
-//          .indexedDatasets(publicDataset.id)
-//
-//      indexedVersion.version shouldBe publicDatasetV1.version
-//      indexedRevision shouldBe None
-//      indexedSponsorship shouldBe None
-//
-//      // From defaults in MockS3StreamClient
-//      indexedFiles.length shouldBe 2
-//      indexedRecords.length shouldBe 1
+      //      val (
+      //        indexedVersion,
+      //        indexedRevision,
+      //        indexedSponsorship,
+      //        indexedFiles,
+      //        indexedRecords
+      //      ) =
+      //        ports.searchClient
+      //          .asInstanceOf[MockSearchClient]
+      //          .indexedDatasets(publicDataset.id)
+      //
+      //      indexedVersion.version shouldBe publicDatasetV1.version
+      //      indexedRevision shouldBe None
+      //      indexedSponsorship shouldBe None
+      //
+      //      // From defaults in MockS3StreamClient
+      //      indexedFiles.length shouldBe 2
+      //      indexedRecords.length shouldBe 1
     }
 
     "update publish status as failed" in {
@@ -293,76 +295,6 @@ class SQSNotificationHandlerSpec
         .state shouldBe Some(DoiState.Draft)
 
     }
-
-    // this test is invalid -- indexing is now done asynchronously via separate SQS message
-//    "not index files and records for embargoed datasets" in {
-//      val publicDataset =
-//        TestUtilities.createDataset(ports.db)()
-//
-//      val doi = ports.doiClient
-//        .asInstanceOf[MockDoiClient]
-//        .createMockDoi(
-//          publicDataset.sourceOrganizationId,
-//          publicDataset.sourceDatasetId
-//        )
-//
-//      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
-//        id = publicDataset.id,
-//        status = PublishStatus.EmbargoInProgress,
-//        doi = doi.doi
-//      )
-//
-//      // Successful publish jobs create an outputs.json file
-//      ports.s3StreamClient
-//        .asInstanceOf[MockS3StreamClient]
-//        .withNextPublishResult(
-//          publicDatasetV1.s3Key,
-//          PublishJobOutput(
-//            readmeKey = publicDatasetV1.s3Key / "readme.md",
-//            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
-//            changelogKey = publicDatasetV1.s3Key / "changelog.md",
-//            totalSize = 76543
-//          )
-//        )
-//
-//      processNotification(
-//        PublishNotification(
-//          publicDataset.sourceOrganizationId,
-//          publicDataset.sourceDatasetId,
-//          PublishStatus.PublishSucceeded,
-//          publicDatasetV1.version
-//        )
-//      ) shouldBe an[MessageAction.Delete]
-//
-//      val publicVersion = ports.db
-//        .run(
-//          PublicDatasetVersionsMapper
-//            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
-//        )
-//        .awaitFinite()
-//
-//      inside(publicVersion) {
-//        case v: PublicDatasetVersion =>
-//          v.status shouldBe PublishStatus.EmbargoSucceeded
-//      }
-//
-//      val (
-//        indexedVersion,
-//        indexedRevision,
-//        indexedSponsorship,
-//        indexedFiles,
-//        indexedRecords
-//      ) =
-//        ports.searchClient
-//          .asInstanceOf[MockSearchClient]
-//          .indexedDatasets(publicDataset.id)
-//
-//      indexedVersion.version shouldBe publicDatasetV1.version
-//      indexedRevision shouldBe None
-//      indexedSponsorship shouldBe None
-//      indexedFiles shouldBe empty
-//      indexedRecords shouldBe empty
-//    }
 
     "update publish status as failed for embargoed datasets" in {
 
@@ -492,215 +424,304 @@ class SQSNotificationHandlerSpec
         .awaitFinite()
         .status shouldBe PublishStatus.NotPublished
     }
-  }
 
-  "release an embargoed dataset" in {
-    val datasetName = TestUtilities.randomString()
+    "release an embargoed dataset" in {
+      val datasetName = TestUtilities.randomString()
 
-    val publicDataset =
-      TestUtilities.createDataset(ports.db)(name = datasetName)
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
 
-    val doi = ports.doiClient
-      .asInstanceOf[MockDoiClient]
-      .createMockDoi(
-        publicDataset.sourceOrganizationId,
-        publicDataset.sourceDatasetId
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.ReleaseInProgress,
+        doi = doi.doi
       )
 
-    val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
-      id = publicDataset.id,
-      status = PublishStatus.ReleaseInProgress,
-      doi = doi.doi
-    )
+      TestUtilities.createFile(ports.db)(
+        publicDatasetV1,
+        "files/test.txt",
+        "TEXT"
+      )
 
-    TestUtilities.createFile(ports.db)(
-      publicDatasetV1,
-      "files/test.txt",
-      "TEXT"
-    )
+      processNotification(
+        ReleaseNotification(
+          organizationId = publicDataset.sourceOrganizationId,
+          datasetId = publicDataset.sourceDatasetId,
+          version = publicDatasetV1.version,
+          publishBucket = S3Bucket("publish-bucket"),
+          embargoBucket = S3Bucket("embargo-bucket"),
+          success = true
+        )
+      ) shouldBe an[MessageAction.Delete]
 
-    processNotification(
-      ReleaseNotification(
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+        )
+        .awaitFinite()
+
+      // Update S3 bucket to be public bucket, not embargo bucket
+      publicVersion.s3Bucket shouldBe S3Bucket("publish-bucket")
+
+      ports.pennsieveApiClient
+        .asInstanceOf[MockPennsieveApiClient]
+        .publishCompleteRequests shouldBe List(
+        (
+          DatasetPublishStatus(
+            publicDataset.name,
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId,
+            Some(publicDataset.id),
+            1,
+            PublishStatus.PublishSucceeded,
+            Some(publicVersion.createdAt),
+            workflowId = PublishingWorkflow.Version4
+          ),
+          None
+        )
+      )
+
+      val (
+        indexedVersion,
+        indexedRevision,
+        indexedSponsorship,
+        indexedFiles,
+        indexedRecords
+      ) =
+        ports.searchClient
+          .asInstanceOf[MockSearchClient]
+          .indexedDatasets(publicDataset.id)
+
+      indexedVersion.version shouldBe publicDatasetV1.version
+      indexedRevision shouldBe None
+      indexedSponsorship shouldBe None
+
+      // From defaults in MockS3StreamClient
+      indexedFiles.length shouldBe 1
+      indexedRecords.length shouldBe 1
+    }
+
+    "update release status as failed" in {
+
+      val datasetName = TestUtilities.randomString()
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.ReleaseInProgress,
+        doi = doi.doi
+      )
+
+      TestUtilities.createFile(ports.db)(
+        publicDatasetV1,
+        "files/test.txt",
+        "TEXT"
+      )
+
+      val releaseNotification = ReleaseNotification(
         organizationId = publicDataset.sourceOrganizationId,
         datasetId = publicDataset.sourceDatasetId,
         version = publicDatasetV1.version,
         publishBucket = S3Bucket("publish-bucket"),
         embargoBucket = S3Bucket("embargo-bucket"),
-        success = true
-      )
-    ) shouldBe an[MessageAction.Delete]
-
-    val publicVersion = ports.db
-      .run(
-        PublicDatasetVersionsMapper
-          .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
-      )
-      .awaitFinite()
-
-    // Update S3 bucket to be public bucket, not embargo bucket
-    publicVersion.s3Bucket shouldBe S3Bucket("publish-bucket")
-
-    ports.pennsieveApiClient
-      .asInstanceOf[MockPennsieveApiClient]
-      .publishCompleteRequests shouldBe List(
-      (
-        DatasetPublishStatus(
-          publicDataset.name,
-          publicDataset.sourceOrganizationId,
-          publicDataset.sourceDatasetId,
-          Some(publicDataset.id),
-          1,
-          PublishStatus.PublishSucceeded,
-          Some(publicVersion.createdAt),
-          workflowId = PublishingWorkflow.Version4
-        ),
-        None
-      )
-    )
-
-    val (
-      indexedVersion,
-      indexedRevision,
-      indexedSponsorship,
-      indexedFiles,
-      indexedRecords
-    ) =
-      ports.searchClient
-        .asInstanceOf[MockSearchClient]
-        .indexedDatasets(publicDataset.id)
-
-    indexedVersion.version shouldBe publicDatasetV1.version
-    indexedRevision shouldBe None
-    indexedSponsorship shouldBe None
-
-    // From defaults in MockS3StreamClient
-    indexedFiles.length shouldBe 1
-    indexedRecords.length shouldBe 1
-  }
-
-  "update release status as failed" in {
-
-    val datasetName = TestUtilities.randomString()
-
-    val publicDataset =
-      TestUtilities.createDataset(ports.db)(name = datasetName)
-
-    val doi = ports.doiClient
-      .asInstanceOf[MockDoiClient]
-      .createMockDoi(
-        publicDataset.sourceOrganizationId,
-        publicDataset.sourceDatasetId
+        success = false,
+        Some("Error, error!")
       )
 
-    val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
-      id = publicDataset.id,
-      status = PublishStatus.ReleaseInProgress,
-      doi = doi.doi
-    )
+      processNotification(releaseNotification) shouldBe an[MessageAction.Delete]
 
-    TestUtilities.createFile(ports.db)(
-      publicDatasetV1,
-      "files/test.txt",
-      "TEXT"
-    )
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+        )
+        .awaitFinite()
 
-    val releaseNotification = ReleaseNotification(
-      organizationId = publicDataset.sourceOrganizationId,
-      datasetId = publicDataset.sourceDatasetId,
-      version = publicDatasetV1.version,
-      publishBucket = S3Bucket("publish-bucket"),
-      embargoBucket = S3Bucket("embargo-bucket"),
-      success = false,
-      Some("Error, error!")
-    )
+      publicVersion.s3Bucket shouldBe S3Bucket("embargo-bucket")
+      publicVersion.status shouldBe PublishStatus.ReleaseFailed
 
-    processNotification(releaseNotification) shouldBe an[MessageAction.Delete]
-
-    val publicVersion = ports.db
-      .run(
-        PublicDatasetVersionsMapper
-          .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+      ports.pennsieveApiClient
+        .asInstanceOf[MockPennsieveApiClient]
+        .publishCompleteRequests shouldBe List(
+        (
+          DatasetPublishStatus(
+            publicDataset.name,
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId,
+            Some(publicDataset.id),
+            0,
+            PublishStatus.ReleaseFailed,
+            Some(publicVersion.createdAt),
+            workflowId = PublishingWorkflow.Version4
+          ),
+          Some(s"Version ${publicVersion.version} failed to release")
+        )
       )
-      .awaitFinite()
+    }
 
-    publicVersion.s3Bucket shouldBe S3Bucket("embargo-bucket")
-    publicVersion.status shouldBe PublishStatus.ReleaseFailed
+    "periodically notify Pennsieve API to start release workflow" in {
+      val version1 =
+        TestUtilities.createDatasetV1(ports.db)(
+          sourceOrganizationId = 1,
+          sourceDatasetId = 3,
+          status = PublishStatus.EmbargoSucceeded,
+          embargoReleaseDate = Some(LocalDate.now)
+        )
 
-    ports.pennsieveApiClient
-      .asInstanceOf[MockPennsieveApiClient]
-      .publishCompleteRequests shouldBe List(
-      (
-        DatasetPublishStatus(
-          publicDataset.name,
-          publicDataset.sourceOrganizationId,
-          publicDataset.sourceDatasetId,
-          Some(publicDataset.id),
-          0,
-          PublishStatus.ReleaseFailed,
-          Some(publicVersion.createdAt),
-          workflowId = PublishingWorkflow.Version4
-        ),
-        Some(s"Version ${publicVersion.version} failed to release")
-      )
-    )
-  }
+      val version2 =
+        TestUtilities.createDatasetV1(ports.db)(
+          sourceOrganizationId = 1,
+          sourceDatasetId = 5,
+          status = PublishStatus.PublishSucceeded,
+          embargoReleaseDate = Some(LocalDate.now)
+        )
 
-  "periodically notify Pennsieve API to start release workflow" in {
-    val version1 =
+      processNotification(ScanForReleaseNotification()) shouldBe an[
+        MessageAction.Delete
+      ]
+
+      ports.pennsieveApiClient
+        .asInstanceOf[MockPennsieveApiClient]
+        .startReleaseRequests shouldBe List((1, 3))
+    }
+
+    "start release workflow for datasets with release dates in the past" in {
       TestUtilities.createDatasetV1(ports.db)(
         sourceOrganizationId = 1,
         sourceDatasetId = 3,
         status = PublishStatus.EmbargoSucceeded,
-        embargoReleaseDate = Some(LocalDate.now)
+        embargoReleaseDate = Some(LocalDate.now.minusWeeks(1))
       )
 
-    val version2 =
+      processNotification(ScanForReleaseNotification()) shouldBe an[
+        MessageAction.Delete
+      ]
+
+      ports.pennsieveApiClient
+        .asInstanceOf[MockPennsieveApiClient]
+        .startReleaseRequests shouldBe List((1, 3))
+    }
+
+    "do not start release workflow for datasets with release dates in the future" in {
       TestUtilities.createDatasetV1(ports.db)(
-        sourceOrganizationId = 1,
-        sourceDatasetId = 5,
-        status = PublishStatus.PublishSucceeded,
-        embargoReleaseDate = Some(LocalDate.now)
+        status = PublishStatus.EmbargoSucceeded,
+        embargoReleaseDate = Some(LocalDate.now.plusDays(1))
       )
 
-    processNotification(ScanForReleaseNotification()) shouldBe an[
-      MessageAction.Delete
-    ]
+      processNotification(ScanForReleaseNotification()) shouldBe an[
+        MessageAction.Delete
+      ]
 
-    ports.pennsieveApiClient
-      .asInstanceOf[MockPennsieveApiClient]
-      .startReleaseRequests shouldBe List((1, 3))
-  }
+      ports.pennsieveApiClient
+        .asInstanceOf[MockPennsieveApiClient]
+        .startReleaseRequests shouldBe empty
+    }
 
-  "start release workflow for datasets with release dates in the past" in {
-    TestUtilities.createDatasetV1(ports.db)(
-      sourceOrganizationId = 1,
-      sourceDatasetId = 3,
-      status = PublishStatus.EmbargoSucceeded,
-      embargoReleaseDate = Some(LocalDate.now.minusWeeks(1))
-    )
+    "update S3 Version Id and SHA256 when release completes" in {
+      val sourceOrganizationId = 1
+      val sourceDatasetId = 15
 
-    processNotification(ScanForReleaseNotification()) shouldBe an[
-      MessageAction.Delete
-    ]
+      // create a dataset
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(
+          sourceOrganizationId = sourceOrganizationId,
+          sourceDatasetId = sourceDatasetId
+        )
 
-    ports.pennsieveApiClient
-      .asInstanceOf[MockPennsieveApiClient]
-      .startReleaseRequests shouldBe List((1, 3))
-  }
+      // create a dataset version, status = EmbargoSucceeded
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
 
-  "do not start release workflow for datasets with release dates in the future" in {
-    TestUtilities.createDatasetV1(ports.db)(
-      status = PublishStatus.EmbargoSucceeded,
-      embargoReleaseDate = Some(LocalDate.now.plusDays(1))
-    )
+      val publicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = publicDataset.id,
+          status = PublishStatus.EmbargoSucceeded,
+          doi = doi.doi,
+          migrated = true
+        )
 
-    processNotification(ScanForReleaseNotification()) shouldBe an[
-      MessageAction.Delete
-    ]
+      // create a file with path = {datasetId}/files/data/source.dat, S3 Version Id = x1, SHA256 = y1
+      val path = "files/data/source.dat"
+      val s3Key = s"${publicDataset.id}/${path}"
+      val publicFileVersionEmbargoed = TestUtilities.createFile(ports.db)(
+        publicDatasetVersion,
+        path,
+        FileType.GenericData.toString,
+        12345,
+        None,
+        Some("x1"),
+        Some("y1")
+      )
 
-    ports.pennsieveApiClient
-      .asInstanceOf[MockPennsieveApiClient]
-      .startReleaseRequests shouldBe empty
+      // upload release results to Mock S3 Stream Client -
+      //   path = {datasetId}/files/data/source.dat, S3 Version Id = x2, SHA256 = y2
+      val results = List(
+        ReleaseActionV50(
+          sourceBucket = "embargo-bucket",
+          sourceKey = s3Key,
+          sourceSize = "12345",
+          sourceVersionId = "x1",
+          sourceEtag = "none",
+          sourceSha256 = "y1",
+          targetBucket = "bucket",
+          targetKey = s3Key,
+          targetSize = "12345",
+          targetVersionId = "x2",
+          targetEtag = "none",
+          targetSha256 = "y2"
+        )
+      )
+      val _ = ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .storeReleaseResults(publicDatasetVersion, results)
+        .await
+
+      // processNotification(...)
+      processNotification(
+        ReleaseNotification(
+          organizationId = sourceOrganizationId,
+          datasetId = sourceDatasetId,
+          version = publicDatasetVersion.version,
+          publishBucket = S3Bucket("bucket"),
+          embargoBucket = S3Bucket("embargo-bucket"),
+          success = true,
+          error = None
+        )
+      ) shouldBe an[MessageAction.Delete]
+
+      // get PublicFileVersion
+      val publicFileVersionReleased = ports.db
+        .run(
+          PublicFileVersionsMapper
+            .getFileVersion(publicDataset.id, S3Key.File(s3Key), "x2")
+        )
+        .await
+
+      // check S3 Version Id and SHA256
+      publicFileVersionReleased.s3Version shouldBe ("x2")
+      publicFileVersionReleased.sha256.get shouldBe ("y2")
+    }
   }
 
   "Discover Service SQS Queue Handler" should {
