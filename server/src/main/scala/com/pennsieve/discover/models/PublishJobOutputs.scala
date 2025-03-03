@@ -32,22 +32,6 @@ object PublishJobOutput {
     deriveDecoder[PublishJobOutput]
 }
 
-case class ReleaseAction(
-  sourceBucket: String,
-  sourceKey: String,
-  sourceVersion: String,
-  targetBucket: String,
-  targetKey: String,
-  targetVersion: String
-)
-
-object ReleaseAction {
-  implicit val encoder: Encoder[ReleaseAction] =
-    deriveEncoder[ReleaseAction]
-  implicit val decoder: Decoder[ReleaseAction] =
-    deriveDecoder[ReleaseAction]
-}
-
 case class ReleaseActionV50(
   sourceBucket: String,
   sourceKey: String,
@@ -64,7 +48,8 @@ case class ReleaseActionV50(
 )
 
 object ReleaseActionV50 {
-  implicit val encoder: Encoder[ReleaseActionV50] = deriveEncoder[ReleaseActionV50]
+  implicit val encoder: Encoder[ReleaseActionV50] =
+    deriveEncoder[ReleaseActionV50]
   implicit val decoder: Decoder[ReleaseActionV50] = Decoder.forProduct12(
     "source_bucket",
     "source_key",

@@ -162,7 +162,7 @@ trait S3StreamClient {
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[List[ReleaseAction]]
+  ): Future[List[ReleaseActionV50]]
 
   def deletePublishJobOutput(
     version: PublicDatasetVersion
@@ -988,7 +988,7 @@ class AlpakkaS3StreamClient(
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[List[ReleaseAction]] =
+  ): Future[List[ReleaseActionV50]] =
     for {
       (source, _) <- s3FileSource(
         version.s3Bucket,
@@ -1000,7 +1000,7 @@ class AlpakkaS3StreamClient(
         .runWith(Sink.fold(ByteString.empty)(_ ++ _))
         .map(_.utf8String)
 
-      output <- decode[List[ReleaseAction]](content)
+      output <- decode[List[ReleaseActionV50]](content)
         .fold(Future.failed, Future.successful)
 
     } yield output

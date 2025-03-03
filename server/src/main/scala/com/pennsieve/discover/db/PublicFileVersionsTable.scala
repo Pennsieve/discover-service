@@ -19,7 +19,7 @@ import com.pennsieve.discover.models.{
   PublicDatasetVersionFile,
   PublicFile,
   PublicFileVersion,
-  ReleaseAction,
+  ReleaseActionV50,
   S3Bucket,
   S3Key
 }
@@ -432,9 +432,10 @@ object PublicFileVersionsMapper
     }.transactionally
   }
 
-  def setS3Version(
+  private def setReleaseUpdates(
     fileVersion: PublicFileVersion,
-    s3Version: String
+    s3Version: String,
+    sha256: Option[String]
   )(implicit
     ec: ExecutionContext
   ): DBIOAction[
@@ -442,16 +443,16 @@ object PublicFileVersionsMapper
     NoStream,
     Effect.Write with Effect.Transactional with Effect
   ] = {
-    val updated = fileVersion.copy(s3Version = s3Version)
+    val updated = fileVersion.copy(s3Version = s3Version, sha256 = sha256)
     this
       .filter(_.id === fileVersion.id)
       .update(updated)
       .map(_ => updated)
   }
 
-  def updateS3Version(
+  private def updateFromReleaseAction(
     version: PublicDatasetVersion,
-    action: ReleaseAction
+    action: ReleaseActionV50
   )(implicit
     ec: ExecutionContext
   ): DBIOAction[
@@ -461,12 +462,19 @@ object PublicFileVersionsMapper
   ] =
     for {
       fileVersion <- getFileForVersion(version, S3Key.File(action.sourceKey))
-      updated <- setS3Version(fileVersion, action.targetVersion)
+      updated <- setReleaseUpdates(
+        fileVersion,
+        action.targetVersionId,
+        action.targetSha256 match {
+          case "none" => None
+          case _ => Some(action.targetSha256)
+        }
+      )
     } yield updated
 
-  def updateManyS3Versions(
+  def updateManyReleases(
     version: PublicDatasetVersion,
-    actions: List[ReleaseAction]
+    actions: List[ReleaseActionV50]
   )(implicit
     ec: ExecutionContext
   ): DBIOAction[
@@ -477,7 +485,7 @@ object PublicFileVersionsMapper
     DBIO
       .sequence(
         actions
-          .map(action => updateS3Version(version, action))
+          .map(action => updateFromReleaseAction(version, action))
       )
       .map(_ => Done)
       .transactionally

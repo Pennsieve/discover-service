@@ -553,7 +553,7 @@ class SQSNotificationHandler(
     for {
       releaseResult <- ports.s3StreamClient.readReleaseResult(version)
       _ <- ports.db.run(
-        PublicFileVersionsMapper.updateManyS3Versions(version, releaseResult)
+        PublicFileVersionsMapper.updateManyReleases(version, releaseResult)
       )
 
     } yield ()
