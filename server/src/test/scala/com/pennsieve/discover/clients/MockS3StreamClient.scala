@@ -264,8 +264,8 @@ class MockS3StreamClient extends S3StreamClient {
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[Unit] =
-    Future(
+  ): Future[Boolean] =
+    Future {
       releaseResults.remove(
         S3Key.Version(
           version.datasetId,
@@ -273,7 +273,8 @@ class MockS3StreamClient extends S3StreamClient {
           migrated = version.migrated
         )
       )
-    )
+      true
+    }
 
   def storeReleaseResults(
     version: PublicDatasetVersion,

@@ -170,7 +170,7 @@ trait S3StreamClient {
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[Unit]
+  ): Future[Boolean]
 
   def deletePublishJobOutput(
     version: PublicDatasetVersion
@@ -1018,8 +1018,11 @@ class AlpakkaS3StreamClient(
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[Unit] =
-    Future(s3DeleteObject(version.s3Bucket, releaseResultKey(version), None))
+  ): Future[Boolean] =
+    (for {
+      _ <- s3DeleteObject(version.s3Bucket, releaseResultKey(version), None)
+    } yield true)
+      .recover { case _: Throwable => false }
 
   private def s3Headers(isRequesterPays: Boolean): S3Headers =
     if (!isRequesterPays) S3Headers.empty
