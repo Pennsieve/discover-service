@@ -472,7 +472,7 @@ object PublicFileVersionsMapper
       )
     } yield updated
 
-  def updateManyReleases(
+  def updateReleasedFiles(
     version: PublicDatasetVersion,
     actions: List[ReleaseActionV50]
   )(implicit
