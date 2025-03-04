@@ -532,7 +532,13 @@ class SQSNotificationHandler(
           Future.successful(())
       }
 
-      // TODO: if migrated, then delete discover-release-results.json
+      // if migrated, then delete discover-release-results.json
+      _ = ports.config.runtimeSettings.deleteReleaseIntermediateFile match {
+        case true =>
+          ports.s3StreamClient.deleteReleaseResult(updatedVersion)
+        case false =>
+          Future.successful(true)
+      }
 
       _ <- ports.pennsieveApiClient
         .putPublishComplete(publishStatus, None)

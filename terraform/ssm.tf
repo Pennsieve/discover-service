@@ -347,3 +347,10 @@ resource "aws_ssm_parameter" "rejoin_bucket_access_glue_table" {
 #   type  = "String"
 #   value = data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_id
 # }
+
+// Runtime settings
+resource "aws_ssm_parameter" "delete_release_intermediate_file" {
+  name = "/${var.environment_name}/${var.service_name}/delete-release-intermediate-file"
+  type = "String"
+  value = "false"
+}
