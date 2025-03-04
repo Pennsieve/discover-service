@@ -1019,7 +1019,7 @@ class AlpakkaS3StreamClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[Unit] =
-    Future(())
+    Future(s3DeleteObject(version.s3Bucket, releaseResultKey(version), None))
 
   private def s3Headers(isRequesterPays: Boolean): S3Headers =
     if (!isRequesterPays) S3Headers.empty
