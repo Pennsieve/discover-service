@@ -259,6 +259,22 @@ class MockS3StreamClient extends S3StreamClient {
       )
     )
 
+  def deleteReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[Unit] =
+    Future(
+      releaseResults.remove(
+        S3Key.Version(
+          version.datasetId,
+          version = version.version,
+          migrated = version.migrated
+        )
+      )
+    )
+
   def storeReleaseResults(
     version: PublicDatasetVersion,
     results: List[ReleaseActionV50]
