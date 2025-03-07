@@ -664,15 +664,16 @@ class SQSNotificationHandlerSpec
       // create a file with path = {datasetId}/files/data/source.dat, S3 Version Id = x1, SHA256 = y1
       val path = "files/data/source.dat"
       val s3Key = s"${publicDataset.id}/${path}"
-      val publicFileVersionEmbargoed = TestUtilities.createFile(ports.db)(
-        publicDatasetVersion,
-        path,
-        FileType.GenericData.toString,
-        12345,
-        None,
-        Some("x1"),
-        Some("y1")
-      )
+      val publicFileVersionEmbargoed =
+        TestUtilities.createFileWithSha256(ports.db)(
+          publicDatasetVersion,
+          path,
+          FileType.GenericData.toString,
+          12345,
+          None,
+          Some("x1"),
+          "y1"
+        )
 
       // upload release results to Mock S3 Stream Client -
       //   path = {datasetId}/files/data/source.dat, S3 Version Id = x2, SHA256 = y2
