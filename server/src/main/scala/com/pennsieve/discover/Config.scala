@@ -32,7 +32,8 @@ case class Config(
   authorizationService: AuthorizationConfiguration,
   download: DownloadConfiguration,
   externalPublishBuckets: Map[S3Bucket, Arn] = Map.empty,
-  athena: AthenaConfig
+  athena: AthenaConfig,
+  runtimeSettings: RuntimeSettings
 )
 
 object Config {
@@ -126,3 +127,5 @@ case class AthenaConfig(
   sparcBucketAccessTable: String,
   rejoinBucketAccessTable: String
 )
+
+case class RuntimeSettings(deleteReleaseIntermediateFile: Boolean)

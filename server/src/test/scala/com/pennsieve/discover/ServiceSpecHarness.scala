@@ -115,7 +115,8 @@ trait ServiceSpecHarness
           "sparc_glue_catalog.dev_s3_access_logs_db.discover",
         rejoinBucketAccessTable =
           "rejoin_glue_catalog.dev_s3_access_logs_db.discover"
-      )
+      ),
+      runtimeSettings = RuntimeSettings(deleteReleaseIntermediateFile = false)
     )
 
   def getPorts(config: Config): Ports = {

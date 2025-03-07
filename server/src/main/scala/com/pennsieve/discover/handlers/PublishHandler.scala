@@ -179,12 +179,12 @@ class PublishHandler(
             else
               DBIO.successful(())
 
-            latest <- PublicDatasetVersionsMapper
+            _ <- PublicDatasetVersionsMapper
               .getLatestVisibleVersion(publicDataset)
               .flatMap {
                 case Some(version) =>
-                  // TODO: rewrite this expression to be a more positive evaluation (improves readability)
-                  // TODO: may also need to reconsider this, given the check on Embargo Release Date in the past
+                  // if the current request is asking for embargo, and the latest published version is not under
+                  // embargo and the latest version is not unpublished, then the request is invalid and rejected.
                   if (requestedEmbargo && !version.underEmbargo && version.status != Unpublished) {
                     DBIO.failed(
                       ForbiddenException(
@@ -213,6 +213,9 @@ class PublishHandler(
               }
             )
 
+            latest <- PublicDatasetVersionsMapper
+              .getLatestVisibleVersion(publicDataset)
+
             requestedWorkflow = body.workflowId.getOrElse(
               PublishingWorkflow.Version4
             )
@@ -224,6 +227,12 @@ class PublishHandler(
               case Some(version) if !version.migrated =>
                 PublishingWorkflow.Version4
               case _ => requestedWorkflow
+            }
+
+            // ensure we use the same S3 Bucket as previous published versions
+            destinationS3Bucket = latest match {
+              case Some(version) => version.s3Bucket
+              case None => targetS3Bucket
             }
 
             version <- PublicDatasetVersionsMapper
@@ -238,7 +247,7 @@ class PublishHandler(
                   body.modelCount.map(o => o.modelName -> o.count).toMap,
                 fileCount = body.fileCount,
                 recordCount = body.recordCount,
-                s3Bucket = targetS3Bucket,
+                s3Bucket = destinationS3Bucket,
                 embargoReleaseDate =
                   if (shouldEmbargo) embargoReleaseDate else None,
                 doi = doi.doi,

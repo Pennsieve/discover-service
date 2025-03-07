@@ -507,5 +507,86 @@ class JsonEncodingSpec extends AnyWordSpec with Suite with Matchers {
       val decoded = decode[PublicDatasetDto](jsonString)
       decoded.isRight shouldBe true
     }
+
+    "decode a release result V5.0" in {
+      val jsonString =
+        s"""
+           |[
+           |  {
+           |    "source_bucket": "embargo-bucket",
+           |    "source_key": "5125/files/data/source-0.dat",
+           |    "source_size": "4742331076932",
+           |    "source_version_id": "Yu226jh9HZEZuPMm",
+           |    "source_etag": "IAOqXjhaztsG",
+           |    "source_sha256": "kp3MfoV3kWX2DO4uqOYj8hKo",
+           |    "target_bucket": "publish-bucket",
+           |    "target_key": "5125/files/data/source-0.dat",
+           |    "target_size": "4742331076932",
+           |    "target_version_id": "TeaY1sV7Vo000CKI",
+           |    "target_etag": "OEQR4Fn4JEis",
+           |    "target_sha256": "dr7bO3eVqee2jQvgnkEqqs8Q"
+           |  },
+           |  {
+           |    "source_bucket": "embargo-bucket",
+           |    "source_key": "5125/files/data/source-1.dat",
+           |    "source_size": "4178022176514",
+           |    "source_version_id": "1x76Keaufom9JsDr",
+           |    "source_etag": "Ybc9SKjarN0R",
+           |    "source_sha256": "2kvjORLN622LXoklC1jlqFsX",
+           |    "target_bucket": "publish-bucket",
+           |    "target_key": "5125/files/data/source-1.dat",
+           |    "target_size": "4178022176514",
+           |    "target_version_id": "V2dsjBzIDH6JZJ1q",
+           |    "target_etag": "w4Lymba4XTHr",
+           |    "target_sha256": "MMK6o4NKW0uSVsLlssvs9Anp"
+           |  },
+           |  {
+           |    "source_bucket": "embargo-bucket",
+           |    "source_key": "5125/files/data/source-2.dat",
+           |    "source_size": "1187153020914",
+           |    "source_version_id": "aNvPuGvNgJH2NNkB",
+           |    "source_etag": "EG4sjAuYnmHJ",
+           |    "source_sha256": "k8stpDnQaoI5zHwLyPCtSBQb",
+           |    "target_bucket": "publish-bucket",
+           |    "target_key": "5125/files/data/source-2.dat",
+           |    "target_size": "1187153020914",
+           |    "target_version_id": "eskZ6l7fA1CqUbDZ",
+           |    "target_etag": "IrlOHsEVYGON",
+           |    "target_sha256": "w5VmUCQ5WHs7wwNwRflcpCYB"
+           |  },
+           |  {
+           |    "source_bucket": "embargo-bucket",
+           |    "source_key": "5125/files/data/source-3.dat",
+           |    "source_size": "4009136485934",
+           |    "source_version_id": "I2KXz59q3S71ZA2E",
+           |    "source_etag": "POKIH8x3gvM3",
+           |    "source_sha256": "DVt9Dw8cI9b0gkRE8ioRmAfE",
+           |    "target_bucket": "publish-bucket",
+           |    "target_key": "5125/files/data/source-3.dat",
+           |    "target_size": "4009136485934",
+           |    "target_version_id": "fdmZRK9gw9SWR18x",
+           |    "target_etag": "nrzBmBt1E6oW",
+           |    "target_sha256": "s7o2bslcQANHkES64rwBy3gK"
+           |  },
+           |  {
+           |    "source_bucket": "embargo-bucket",
+           |    "source_key": "5125/files/data/source-4.dat",
+           |    "source_size": "78740955173",
+           |    "source_version_id": "es27PWaErvRWWADf",
+           |    "source_etag": "SebTFT8lNdp1",
+           |    "source_sha256": "NcEayL0VMeLWIb2bkMNGC3c1",
+           |    "target_bucket": "publish-bucket",
+           |    "target_key": "5125/files/data/source-4.dat",
+           |    "target_size": "78740955173",
+           |    "target_version_id": "funOSyUdSYYox51R",
+           |    "target_etag": "WIfHl2y3qrCG",
+           |    "target_sha256": "nR2Of7CBX7FsjzkyzgTFRqIU"
+           |  }
+           |]
+           |""".stripMargin
+
+      val decoded = decode[List[ReleaseActionV50]](jsonString)
+      decoded.isRight shouldBe true
+    }
   }
 }

@@ -2260,4 +2260,120 @@ class PublishHandlerSpec
     }
   }
 
+  "Publishing Dataset Versions" should {
+    "use the same S3 Bucket for all versions" in {
+      val publishBucket = s"publish-bucket-${organizationId}"
+      val embargoBucket = s"embargo-bucket-${organizationId}"
+      val bucketConfig1 = definitions.BucketConfig(
+        publish = publishBucket,
+        embargo = embargoBucket
+      )
+
+      val datasetName = "this is a test dataset published multiple times"
+
+      val requestBody1: definitions.PublishRequest = definitions.PublishRequest(
+        name = datasetName,
+        description = "A very very long description...",
+        ownerId = 1,
+        modelCount = Vector(definitions.ModelCount("myConcept", 100L)),
+        recordCount = 100L,
+        fileCount = 100L,
+        size = 5555555L,
+        license = License.`Apache 2.0`,
+        contributors = Vector(internalContributor),
+        externalPublications = Some(Vector(internalExternalPublication)),
+        tags = Vector[String]("tag1", "tag2"),
+        ownerNodeId = ownerNodeId,
+        ownerFirstName = ownerFirstName,
+        ownerLastName = ownerLastName,
+        ownerOrcid = ownerOrcid,
+        organizationNodeId = organizationNodeId,
+        organizationName = organizationName,
+        datasetNodeId = datasetNodeId,
+        bucketConfig = Some(bucketConfig1),
+        workflowId = Some(5)
+      )
+
+      // publish initial dataset version with bucket config {publish: A, embargo: B}
+      val _ = client
+        .publish(organizationId, datasetId, None, None, requestBody1, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion1 = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      publicVersion1.version shouldBe 1
+      publicVersion1.s3Bucket shouldBe S3Bucket(publishBucket)
+
+      // "Complete" the publish job
+      publishSuccessfully(publicDataset, publicVersion1)
+
+      // publish next dataset version with bucket config {publish: C, embargo: D}
+      val publishBucket2 = s"publish-bucket2-${organizationId}"
+      val embargoBucket2 = s"embargo-bucket2-${organizationId}"
+      val bucketConfig2 = definitions.BucketConfig(
+        publish = publishBucket2,
+        embargo = embargoBucket2
+      )
+
+      val requestBody2: definitions.PublishRequest = definitions.PublishRequest(
+        name = datasetName,
+        description = "A very very long description...",
+        ownerId = 1,
+        modelCount = Vector(definitions.ModelCount("myConcept", 100L)),
+        recordCount = 100L,
+        fileCount = 100L,
+        size = 5555555L,
+        license = License.`Apache 2.0`,
+        contributors = Vector(internalContributor),
+        externalPublications = Some(Vector(internalExternalPublication)),
+        tags = Vector[String]("tag1", "tag2"),
+        ownerNodeId = ownerNodeId,
+        ownerFirstName = ownerFirstName,
+        ownerLastName = ownerLastName,
+        ownerOrcid = ownerOrcid,
+        organizationNodeId = organizationNodeId,
+        organizationName = organizationName,
+        datasetNodeId = datasetNodeId,
+        bucketConfig = Some(bucketConfig2),
+        workflowId = Some(5)
+      )
+
+      val _ = client
+        .publish(organizationId, datasetId, None, None, requestBody2, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicVersion2 = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      // check that datasetVersion1.s3Bucket == datasetVersion2.s3Bucket
+      publicVersion2.version shouldBe 2
+      publicVersion2.s3Bucket shouldBe S3Bucket(publishBucket)
+    }
+
+  }
+
 }

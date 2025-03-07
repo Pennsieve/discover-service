@@ -58,6 +58,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{
   DeleteObjectRequest,
+  DeleteObjectResponse,
   GetObjectRequest,
   GetObjectResponse,
   PutObjectRequest,
@@ -162,7 +163,14 @@ trait S3StreamClient {
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[List[ReleaseAction]]
+  ): Future[List[ReleaseActionV50]]
+
+  def deleteReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[Boolean]
 
   def deletePublishJobOutput(
     version: PublicDatasetVersion
@@ -988,7 +996,7 @@ class AlpakkaS3StreamClient(
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[List[ReleaseAction]] =
+  ): Future[List[ReleaseActionV50]] =
     for {
       (source, _) <- s3FileSource(
         version.s3Bucket,
@@ -1000,10 +1008,21 @@ class AlpakkaS3StreamClient(
         .runWith(Sink.fold(ByteString.empty)(_ ++ _))
         .map(_.utf8String)
 
-      output <- decode[List[ReleaseAction]](content)
+      output <- decode[List[ReleaseActionV50]](content)
         .fold(Future.failed, Future.successful)
 
     } yield output
+
+  def deleteReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[Boolean] =
+    (for {
+      _ <- s3DeleteObject(version.s3Bucket, releaseResultKey(version), None)
+    } yield true)
+      .recover { case _: Throwable => false }
 
   private def s3Headers(isRequesterPays: Boolean): S3Headers =
     if (!isRequesterPays) S3Headers.empty
@@ -1282,6 +1301,47 @@ class AlpakkaS3StreamClient(
     }))
   }
 
+  private def s3DeleteObject(
+    bucket: S3Bucket,
+    key: S3Key.File,
+    versionId: Option[String] = None
+  )(implicit
+    ec: ExecutionContext
+  ): Future[DeleteObjectResponse] =
+    Future {
+      val credentialsProvider =
+        getCachedAssumeRoleCredentialsProvider(bucket)
+
+      var builder = DeleteObjectRequest
+        .builder()
+        .bucket(bucket.value)
+        .key(key.value)
+        .requestPayer(RequestPayer.REQUESTER)
+
+      builder = credentialsProvider match {
+        case Some(credentialsProvider) =>
+          logger.info(s"s3DeleteObject() adding credentialsProvider to request")
+          builder.overrideConfiguration(
+            AwsRequestOverrideConfiguration
+              .builder()
+              .credentialsProvider(credentialsProvider)
+              .build()
+          )
+        case None =>
+          builder
+      }
+
+      builder = versionId match {
+        case Some(versionId) =>
+          builder.versionId(versionId)
+        case None =>
+          builder
+      }
+
+      val request = builder.build()
+      s3Client.deleteObject(request)
+    }
+
   private def s3OperationGetObject(
     request: S3OperationRequest
   )(implicit
@@ -1335,43 +1395,16 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[S3OperationResponse] =
     Future {
-      val credentialsProvider =
-        getCachedAssumeRoleCredentialsProvider(S3Bucket(request.s3Bucket))
+      val response = s3DeleteObject(
+        S3Bucket(request.s3Bucket),
+        S3Key.File(request.s3Key),
+        request.s3Version
+      )
 
-      var builder = DeleteObjectRequest
-        .builder()
-        .bucket(request.s3Bucket)
-        .key(request.s3Key)
-        .requestPayer(RequestPayer.REQUESTER)
-
-      builder = credentialsProvider match {
-        case Some(credentialsProvider) =>
-          logger.info(
-            s"s3OperationDeleteObject() adding credentialsProvider to request"
-          )
-          builder.overrideConfiguration(
-            AwsRequestOverrideConfiguration
-              .builder()
-              .credentialsProvider(credentialsProvider)
-              .build()
-          )
-        case None =>
-          builder
-      }
-
-      builder = request.s3Version match {
-        case Some(versionId) =>
-          builder.versionId(versionId)
-        case None =>
-          builder
-      }
-
-      val s3request = builder.build()
-      val s3response = s3Client.deleteObject(s3request)
       S3OperationResponse(
         request = request,
         status = S3OperationStatus.SUCCESS,
-        message = Some(s3response.toString),
+        message = Some(response.toString),
         data = None
       )
 

@@ -15,12 +15,20 @@ final class WorkspaceSettingsTable(tag: Tag)
   def organizationId = column[Int]("organization_id")
   def publisherName = column[String]("publisher_name")
   def redirectUrl = column[String]("redirect_url")
+  def redirectReleaseUrl = column[Option[String]]("redirect_release_url")
   def createdAt = column[OffsetDateTime]("created_at")
   def updatedAt = column[OffsetDateTime]("updated_at")
 
   def * =
-    (id, organizationId, publisherName, redirectUrl, createdAt, updatedAt)
-      .mapTo[WorkspaceSettings]
+    (
+      id,
+      organizationId,
+      publisherName,
+      redirectUrl,
+      redirectReleaseUrl,
+      createdAt,
+      updatedAt
+    ).mapTo[WorkspaceSettings]
 }
 
 object WorkspaceSettingsMapper

@@ -357,7 +357,8 @@ object TestUtilities extends AwaitableImplicits {
     path: String,
     fileType: String,
     size: Long = 100,
-    sourcePackageId: Option[String] = None
+    sourcePackageId: Option[String] = None,
+    s3VersionId: Option[String] = None
   )(implicit
     executionContext: ExecutionContext
   ): PublicFileVersion =
@@ -370,10 +371,48 @@ object TestUtilities extends AwaitableImplicits {
             fileType = FileType.Text,
             sourcePackageId = None,
             s3VersionId = version.migrated match {
-              case true => Some(defaultS3VersionId)
+              case true =>
+                s3VersionId match {
+                  case Some(s3VersionId) => Some(s3VersionId)
+                  case None => Some(defaultS3VersionId)
+                }
               case false => None
             }
           )
+        )
+      )
+      .awaitFinite()
+
+  def createFileWithSha256(
+    db: Database
+  )(
+    version: PublicDatasetVersion,
+    path: String,
+    fileType: String,
+    size: Long = 100,
+    sourcePackageId: Option[String] = None,
+    s3VersionId: Option[String] = None,
+    sha256: String
+  )(implicit
+    executionContext: ExecutionContext
+  ): PublicFileVersion =
+    db.run(
+        PublicFileVersionsMapper.createAndLink(
+          version = version,
+          FileManifest(
+            path = path,
+            size = size,
+            fileType = FileType.Text,
+            sourcePackageId = None,
+            s3VersionId = version.migrated match {
+              case true =>
+                s3VersionId match {
+                  case Some(s3VersionId) => Some(s3VersionId)
+                  case None => Some(defaultS3VersionId)
+                }
+              case false => None
+            }
+          ).withSHA256(sha256)
         )
       )
       .awaitFinite()

@@ -14,6 +14,7 @@ import akka.util.ByteString
 import com.pennsieve.models.{
   DatasetMetadata,
   DatasetMetadataV4_0,
+  DatasetMetadataV5_0,
   FileManifest,
   FileType
 }
@@ -214,7 +215,11 @@ class MockS3StreamClient extends S3StreamClient {
   val publishMetadata: mutable.Map[S3Key.Version, DatasetMetadataV4_0] =
     mutable.Map.empty
 
-  val releaseResults = List.empty[ReleaseAction]
+  val publishMetadataV5_0: mutable.Map[S3Key.Version, DatasetMetadataV5_0] =
+    mutable.Map.empty
+
+  val releaseResults: mutable.Map[S3Key.Version, List[ReleaseActionV50]] =
+    mutable.Map.empty
 
   def withNextPublishResult(key: S3Key.Version, result: PublishJobOutput) =
     publishResults += key -> result
@@ -224,6 +229,12 @@ class MockS3StreamClient extends S3StreamClient {
     metadata: DatasetMetadataV4_0
   ) =
     publishMetadata += key -> metadata
+
+  def withNextPublishMetadata(
+    key: S3Key.Version,
+    metadata: DatasetMetadataV5_0
+  ) =
+    publishMetadataV5_0 += key -> metadata
 
   def readPublishJobOutput(
     version: PublicDatasetVersion
@@ -237,7 +248,50 @@ class MockS3StreamClient extends S3StreamClient {
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[List[ReleaseAction]] = Future(releaseResults)
+  ): Future[List[ReleaseActionV50]] =
+    Future(
+      releaseResults(
+        S3Key.Version(
+          version.datasetId,
+          version = version.version,
+          migrated = version.migrated
+        )
+      )
+    )
+
+  def deleteReleaseResult(
+    version: PublicDatasetVersion
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[Boolean] =
+    Future {
+      releaseResults.remove(
+        S3Key.Version(
+          version.datasetId,
+          version = version.version,
+          migrated = version.migrated
+        )
+      )
+      true
+    }
+
+  def storeReleaseResults(
+    version: PublicDatasetVersion,
+    results: List[ReleaseActionV50]
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[Unit] =
+    Future(
+      releaseResults(
+        S3Key.Version(
+          version.datasetId,
+          version = version.version,
+          migrated = version.migrated
+        )
+      ) = results
+    )
 
   def deletePublishJobOutput(
     version: PublicDatasetVersion

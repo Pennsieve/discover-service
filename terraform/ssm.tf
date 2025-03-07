@@ -276,6 +276,19 @@ resource "aws_ssm_parameter" "sparc_bucket_role_arn" {
   type  = "String"
   value = data.terraform_remote_state.platform_infrastructure.outputs.sparc_bucket_role_arn
 }
+
+resource "aws_ssm_parameter" "awsod_sparc_publish_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/awsod-sparc-publish-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.awsod_sparc_publish50_bucket_id
+}
+
+resource "aws_ssm_parameter" "awsod_sparc_bucket_role_arn" {
+  name  = "/${var.environment_name}/${var.service_name}/awsod-sparc-bucket-role-arn"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.awsod_sparc_bucket_role_arn
+}
+
 //    RE-JOIN
 resource "aws_ssm_parameter" "rejoin_publish_50_bucket" {
   name  = "/${var.environment_name}/${var.service_name}/rejoin-publish-50-bucket"
@@ -334,3 +347,10 @@ resource "aws_ssm_parameter" "rejoin_bucket_access_glue_table" {
 #   type  = "String"
 #   value = data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_id
 # }
+
+// Runtime settings
+resource "aws_ssm_parameter" "delete_release_intermediate_file" {
+  name = "/${var.environment_name}/${var.service_name}/delete-release-intermediate-file"
+  type = "String"
+  value = "false"
+}
