@@ -729,17 +729,26 @@ class AlpakkaS3StreamClient(
       _ = logger.debug(
         s"revision: copying banner, readme and changelog to frontend bucket ${frontendBucket.value}"
       )
+
+      // generate new key. with migrated = false to force the path to contain the version id
+      keyFrontend = S3Key.Revision(
+        dataset.id,
+        version.version,
+        revision.revision,
+        false
+      )
+
       _ <- copyPresignedUrlToFrontendBucket(
         bannerPresignedUrl,
-        key / newNameSameExtension(bannerPresignedUrl, BANNER)
+        keyFrontend / newNameSameExtension(bannerPresignedUrl, BANNER)
       )
       _ <- copyPresignedUrlToFrontendBucket(
         readmePresignedUrl,
-        key / newNameSameExtension(readmePresignedUrl, README)
+        keyFrontend / newNameSameExtension(readmePresignedUrl, README)
       )
       _ <- copyPresignedUrlToFrontendBucket(
         changelogPresignedUrl,
-        key / newNameSameExtension(changelogPresignedUrl, CHANGELOG)
+        keyFrontend / newNameSameExtension(changelogPresignedUrl, CHANGELOG)
       )
       _ = logger.debug(
         s"revision: copied banner, readme and changelog to frontend bucket ${frontendBucket.value}"
