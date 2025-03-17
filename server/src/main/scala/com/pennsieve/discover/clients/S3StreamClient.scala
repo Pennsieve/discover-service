@@ -620,7 +620,7 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[NewFiles] = {
 
-    val metadata = DatasetMetadataV4_0(
+    val metadata = DatasetMetadataV5_0(
       pennsieveDatasetId = dataset.id,
       version = version.version,
       revision = Some(revision.revision),
