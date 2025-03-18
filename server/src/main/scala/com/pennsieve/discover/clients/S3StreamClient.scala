@@ -663,8 +663,8 @@ class AlpakkaS3StreamClient(
     )
 
     // Remove the empty file field
-    implicit val encoder: Encoder[DatasetMetadataV4_0] =
-      deriveEncoder[DatasetMetadataV4_0].mapJson(_.mapObject(_.remove("files")))
+    implicit val encoder: Encoder[DatasetMetadataV5_0] =
+      deriveEncoder[DatasetMetadataV5_0].mapJson(_.mapObject(_.remove("files")))
 
     // Remove null fields when printing
     val bytes = ByteString(
