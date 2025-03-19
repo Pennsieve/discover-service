@@ -712,9 +712,6 @@ components:
         bucketConfig:
           description: The owning organization's custom bucket config. Omit if there is no such config
           $ref: "#/components/schemas/BucketConfig"
-        workflowId:
-          type: integer
-          format: int64
 
     ReleaseRequest:
       type: object
@@ -955,7 +952,6 @@ components:
         - sourceDatasetId
         - publishedVersionCount
         - status
-        - workflowId
       properties:
         name:
           type: string
@@ -979,9 +975,6 @@ components:
           format: date-time
         sponsorship:
           $ref: "#/components/schemas/SponsorshipRequest"
-        workflowId:
-          type: integer
-          format: int64
 
     InternalCollection:
       type: object

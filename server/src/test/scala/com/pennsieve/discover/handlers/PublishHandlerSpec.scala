@@ -140,8 +140,7 @@ class PublishHandlerSpec
     ownerOrcid = ownerOrcid,
     organizationNodeId = organizationNodeId,
     organizationName = organizationName,
-    datasetNodeId = datasetNodeId,
-    workflowId = Some(4)
+    datasetNodeId = datasetNodeId
   )
 
   val customBucketRequestBody: definitions.PublishRequest =
@@ -305,8 +304,7 @@ class PublishHandlerSpec
         None,
         0,
         PublishInProgress,
-        None,
-        workflowId = PublishingWorkflow.Version4
+        None
       )
 
       val publicDataset = ports.db
@@ -484,8 +482,7 @@ class PublishHandlerSpec
         None,
         0,
         PublishStatus.EmbargoInProgress,
-        None,
-        workflowId = PublishingWorkflow.Version4
+        None
       )
 
       val publicDataset = ports.db
@@ -614,8 +611,7 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         1,
         PublishInProgress,
-        Some(publicDataset1_V1.createdAt),
-        workflowId = PublishingWorkflow.Version4
+        Some(publicDataset1_V1.createdAt)
       )
 
       val doiDto = ports.doiClient
@@ -670,8 +666,7 @@ class PublishHandlerSpec
         None,
         0,
         PublishInProgress,
-        None,
-        workflowId = PublishingWorkflow.Version4
+        None
       )
 
       val doiDto = ports.doiClient
@@ -726,8 +721,7 @@ class PublishHandlerSpec
         None,
         0,
         PublishInProgress,
-        None,
-        workflowId = PublishingWorkflow.Version4
+        None
       )
 
       val doiDto = ports.doiClient
@@ -911,8 +905,7 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         1,
         PublishSucceeded,
-        Some(version.createdAt),
-        workflowId = PublishingWorkflow.Version4
+        Some(version.createdAt)
       )
 
       val revisedDataset = run(
@@ -1082,8 +1075,7 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         1,
         PublishSucceeded,
-        Some(version.createdAt),
-        workflowId = PublishingWorkflow.Version4
+        Some(version.createdAt)
       )
 
       val revision = run(RevisionsMapper.getLatestRevision(version)).get
@@ -1274,8 +1266,7 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         0,
         PublishStatus.ReleaseInProgress,
-        Some(version.createdAt),
-        workflowId = PublishingWorkflow.Version4
+        Some(version.createdAt)
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -1325,8 +1316,7 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         0,
         PublishStatus.ReleaseInProgress,
-        Some(version.createdAt),
-        workflowId = PublishingWorkflow.Version4
+        Some(version.createdAt)
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -1386,8 +1376,7 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         0,
         PublishStatus.ReleaseInProgress,
-        Some(version.createdAt),
-        workflowId = PublishingWorkflow.Version4
+        Some(version.createdAt)
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -1628,8 +1617,7 @@ class PublishHandlerSpec
         None,
         0,
         PublishStatus.NotPublished,
-        None,
-        workflowId = PublishingWorkflow.Version4
+        None
       )
 
       run(
@@ -1696,8 +1684,7 @@ class PublishHandlerSpec
         None,
         0,
         PublishStatus.NotPublished,
-        None,
-        workflowId = PublishingWorkflow.Version4
+        None
       )
 
       run(
@@ -1838,8 +1825,7 @@ class PublishHandlerSpec
         Some(publicDataset.id),
         1,
         PublishSucceeded,
-        Some(publicDatasetV1.createdAt),
-        workflowId = PublishingWorkflow.Version4
+        Some(publicDatasetV1.createdAt)
       )
       response shouldBe GetStatusResponse.OK(expected)
     }
@@ -1900,8 +1886,7 @@ class PublishHandlerSpec
           Some(publicDataset1.id),
           1,
           PublishSucceeded,
-          Some(publicDataset1_V1.createdAt),
-          workflowId = PublishingWorkflow.Version4
+          Some(publicDataset1_V1.createdAt)
         ),
         DatasetPublishStatus(
           publicDataset2.name,
@@ -1911,8 +1896,7 @@ class PublishHandlerSpec
           1,
           PublishInProgress,
           Some(publicDataset2_V1.createdAt),
-          Some(SponsorshipRequest(Some("foo"), Some("bar"), None)),
-          workflowId = PublishingWorkflow.Version4
+          Some(SponsorshipRequest(Some("foo"), Some("bar"), None))
         )
       )
 
@@ -2117,8 +2101,7 @@ class PublishHandlerSpec
         None,
         0,
         PublishStatus.PublishInProgress,
-        None,
-        workflowId = PublishingWorkflow.Version4
+        None
       )
 
       val publicDataset = ports.db
@@ -2195,8 +2178,7 @@ class PublishHandlerSpec
         None,
         0,
         PublishStatus.PublishInProgress,
-        None,
-        workflowId = PublishingWorkflow.Version4
+        None
       )
 
       val publicDataset = ports.db
@@ -2290,8 +2272,7 @@ class PublishHandlerSpec
         organizationNodeId = organizationNodeId,
         organizationName = organizationName,
         datasetNodeId = datasetNodeId,
-        bucketConfig = Some(bucketConfig1),
-        workflowId = Some(5)
+        bucketConfig = Some(bucketConfig1)
       )
 
       // publish initial dataset version with bucket config {publish: A, embargo: B}
@@ -2350,8 +2331,7 @@ class PublishHandlerSpec
         organizationNodeId = organizationNodeId,
         organizationName = organizationName,
         datasetNodeId = datasetNodeId,
-        bucketConfig = Some(bucketConfig2),
-        workflowId = Some(5)
+        bucketConfig = Some(bucketConfig2)
       )
 
       val _ = client

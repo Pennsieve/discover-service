@@ -70,43 +70,16 @@ class PublishHandler(
 
   type PublishResponse = GuardrailResource.PublishResponse
 
-  def getDefaultBucket(
-    workflowId: Option[Long],
-    bucket4: S3Bucket,
-    bucket5: S3Bucket
-  ) =
-    workflowId match {
-      case Some(workflowId) =>
-        workflowId match {
-          case 4 => bucket4
-          case _ => bucket5
-        }
-      case None => bucket5
-    }
-
   private def resolveBucketConfig(
-    bucketConfig: Option[BucketConfig],
-    workflowId: Option[Long]
+    bucketConfig: Option[BucketConfig]
   ): (S3Bucket, S3Bucket) = {
     (
       bucketConfig
         .map(c => S3Bucket(c.publish))
-        .getOrElse(
-          getDefaultBucket(
-            workflowId,
-            defaultPublishBucket,
-            defaultPublish50Bucket
-          )
-        ),
+        .getOrElse(defaultPublish50Bucket),
       bucketConfig
         .map(c => S3Bucket(c.embargo))
-        .getOrElse(
-          getDefaultBucket(
-            workflowId,
-            defaultEmbargoBucket,
-            defaultEmbargo50Bucket
-          )
-        )
+        .getOrElse(defaultEmbargo50Bucket)
     )
   }
 
@@ -144,7 +117,7 @@ class PublishHandler(
       )
 
     val (publishBucket, embargoBucket) =
-      resolveBucketConfig(body.bucketConfig, body.workflowId)
+      resolveBucketConfig(body.bucketConfig)
 
     val targetS3Bucket = if (shouldEmbargo) embargoBucket else publishBucket
 
@@ -216,19 +189,6 @@ class PublishHandler(
             latest <- PublicDatasetVersionsMapper
               .getLatestVisibleVersion(publicDataset)
 
-            requestedWorkflow = body.workflowId.getOrElse(
-              PublishingWorkflow.Version4
-            )
-
-            // ensure we use a compatible workflow with the previous published version
-            workflowVersion = latest match {
-              case Some(version) if version.migrated =>
-                PublishingWorkflow.Version5
-              case Some(version) if !version.migrated =>
-                PublishingWorkflow.Version4
-              case _ => requestedWorkflow
-            }
-
             // ensure we use the same S3 Bucket as previous published versions
             destinationS3Bucket = latest match {
               case Some(version) => version.s3Bucket
@@ -252,7 +212,7 @@ class PublishHandler(
                   if (shouldEmbargo) embargoReleaseDate else None,
                 doi = doi.doi,
                 schemaVersion = PennsieveSchemaVersion.`4.0`,
-                migrated = workflowVersion == PublishingWorkflow.Version5
+                migrated = true
               )
             _ = ports.log.info(s"Public dataset version : $version")
 
@@ -325,8 +285,7 @@ class PublishHandler(
                     collections,
                     externalPublications,
                     publishBucket,
-                    embargoBucket,
-                    workflowId = workflowVersion
+                    embargoBucket
                   )
                 )
             )

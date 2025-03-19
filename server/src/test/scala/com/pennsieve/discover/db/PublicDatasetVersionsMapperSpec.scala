@@ -525,9 +525,7 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       2,
       PublishSucceeded,
-      Some(publicDatasetV2.createdAt),
-      workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV2))
+      Some(publicDatasetV2.createdAt)
     )
 
     val result = ports.db
@@ -561,9 +559,7 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       1,
       PublishStatus.PublishInProgress,
-      Some(publicDatasetV1.createdAt),
-      workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
+      Some(publicDatasetV1.createdAt)
     )
 
     val result = ports.db
@@ -593,9 +589,7 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       0,
       PublishStatus.Unpublished,
-      Some(publicDatasetV1.createdAt),
-      workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
+      Some(publicDatasetV1.createdAt)
     )
 
     val result = ports.db
@@ -619,8 +613,7 @@ class PublicDatasetVersionsMapperSpec
       None,
       0,
       PublishStatus.NotPublished,
-      None,
-      workflowId = PublishingWorkflow.Unknown
+      None
     )
 
     val result = ports.db
@@ -655,9 +648,7 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       1,
       PublishStatus.PublishSucceeded,
-      Some(publicDatasetV1.createdAt),
-      workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
+      Some(publicDatasetV1.createdAt)
     )
 
     val result = ports.db
@@ -692,9 +683,7 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDataset.id),
       1,
       PublishStatus.PublishSucceeded,
-      Some(publicDatasetV1.createdAt),
-      workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
+      Some(publicDatasetV1.createdAt)
     )
 
     val result = ports.db

@@ -44,8 +44,7 @@ case class PublishJob(
   collections: List[PublicCollection],
   externalPublications: List[PublicExternalPublication],
   publishBucket: S3Bucket,
-  embargoBucket: S3Bucket,
-  workflowId: Long
+  embargoBucket: S3Bucket
 )
 
 object PublishJob {
@@ -59,8 +58,7 @@ object PublishJob {
     collections: List[PublicCollection],
     externalPublications: List[PublicExternalPublication],
     publishBucket: S3Bucket,
-    embargoBucket: S3Bucket,
-    workflowId: Long = PublishingWorkflow.Version4
+    embargoBucket: S3Bucket
   ): PublishJob = {
     PublishJob(
       organizationId = publicDataset.sourceOrganizationId,
@@ -83,8 +81,7 @@ object PublishJob {
       collections = collections,
       externalPublications = externalPublications,
       publishBucket = publishBucket,
-      embargoBucket = embargoBucket,
-      workflowId = workflowId
+      embargoBucket = embargoBucket
     )
   }
 
@@ -167,8 +164,7 @@ object PublishJob {
         j.collections.asJson.noSpaces,
         j.externalPublications.asJson.noSpaces,
         j.publishBucket.value,
-        j.embargoBucket.value,
-        j.workflowId.toString
+        j.embargoBucket.value
       )
   )
 }

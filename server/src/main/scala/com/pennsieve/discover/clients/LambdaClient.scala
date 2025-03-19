@@ -59,10 +59,6 @@ class AlpakkaLambdaClient(
     system: ActorSystem,
     ec: ExecutionContext
   ): Future[InvokeResponse] = {
-    val workflowId = migrated match {
-      case true => "5"
-      case false => "4"
-    }
     val lambdaRequest = InvokeRequest
       .builder()
       .functionName(s3CleanFunction)
@@ -73,7 +69,6 @@ class AlpakkaLambdaClient(
               "s3_key_prefix" -> s3KeyPrefix,
               "publish_bucket" -> publishBucket,
               "embargo_bucket" -> embargoBucket,
-              "workflow_id" -> workflowId,
               "cleanup_stage" -> cleanupStage
             ).asJson.noSpaces
           )

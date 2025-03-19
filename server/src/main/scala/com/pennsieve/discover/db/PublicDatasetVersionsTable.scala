@@ -27,14 +27,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 import java.time.LocalDate
 
-object PublishingWorkflowIdentifier {
-  def workflowid(version: Option[PublicDatasetVersion]): Long =
-    version.map(_.migrated).getOrElse(false) match {
-      case true => PublishingWorkflow.Version5
-      case false => PublishingWorkflow.Version4
-    }
-}
-
 final class PublicDatasetVersionsTable(tag: Tag)
     extends Table[PublicDatasetVersion](tag, "public_dataset_versions") {
 
@@ -338,8 +330,7 @@ object PublicDatasetVersionsMapper
             None,
             0,
             PublishStatus.NotPublished,
-            None,
-            workflowId = PublishingWorkflow.Unknown
+            None
           )
         )
     })
@@ -401,8 +392,7 @@ object PublicDatasetVersionsMapper
             sponsorship = sponsorship.map {
               case Sponsorship(_, title, imageUrl, markup, _) =>
                 SponsorshipRequest(title, imageUrl, markup)
-            },
-            workflowId = PublishingWorkflowIdentifier.workflowid(latestVersion)
+            }
           )
       }
 

@@ -32,28 +32,15 @@ class BucketResolver(ports: Ports) {
     }
 
   def resolveBucketConfig(
-    bucketConfig: Option[BucketConfig],
-    workflowId: Option[Long]
+    bucketConfig: Option[BucketConfig]
   ): (S3Bucket, S3Bucket) = {
     (
       bucketConfig
         .map(c => S3Bucket(c.publish))
-        .getOrElse(
-          getDefaultBucket(
-            workflowId,
-            defaultPublishBucket,
-            defaultPublish50Bucket
-          )
-        ),
+        .getOrElse(defaultPublish50Bucket),
       bucketConfig
         .map(c => S3Bucket(c.embargo))
-        .getOrElse(
-          getDefaultBucket(
-            workflowId,
-            defaultEmbargoBucket,
-            defaultEmbargo50Bucket
-          )
-        )
+        .getOrElse(defaultEmbargo50Bucket)
     )
   }
 }
