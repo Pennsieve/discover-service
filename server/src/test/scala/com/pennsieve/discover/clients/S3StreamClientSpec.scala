@@ -582,12 +582,12 @@ class S3StreamClientSpec
 
       // However, not having "files" makes decoding the dataset metadata a little painful.
       // TODO: make "files" optional in the root case class and remove this.
-      implicit val decoder: Decoder[DatasetMetadataV4_0] =
-        deriveDecoder[DatasetMetadataV4_0].prepare(
+      implicit val decoder: Decoder[DatasetMetadataV5_0] =
+        deriveDecoder[DatasetMetadataV5_0].prepare(
           _.withFocus(_.mapObject(_.add("files", List.empty[String].asJson)))
         )
 
-      decode[DatasetMetadataV4_0](manifest).value shouldBe DatasetMetadataV4_0(
+      decode[DatasetMetadataV5_0](manifest).value shouldBe DatasetMetadataV5_0(
         pennsieveDatasetId = 3,
         version = 4,
         revision = Some(5),

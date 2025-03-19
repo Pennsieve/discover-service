@@ -239,7 +239,8 @@ data "aws_iam_policy_document" "iam_policy_document" {
     actions = ["sts:AssumeRole"]
     resources = [
       data.terraform_remote_state.platform_infrastructure.outputs.sparc_bucket_role_arn,
-      data.terraform_remote_state.platform_infrastructure.outputs.rejoin_bucket_role_arn
+      data.terraform_remote_state.platform_infrastructure.outputs.rejoin_bucket_role_arn,
+      data.terraform_remote_state.platform_infrastructure.outputs.awsod_sparc_bucket_role_arn,
     ]
   }
 
