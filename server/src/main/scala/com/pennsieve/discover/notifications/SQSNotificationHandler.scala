@@ -578,10 +578,14 @@ class SQSNotificationHandler(
           .getSettings(organizationId = publicDataset.sourceOrganizationId)
       )
 
-      doiRedirect = DoiRedirect(
-        workspaceSettings
-          .getOrElse(WorkspaceSettings.default(ports.config.publicUrl))
-      )
+      redirectSettings = workspaceSettings match {
+        case Some(workspaceSettings) =>
+          workspaceSettings + WorkspaceSettings.default(ports.config.publicUrl)
+        case None =>
+          RedirectSettings(WorkspaceSettings.default(ports.config.publicUrl))
+      }
+
+      doiRedirect = DoiRedirect(redirectSettings)
 
       token = Authenticator.generateServiceToken(
         ports.jwt,
