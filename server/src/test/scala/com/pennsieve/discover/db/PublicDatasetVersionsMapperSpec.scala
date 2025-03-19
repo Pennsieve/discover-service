@@ -8,7 +8,6 @@ import com.pennsieve.discover.models.{
   OrderDirection,
   PublicDataset,
   PublicDatasetVersion,
-  PublishingWorkflow,
   S3Key
 }
 import com.pennsieve.discover.server.definitions.{

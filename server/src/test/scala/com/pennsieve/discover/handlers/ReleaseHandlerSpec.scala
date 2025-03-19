@@ -33,7 +33,7 @@ import com.pennsieve.discover.db.{
   PublicDatasetsMapper,
   PublicFileVersionsMapper
 }
-import com.pennsieve.discover.models.{ PublishingWorkflow, S3CleanupStage }
+import com.pennsieve.discover.models.S3CleanupStage
 import com.pennsieve.discover.client.definitions.BucketConfig
 import com.pennsieve.discover.server.definitions.FinalizeReleaseRequest
 import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
