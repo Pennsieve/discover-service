@@ -630,7 +630,7 @@ class PublishHandler(
       datasetId
     ) { _ =>
       val (publishBucket, _) =
-        resolveBucketConfig(body.bucketConfig, None)
+        resolveBucketConfig(body.bucketConfig)
       // Ignoring embargo bucket in bucketConfig because it may not be where the dataset was embargoed.
       // eg., It may have been embargoed before custom buckets were configured for the organization.
       // The correct embargo bucket will be in the most current PublicDatasetVersion obtained below.

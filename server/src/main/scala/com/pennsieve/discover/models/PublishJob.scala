@@ -118,7 +118,7 @@ object PublishJob {
     * way to transform JSON types in Step Function input/output/result parameters.
     * Contributors are therefore encoded as a string rather than a collection fo objects
     */
-  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct22(
+  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct21(
     "organization_id",
     "organization_node_id",
     "organization_name",
@@ -139,8 +139,7 @@ object PublishJob {
     "collections",
     "external_publications",
     "publish_bucket",
-    "embargo_bucket",
-    "workflow_id"
+    "embargo_bucket"
   )(
     j =>
       (

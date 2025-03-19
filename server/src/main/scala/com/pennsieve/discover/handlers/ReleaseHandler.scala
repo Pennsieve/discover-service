@@ -31,7 +31,6 @@ import com.pennsieve.discover.models.{
   PublicDataset,
   PublicDatasetRelease,
   PublicDatasetVersion,
-  PublishingWorkflow,
   S3Bucket,
   S3CleanupStage,
   S3Key
@@ -104,10 +103,7 @@ class ReleaseHandler(
     ports.log.info(s"publishRelease() starting request: ${body}")
     val bucketResolver = BucketResolver(ports)
     val (targetS3Bucket, _) =
-      bucketResolver.resolveBucketConfig(
-        body.bucketConfig,
-        Some(PublishingWorkflow.Version5)
-      )
+      bucketResolver.resolveBucketConfig(body.bucketConfig)
 
     withServiceOwnerAuthorization[PublishResponse](
       claim,
