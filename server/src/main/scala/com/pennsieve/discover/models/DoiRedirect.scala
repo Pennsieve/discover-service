@@ -2,7 +2,7 @@
 
 package com.pennsieve.discover.models
 
-class DoiRedirect(settings: WorkspaceSettings) {
+class DoiRedirect(settings: RedirectSettings) {
   def getPublisher(): String = settings.publisherName
   private def getUrl(
     templateUrl: String,
@@ -18,14 +18,10 @@ class DoiRedirect(settings: WorkspaceSettings) {
   def getDatasetUrl(datasetId: Int, versionId: Int): String =
     getUrl(settings.redirectUrl, datasetId, versionId)
   def getReleaseUrl(datasetId: Int, versionId: Int): String =
-    getUrl(
-      settings.redirectReleaseUrl.getOrElse(settings.redirectUrl),
-      datasetId,
-      versionId
-    )
+    getUrl(settings.redirectReleaseUrl, datasetId, versionId)
 }
 
 object DoiRedirect {
-  def apply(settings: WorkspaceSettings): DoiRedirect =
+  def apply(settings: RedirectSettings): DoiRedirect =
     new DoiRedirect(settings)
 }

@@ -620,7 +620,7 @@ class AlpakkaS3StreamClient(
     ec: ExecutionContext
   ): Future[NewFiles] = {
 
-    val metadata = DatasetMetadataV4_0(
+    val metadata = DatasetMetadataV5_0(
       pennsieveDatasetId = dataset.id,
       version = version.version,
       revision = Some(revision.revision),
@@ -663,8 +663,8 @@ class AlpakkaS3StreamClient(
     )
 
     // Remove the empty file field
-    implicit val encoder: Encoder[DatasetMetadataV4_0] =
-      deriveEncoder[DatasetMetadataV4_0].mapJson(_.mapObject(_.remove("files")))
+    implicit val encoder: Encoder[DatasetMetadataV5_0] =
+      deriveEncoder[DatasetMetadataV5_0].mapJson(_.mapObject(_.remove("files")))
 
     // Remove null fields when printing
     val bytes = ByteString(
@@ -729,17 +729,26 @@ class AlpakkaS3StreamClient(
       _ = logger.debug(
         s"revision: copying banner, readme and changelog to frontend bucket ${frontendBucket.value}"
       )
+
+      // generate new key. with migrated = false to force the path to contain the version id
+      keyFrontend = S3Key.Revision(
+        dataset.id,
+        version.version,
+        revision.revision,
+        false
+      )
+
       _ <- copyPresignedUrlToFrontendBucket(
         bannerPresignedUrl,
-        key / newNameSameExtension(bannerPresignedUrl, BANNER)
+        keyFrontend / newNameSameExtension(bannerPresignedUrl, BANNER)
       )
       _ <- copyPresignedUrlToFrontendBucket(
         readmePresignedUrl,
-        key / newNameSameExtension(readmePresignedUrl, README)
+        keyFrontend / newNameSameExtension(readmePresignedUrl, README)
       )
       _ <- copyPresignedUrlToFrontendBucket(
         changelogPresignedUrl,
-        key / newNameSameExtension(changelogPresignedUrl, CHANGELOG)
+        keyFrontend / newNameSameExtension(changelogPresignedUrl, CHANGELOG)
       )
       _ = logger.debug(
         s"revision: copied banner, readme and changelog to frontend bucket ${frontendBucket.value}"
