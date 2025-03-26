@@ -163,33 +163,43 @@ class MockS3StreamClient extends S3StreamClient {
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[NewFiles] = {
+  ): Future[RevisionUpdate] = {
     revisions += ((dataset, version, contributors, revision))
     Future.successful(
-      NewFiles(
-        manifest = FileManifest(
-          path = s"revisions/${revision.revision}/manifest.json",
-          size = 100,
-          fileType = FileType.Json,
-          None
+      RevisionUpdate(
+        NewFiles(
+          manifest = FileManifest(
+            path = s"revisions/${revision.revision}/manifest.json",
+            size = 100,
+            fileType = FileType.Json,
+            None
+          ),
+          readme = FileManifest(
+            path = s"revisions/${revision.revision}/readme.md",
+            size = 100,
+            fileType = FileType.Markdown,
+            None
+          ),
+          banner = FileManifest(
+            path = s"revisions/${revision.revision}/banner.jpg",
+            size = 100,
+            fileType = FileType.JPEG,
+            None
+          ),
+          changelog = FileManifest(
+            path = s"revisions/${revision.revision}/changelog.md",
+            size = 100,
+            fileType = FileType.Markdown,
+            None
+          )
         ),
-        readme = FileManifest(
-          path = s"revisions/${revision.revision}/readme.md",
-          size = 100,
-          fileType = FileType.Markdown,
-          None
-        ),
-        banner = FileManifest(
-          path = s"revisions/${revision.revision}/banner.jpg",
-          size = 100,
-          fileType = FileType.JPEG,
-          None
-        ),
-        changelog = FileManifest(
-          path = s"revisions/${revision.revision}/changelog.md",
-          size = 100,
-          fileType = FileType.Markdown,
-          None
+        AssetLocations(
+          banner =
+            s"${dataset.id}/${version.version}/revisions/${revision.revision}/banner.jpg",
+          changelog =
+            s"${dataset.id}/${version.version}/revisions/${revision.revision}/changelog.md",
+          readme =
+            s"${dataset.id}/${version.version}/revisions/${revision.revision}/readme.md"
         )
       )
     )

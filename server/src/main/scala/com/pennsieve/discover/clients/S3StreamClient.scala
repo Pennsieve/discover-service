@@ -218,7 +218,7 @@ trait S3StreamClient {
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[NewFiles]
+  ): Future[RevisionUpdate]
 
   case class NewFiles(
     banner: FileManifest,
@@ -228,6 +228,9 @@ trait S3StreamClient {
   ) {
     def asList = List(banner, readme, manifest, changelog)
   }
+
+  case class AssetLocations(banner: String, changelog: String, readme: String)
+  case class RevisionUpdate(newFiles: NewFiles, assetLocations: AssetLocations)
 
   def getPresignedUrlForFile(
     s3Bucket: S3Bucket,
@@ -618,7 +621,7 @@ class AlpakkaS3StreamClient(
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[NewFiles] = {
+  ): Future[RevisionUpdate] = {
 
     val metadata = DatasetMetadataV5_0(
       pennsieveDatasetId = dataset.id,
@@ -738,15 +741,15 @@ class AlpakkaS3StreamClient(
         false
       )
 
-      _ <- copyPresignedUrlToFrontendBucket(
+      bannerLocation <- copyPresignedUrlToFrontendBucket(
         bannerPresignedUrl,
         keyFrontend / newNameSameExtension(bannerPresignedUrl, BANNER)
       )
-      _ <- copyPresignedUrlToFrontendBucket(
+      readmeLocation <- copyPresignedUrlToFrontendBucket(
         readmePresignedUrl,
         keyFrontend / newNameSameExtension(readmePresignedUrl, README)
       )
-      _ <- copyPresignedUrlToFrontendBucket(
+      changelogLocation <- copyPresignedUrlToFrontendBucket(
         changelogPresignedUrl,
         keyFrontend / newNameSameExtension(changelogPresignedUrl, CHANGELOG)
       )
@@ -755,11 +758,18 @@ class AlpakkaS3StreamClient(
       )
 
     } yield
-      NewFiles(
-        manifest = manifestManifest,
-        readme = readmeManifest,
-        banner = bannerManifest,
-        changelog = changelogManifest
+      RevisionUpdate(
+        NewFiles(
+          manifest = manifestManifest,
+          readme = readmeManifest,
+          banner = bannerManifest,
+          changelog = changelogManifest
+        ),
+        AssetLocations(
+          banner = bannerLocation,
+          changelog = changelogLocation,
+          readme = readmeLocation
+        )
       )
   }
 

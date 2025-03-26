@@ -565,7 +565,7 @@ class PublishHandler(
         _ = ports.log.info(
           s"revision: start copying metadata for dataset ${revisedDataset.id} version ${revisedVersion.version}"
         )
-        newFiles <- DBIO.from(
+        revisionUpdate <- DBIO.from(
           ports.s3StreamClient.writeDatasetRevisionMetadata(
             revisedDataset,
             revisedVersion,
@@ -584,16 +584,19 @@ class PublishHandler(
         )
 
         _ = ports.log.info(
-          s"revision: storing metadata files and linking to dataset version: ${newFiles.asList}"
+          s"revision: storing metadata files and linking to dataset version: ${revisionUpdate.newFiles.asList}"
         )
         _ <- revisedVersion.migrated match {
           case true =>
             PublicFileVersionsMapper.createAndLinkMany(
               revisedVersion,
-              newFiles.asList
+              revisionUpdate.newFiles.asList
             )
           case false =>
-            PublicFilesMapper.createMany(revisedVersion, newFiles.asList)
+            PublicFilesMapper.createMany(
+              revisedVersion,
+              revisionUpdate.newFiles.asList
+            )
         }
 
         _ = ports.log.info(
@@ -601,11 +604,13 @@ class PublishHandler(
         )
         _ <- PublicDatasetVersionsMapper.setResultMetadata(
           version = revisedVersion,
-          size = revisedVersion.size + newFiles.asList.map(_.size).sum,
-          fileCount = revisedVersion.fileCount + newFiles.asList.length,
-          readme = Some(revisedVersion.s3Key / newFiles.readme.path),
-          banner = Some(revisedVersion.s3Key / newFiles.banner.path),
-          changelog = Some(revisedVersion.s3Key / newFiles.changelog.path)
+          size = revisedVersion.size + revisionUpdate.newFiles.asList
+            .map(_.size)
+            .sum,
+          fileCount = revisedVersion.fileCount + revisionUpdate.newFiles.asList.length,
+          readme = Some(S3Key.File(revisionUpdate.assetLocations.readme)),
+          banner = Some(S3Key.File(revisionUpdate.assetLocations.banner)),
+          changelog = Some(S3Key.File(revisionUpdate.assetLocations.changelog))
         )
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 
@@ -623,7 +628,7 @@ class PublishHandler(
             revision,
             collections,
             externalPublications,
-            newFiles.asList,
+            revisionUpdate.newFiles.asList,
             readme,
             sponsorship
           )
