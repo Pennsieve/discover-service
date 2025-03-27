@@ -608,9 +608,9 @@ class PublishHandler(
             .map(_.size)
             .sum,
           fileCount = revisedVersion.fileCount + revisionUpdate.newFiles.asList.length,
-          readme = Some(S3Key.File(revisionUpdate.assetLocations.readme)),
-          banner = Some(S3Key.File(revisionUpdate.assetLocations.banner)),
-          changelog = Some(S3Key.File(revisionUpdate.assetLocations.changelog))
+          readme = Some(revisionUpdate.revisionAssets.readme.assetKey),
+          banner = Some(revisionUpdate.revisionAssets.banner.assetKey),
+          changelog = Some(revisionUpdate.revisionAssets.changelog.assetKey)
         )
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 

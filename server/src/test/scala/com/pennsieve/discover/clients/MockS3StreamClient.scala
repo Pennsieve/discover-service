@@ -193,13 +193,28 @@ class MockS3StreamClient extends S3StreamClient {
             None
           )
         ),
-        AssetLocations(
-          banner =
-            s"${dataset.id}/${version.version}/revisions/${revision.revision}/banner.jpg",
-          changelog =
-            s"${dataset.id}/${version.version}/revisions/${revision.revision}/changelog.md",
-          readme =
-            s"${dataset.id}/${version.version}/revisions/${revision.revision}/readme.md"
+        RevisionAssets(
+          banner = AssetLocation(
+            fullKey =
+              s"dataset-assets/${dataset.id}/${version.version}/revisions/${revision.revision}/banner.jpg",
+            assetKey = S3Key.File(
+              s"${dataset.id}/${version.version}/revisions/${revision.revision}/banner.jpg"
+            )
+          ),
+          changelog = AssetLocation(
+            fullKey =
+              s"dataset-assets/${dataset.id}/${version.version}/revisions/${revision.revision}/changelog.md",
+            assetKey = S3Key.File(
+              s"${dataset.id}/${version.version}/revisions/${revision.revision}/changelog.md"
+            )
+          ),
+          readme = AssetLocation(
+            fullKey =
+              s"dataset-assets/${dataset.id}/${version.version}/revisions/${revision.revision}/readme.md",
+            assetKey = S3Key.File(
+              s"${dataset.id}/${version.version}/revisions/${revision.revision}/readme.md"
+            )
+          )
         )
       )
     )

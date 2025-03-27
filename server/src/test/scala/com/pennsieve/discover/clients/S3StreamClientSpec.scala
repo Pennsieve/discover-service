@@ -524,7 +524,7 @@ class S3StreamClientSpec
         "c63407a6-9d8b-4e59-92ce-fd4dad96b795/changelog.md"
       )
 
-      val newFiles = client
+      val revisionUpdate = client
         .writeDatasetRevisionMetadata(
           dataset(3),
           version(3, 4, publishBucket),
@@ -538,7 +538,7 @@ class S3StreamClientSpec
         )
         .awaitFinite()
 
-      newFiles shouldBe client.NewFiles(
+      revisionUpdate.newFiles shouldBe client.NewFiles(
         banner = FileManifest(
           path = "revisions/5/banner.jpg",
           size = 43649,
@@ -576,6 +576,21 @@ class S3StreamClientSpec
       val manifest = StandardCharsets.UTF_8
         .decode(getObject(publishBucket, "3/4/revisions/5/manifest.json"))
         .toString
+
+      revisionUpdate.revisionAssets shouldBe client.RevisionAssets(
+        banner = client.AssetLocation(
+          fullKey = "dataset-assets/3/4/revisions/5/banner.jpg",
+          assetKey = S3Key.File("3/4/revisions/5/banner.jpg")
+        ),
+        changelog = client.AssetLocation(
+          fullKey = "dataset-assets/3/4/revisions/5/changelog.md",
+          assetKey = S3Key.File("3/4/revisions/5/changelog.md")
+        ),
+        readme = client.AssetLocation(
+          fullKey = "dataset-assets/3/4/revisions/5/readme.md",
+          assetKey = S3Key.File("3/4/revisions/5/readme.md")
+        )
+      )
 
       // Should drop the empty "files" key.
       parse(manifest).value.hcursor.keys.get should not contain "files"

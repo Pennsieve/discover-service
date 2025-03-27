@@ -229,8 +229,13 @@ trait S3StreamClient {
     def asList = List(banner, readme, manifest, changelog)
   }
 
-  case class AssetLocations(banner: String, changelog: String, readme: String)
-  case class RevisionUpdate(newFiles: NewFiles, assetLocations: AssetLocations)
+  case class AssetLocation(fullKey: String, assetKey: S3Key.File)
+  case class RevisionAssets(
+    banner: AssetLocation,
+    changelog: AssetLocation,
+    readme: AssetLocation
+  )
+  case class RevisionUpdate(newFiles: NewFiles, revisionAssets: RevisionAssets)
 
   def getPresignedUrlForFile(
     s3Bucket: S3Bucket,
@@ -765,10 +770,28 @@ class AlpakkaS3StreamClient(
           banner = bannerManifest,
           changelog = changelogManifest
         ),
-        AssetLocations(
-          banner = bannerLocation,
-          changelog = changelogLocation,
-          readme = readmeLocation
+        RevisionAssets(
+          banner = AssetLocation(
+            fullKey = bannerLocation,
+            assetKey = keyFrontend / newNameSameExtension(
+              bannerPresignedUrl,
+              BANNER
+            )
+          ),
+          changelog = AssetLocation(
+            fullKey = changelogLocation,
+            assetKey = keyFrontend / newNameSameExtension(
+              changelogPresignedUrl,
+              CHANGELOG
+            )
+          ),
+          readme = AssetLocation(
+            fullKey = readmeLocation,
+            assetKey = keyFrontend / newNameSameExtension(
+              readmePresignedUrl,
+              README
+            )
+          )
         )
       )
   }
