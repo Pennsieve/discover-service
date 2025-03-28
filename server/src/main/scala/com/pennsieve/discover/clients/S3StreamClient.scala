@@ -218,7 +218,7 @@ trait S3StreamClient {
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[NewFiles]
+  ): Future[RevisionUpdate]
 
   case class NewFiles(
     banner: FileManifest,
@@ -228,6 +228,14 @@ trait S3StreamClient {
   ) {
     def asList = List(banner, readme, manifest, changelog)
   }
+
+  case class AssetLocation(fullKey: String, assetKey: S3Key.File)
+  case class RevisionAssets(
+    banner: AssetLocation,
+    changelog: AssetLocation,
+    readme: AssetLocation
+  )
+  case class RevisionUpdate(newFiles: NewFiles, revisionAssets: RevisionAssets)
 
   def getPresignedUrlForFile(
     s3Bucket: S3Bucket,
@@ -618,7 +626,7 @@ class AlpakkaS3StreamClient(
   )(implicit
     system: ActorSystem,
     ec: ExecutionContext
-  ): Future[NewFiles] = {
+  ): Future[RevisionUpdate] = {
 
     val metadata = DatasetMetadataV5_0(
       pennsieveDatasetId = dataset.id,
@@ -738,15 +746,15 @@ class AlpakkaS3StreamClient(
         false
       )
 
-      _ <- copyPresignedUrlToFrontendBucket(
+      bannerLocation <- copyPresignedUrlToFrontendBucket(
         bannerPresignedUrl,
         keyFrontend / newNameSameExtension(bannerPresignedUrl, BANNER)
       )
-      _ <- copyPresignedUrlToFrontendBucket(
+      readmeLocation <- copyPresignedUrlToFrontendBucket(
         readmePresignedUrl,
         keyFrontend / newNameSameExtension(readmePresignedUrl, README)
       )
-      _ <- copyPresignedUrlToFrontendBucket(
+      changelogLocation <- copyPresignedUrlToFrontendBucket(
         changelogPresignedUrl,
         keyFrontend / newNameSameExtension(changelogPresignedUrl, CHANGELOG)
       )
@@ -755,11 +763,36 @@ class AlpakkaS3StreamClient(
       )
 
     } yield
-      NewFiles(
-        manifest = manifestManifest,
-        readme = readmeManifest,
-        banner = bannerManifest,
-        changelog = changelogManifest
+      RevisionUpdate(
+        NewFiles(
+          manifest = manifestManifest,
+          readme = readmeManifest,
+          banner = bannerManifest,
+          changelog = changelogManifest
+        ),
+        RevisionAssets(
+          banner = AssetLocation(
+            fullKey = bannerLocation,
+            assetKey = keyFrontend / newNameSameExtension(
+              bannerPresignedUrl,
+              BANNER
+            )
+          ),
+          changelog = AssetLocation(
+            fullKey = changelogLocation,
+            assetKey = keyFrontend / newNameSameExtension(
+              changelogPresignedUrl,
+              CHANGELOG
+            )
+          ),
+          readme = AssetLocation(
+            fullKey = readmeLocation,
+            assetKey = keyFrontend / newNameSameExtension(
+              readmePresignedUrl,
+              README
+            )
+          )
+        )
       )
   }
 
