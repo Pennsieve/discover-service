@@ -1890,10 +1890,6 @@ components:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/PublicDatasetDTO"
-        embargoed:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/PublicDatasetDTO"
         unpublished:
           type: object
           additionalProperties:
