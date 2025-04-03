@@ -200,6 +200,8 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/DatasetsByDOIRequest"
+        description: list of DOIs
+        required: true
       responses:
         "200":
           description: successful operation
@@ -1880,8 +1882,16 @@ components:
 
     DatasetsByDOIResponse:
       type: object
+      required:
+        - published
+        - embargoed
+        - unpublished
       properties:
         published:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PublicDatasetDTO"
+        embargoed:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/PublicDatasetDTO"

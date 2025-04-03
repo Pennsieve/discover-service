@@ -40,6 +40,7 @@ import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.server.definitions.{
   AssetTreeNodeDto,
   AssetTreePage,
+  DatasetsByDoiRequest,
   DownloadRequest,
   DownloadResponse,
   DownloadResponseHeader,
@@ -306,6 +307,12 @@ class DatasetHandler(
           )
       }
   }
+
+  override def getDatasetsByDoi(
+    respond: GuardrailResource.GetDatasetsByDoiResponse.type
+  )(
+    body: DatasetsByDoiRequest
+  ): Future[GuardrailResource.GetDatasetsByDoiResponse] = ???
 
   override def requestPreview(
     respond: GuardrailResource.RequestPreviewResponse.type
@@ -1209,6 +1216,7 @@ class DatasetHandler(
        |
        |$agreement
        |""".stripMargin.trim
+
 }
 
 object DatasetHandler {
