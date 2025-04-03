@@ -1884,7 +1884,6 @@ components:
       type: object
       required:
         - published
-        - embargoed
         - unpublished
       properties:
         published:

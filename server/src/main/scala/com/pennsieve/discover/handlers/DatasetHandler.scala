@@ -24,6 +24,10 @@ import com.pennsieve.discover.clients.{
   DatasetPreview,
   HttpError
 }
+import com.pennsieve.discover.db.PublicDatasetVersionsMapper.{
+  DatasetDetails,
+  GetDatasetsByDoiResult
+}
 import com.pennsieve.discover.db._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.downloads.ZipStream
@@ -41,6 +45,7 @@ import com.pennsieve.discover.server.definitions.{
   AssetTreeNodeDto,
   AssetTreePage,
   DatasetsByDoiRequest,
+  DatasetsByDoiResponse,
   DownloadRequest,
   DownloadResponse,
   DownloadResponseHeader,
@@ -55,6 +60,7 @@ import com.pennsieve.models.PublishStatus.{
   PublishSucceeded,
   Unpublished
 }
+import slick.dbio.DBIOAction
 
 import scala.concurrent.duration.{ DurationInt, SECONDS }
 import scala.concurrent.{ ExecutionContext, Future }
@@ -144,6 +150,32 @@ class DatasetHandler(
         preview,
         release = release
       )
+
+  private def datasetsByDoiResponse(
+    queryResults: GetDatasetsByDoiResult
+  ): DatasetsByDoiResponse = {
+    val published = queryResults.published.view
+      .mapValues(
+        x =>
+          models.PublicDatasetDTO(
+            x.dataset,
+            x.version,
+            x.contributors,
+            x.sponsorship,
+            x.revision,
+            x.collections,
+            x.externalPublications,
+            datasetPreview = None,
+            release = x.release
+          )
+      )
+    val unpublished = queryResults.unpublished.view
+      .mapValues(t => models.TombstoneDTO(t._1, t._2))
+    DatasetsByDoiResponse(
+      published = published.toMap,
+      unpublished = unpublished.toMap
+    )
+  }
 
   override def getDatasets(
     respond: GuardrailResource.GetDatasetsResponse.type
@@ -312,7 +344,16 @@ class DatasetHandler(
     respond: GuardrailResource.GetDatasetsByDoiResponse.type
   )(
     body: DatasetsByDoiRequest
-  ): Future[GuardrailResource.GetDatasetsByDoiResponse] = ???
+  ): Future[GuardrailResource.GetDatasetsByDoiResponse] = {
+    val query: DBIOAction[DatasetsByDoiResponse, NoStream, Effect.Read] = for {
+      datasetDetails <- PublicDatasetVersionsMapper.getDatasetsByDoi(
+        body.dois.toList
+      )
+    } yield datasetsByDoiResponse(datasetDetails)
+    ports.db
+      .run(query.transactionally)
+      .map(GuardrailResource.GetDatasetsByDoiResponse.OK)
+  }
 
   override def requestPreview(
     respond: GuardrailResource.RequestPreviewResponse.type
