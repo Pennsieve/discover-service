@@ -344,6 +344,11 @@ class DatasetHandler(
   )(
     doi: Iterable[String]
   ): Future[GuardrailResource.GetDatasetsByDoiResponse] = {
+    if (doi.isEmpty) {
+      return Future.successful(
+        GuardrailResource.GetDatasetsByDoiResponse.BadRequest("missing DOIs")
+      )
+    }
     val query: DBIOAction[DatasetsByDoiResponse, NoStream, Effect.Read] = for {
       datasetDetails <- PublicDatasetVersionsMapper.getDatasetsByDoi(doi.toList)
     } yield datasetsByDoiResponse(datasetDetails)

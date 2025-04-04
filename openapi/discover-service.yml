@@ -211,6 +211,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DatasetsByDOIResponse"
+        "400":
+          description: bad request if no DOIs are included
+          content:
+            application/json:
+              schema:
+                type: string
 
   "/datasets/{datasetId}/preview":
     post:
