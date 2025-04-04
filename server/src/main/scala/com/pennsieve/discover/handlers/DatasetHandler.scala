@@ -44,7 +44,6 @@ import com.pennsieve.discover.server.definitions
 import com.pennsieve.discover.server.definitions.{
   AssetTreeNodeDto,
   AssetTreePage,
-  DatasetsByDoiRequest,
   DatasetsByDoiResponse,
   DownloadRequest,
   DownloadResponse,
@@ -343,12 +342,10 @@ class DatasetHandler(
   override def getDatasetsByDoi(
     respond: GuardrailResource.GetDatasetsByDoiResponse.type
   )(
-    body: DatasetsByDoiRequest
+    doi: Iterable[String]
   ): Future[GuardrailResource.GetDatasetsByDoiResponse] = {
     val query: DBIOAction[DatasetsByDoiResponse, NoStream, Effect.Read] = for {
-      datasetDetails <- PublicDatasetVersionsMapper.getDatasetsByDoi(
-        body.dois.toList
-      )
+      datasetDetails <- PublicDatasetVersionsMapper.getDatasetsByDoi(doi.toList)
     } yield datasetsByDoiResponse(datasetDetails)
     ports.db
       .run(query.transactionally)

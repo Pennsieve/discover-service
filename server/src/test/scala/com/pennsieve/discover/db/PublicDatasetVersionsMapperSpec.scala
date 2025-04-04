@@ -944,4 +944,14 @@ class PublicDatasetVersionsMapperSpec
     result.unpublished(ds2_v1_failed.doi) shouldBe (ds2, ds2_v1_failed)
 
   }
+
+  "return empty response when given an empty list of DOIs" in {
+    val result = ports.db
+      .run(PublicDatasetVersionsMapper.getDatasetsByDoi(dois = List.empty))
+      .await
+
+    result.published shouldBe empty
+    result.unpublished shouldBe empty
+
+  }
 }

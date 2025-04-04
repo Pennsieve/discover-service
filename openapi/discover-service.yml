@@ -195,13 +195,15 @@ paths:
         Find Pennsieve datasets by DOI
       operationId: getDatasetsByDoi
       x-scala-package: dataset
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DatasetsByDOIRequest"
-        description: list of DOIs
-        required: true
+      parameters:
+        - name: doi
+          in: query
+          description: DOI list; Pennsieve DOI prefix - 10.26275
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
       responses:
         "200":
           description: successful operation
@@ -1869,16 +1871,6 @@ components:
         downloads:
           type: integer
           format: int32
-
-    DatasetsByDOIRequest:
-      type: object
-      required:
-        - dois
-      properties:
-        dois:
-          type: array
-          items:
-            type: string
 
     DatasetsByDOIResponse:
       type: object

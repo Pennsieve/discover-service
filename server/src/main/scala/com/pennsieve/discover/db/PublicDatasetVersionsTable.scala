@@ -175,15 +175,17 @@ object PublicDatasetVersionsMapper
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[GetDatasetsByDoiResult, NoStream, Effect.Read] = {
-    if (dois.isEmpty) {
+    val distinctDois = dois.distinct
+    if (distinctDois.isEmpty) {
       return DBIO.successful(GetDatasetsByDoiResult())
     }
 
     val datasetsWithSponsorshipsQuery = PublicDatasetsMapper
-      .join(this.filter(_.doi inSetBind dois))
+      .join(this)
       .on(_.id === _.datasetId)
       .joinLeft(SponsorshipsMapper)
       .on(_._1.id === _.datasetId)
+      .filter(_._1._2.doi inSetBind distinctDois)
 
     for {
       datasetsWithSponsorships <- datasetsWithSponsorshipsQuery.result
