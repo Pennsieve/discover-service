@@ -15,6 +15,6 @@ jobs:
           find: "https://api.pennsieve.io"
           replace: "https://api.pennsieve.io/discover"
           include: "openapi/discover-service.yml"
-      - uses: readmeio/rdme@v10
+      - uses: readmeio/rdme@v9
         with:
-          rdme: openapi upload openapi/discover-service.yml --key=${{ secrets.README_OAS_KEY }}
+          rdme: openapi openapi/discover-service.yml --key=${{ secrets.README_OAS_KEY }} --id=${{ vars.README_API_DEFINITION_ID }}
