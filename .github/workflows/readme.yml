@@ -17,4 +17,4 @@ jobs:
           include: "openapi/discover-service.yml"
       - uses: readmeio/rdme@v10
         with:
-          rdme: openapi openapi/discover-service.yml --key=${{ secrets.README_OAS_KEY }} --id=${{vars.README_API_DEFINITION_ID}}
+          rdme: openapi upload openapi/discover-service.yml --key=${{ secrets.README_OAS_KEY }}
