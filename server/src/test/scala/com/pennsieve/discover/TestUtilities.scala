@@ -12,7 +12,8 @@ import com.pennsieve.models.{
   FileManifest,
   FileType,
   License,
-  PublishStatus
+  PublishStatus,
+  RelationshipType
 }
 import com.pennsieve.test.AwaitableImplicits
 import com.spotify.docker.client.DefaultDockerClient
@@ -442,6 +443,44 @@ object TestUtilities extends AwaitableImplicits {
             s3VersionId = s3Version
           )
         )
+      )
+      .awaitFinite()
+
+  def createSponsorship(
+    db: Database
+  )(
+    sourceOrganizationId: Int,
+    sourceDatasetId: Int,
+    title: Option[String] = Some(randomString()),
+    imageUrl: Option[String] = Some(randomString()),
+    markup: Option[String] = Some(randomString())
+  )(implicit
+    executionContext: ExecutionContext
+  ): Sponsorship =
+    db.run(
+        SponsorshipsMapper.createOrUpdate(
+          sourceOrganizationId,
+          sourceDatasetId,
+          title,
+          imageUrl,
+          markup
+        )
+      )
+      .awaitFinite()
+
+  def createExternalPublication(
+    db: Database
+  )(
+    datasetId: Int,
+    version: Int,
+    relationshipType: RelationshipType,
+    doi: String = randomString()
+  )(implicit
+    executionContext: ExecutionContext
+  ): PublicExternalPublication =
+    db.run(
+        PublicExternalPublicationsMapper
+          .create(doi, relationshipType, datasetId, version)
       )
       .awaitFinite()
 

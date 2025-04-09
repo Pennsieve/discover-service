@@ -15,7 +15,7 @@ tags:
   - name: Datasets
   - name: Tags
   - name: Search
-  - name: Packages 
+  - name: Packages
   - name: Metrics
 
 paths:
@@ -23,7 +23,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: get the latest published version of each dataset
       operationId: getDatasets
       x-scala-package: dataset
@@ -100,7 +100,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: get the latest version of a dataset
       operationId: getDataset
       x-scala-package: dataset
@@ -142,7 +142,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: get a dataset by DOI
       description: |
         Find a Pennsieve dataset by DOI
@@ -185,11 +185,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/TombstoneDTO"
 
+  "/datasets/doi":
+    get:
+      tags:
+        - Datasets
+      security: [ ]
+      summary: get datasets by DOIs
+      description: |
+        Find Pennsieve datasets by DOI
+      operationId: getDatasetsByDoi
+      x-scala-package: dataset
+      parameters:
+        - name: doi
+          in: query
+          description: DOI list; Pennsieve DOI prefix - 10.26275
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetsByDOIResponse"
+        "400":
+          description: bad request if no DOIs are included
+          content:
+            application/json:
+              schema:
+                type: string
+
   "/datasets/{datasetId}/preview":
     post:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: request preview access to a dataset
       operationId: requestPreview
       x-scala-package: dataset
@@ -228,7 +261,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: get all published versions of a dataset
       operationId: getDatasetVersions
       x-scala-package: dataset
@@ -260,7 +293,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: get a dataset by version
       operationId: getDatasetVersion
       x-scala-package: dataset
@@ -303,7 +336,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: get a file from a dataset
       operationId: getFile
       x-scala-package: dataset
@@ -364,7 +397,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: download the dataset as a ZIP archive
       operationId: downloadDatasetVersion
       x-scala-package: dataset
@@ -413,7 +446,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: download the metadata of the dataset
       operationId: getDatasetMetadata
       x-scala-package: dataset
@@ -461,7 +494,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: view files for a dataset
       operationId: browseFiles
       x-scala-package: dataset
@@ -601,7 +634,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: view release assets for a dataset
       operationId: browseAssets
       x-scala-package: dataset
@@ -682,7 +715,7 @@ paths:
     post:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: get a manifest of files to be downloaded for a dataset
       operationId: downloadManifest
       x-scala-package: dataset
@@ -754,7 +787,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: get the data use agreement for this dataset, if under embargo
       operationId: getDataUseAgreement
       x-scala-package: dataset
@@ -792,7 +825,7 @@ paths:
     get:
       tags:
         - Datasets
-      security: []
+      security: [ ]
       summary: download the data use agreement for this dataset, if under embargo
       operationId: downloadDataUseAgreement
       x-scala-package: dataset
@@ -827,7 +860,7 @@ paths:
     get:
       tags:
         - Tags
-      security: []
+      security: [ ]
       summary: get all dataset tags
       operationId: getTags
       x-scala-package: tag
@@ -845,7 +878,7 @@ paths:
     get:
       tags:
         - Search
-      security: []
+      security: [ ]
       summary: get datasets matching criteria
       operationId: searchDatasets
       x-scala-package: search
@@ -920,7 +953,7 @@ paths:
     get:
       tags:
         - Search
-      security: []
+      security: [ ]
       summary: get files matching criteria
       operationId: searchFiles
       x-scala-package: search
@@ -985,7 +1018,7 @@ paths:
     get:
       tags:
         - Metrics
-      security: []
+      security: [ ]
       summary: "Get Organization Dataset Metrics"
       operationId: getOrganizationDatasetMetrics
       x-scala-package: organization
@@ -1015,7 +1048,7 @@ paths:
     get:
       tags:
         - Search
-      security: []
+      security: [ ]
       summary: get records matching criteria
       operationId: searchRecords
       x-scala-package: search
@@ -1067,40 +1100,40 @@ paths:
     get:
       tags:
         - Packages
-      security: []
+      security: [ ]
       summary: get the files from the sourcePackageId of a package
       operationId: getFileFromSourcePackageId
       x-scala-package: file
       parameters:
-      - name: sourcePackageId
-        in: path
-        description: source package id
-        required: true
-        schema:
-          type: string
-      - name: limit
-        in: query
-        description: max number of files returned
-        required: false
-        schema:
-          type: integer
-          format: int32
-          default: 100
-      - name: offset
-        in: query
-        description: offset used for pagination of results
-        required: false
-        schema:
-          type: integer
-          format: int32
-          default: 0
+        - name: sourcePackageId
+          in: path
+          description: source package id
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: max number of files returned
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 100
+        - name: offset
+          in: query
+          description: offset used for pagination of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
       responses:
         "200":
           description: successful operation
           content:
             application/json:
               schema:
-                  $ref: "#/components/schemas/FileTreeWithOrgPage"
+                $ref: "#/components/schemas/FileTreeWithOrgPage"
         "404":
           description: resource not found
           content:
@@ -1112,28 +1145,28 @@ paths:
     get:
       tags:
         - Metrics
-      security: []
+      security: [ ]
       summary: metrics
       operationId: getDatasetDownloadsSummary
       x-scala-package: metrics
       description: get the dataset downloads summary for the requested date range
       parameters:
-      - name: startDate
-        in: query
-        description: Date for the beginning of download metrics
-        required: true
-        schema:
-          type: string
-          format: date
-          nullable: true
-      - name: endDate
-        in: query
-        description: Date for the end of download metrics
-        required: true
-        schema:
-          type: string
-          format: date
-          nullable: true
+        - name: startDate
+          in: query
+          description: Date for the beginning of download metrics
+          required: true
+          schema:
+            type: string
+            format: date
+            nullable: true
+        - name: endDate
+          in: query
+          description: Date for the end of download metrics
+          required: true
+          schema:
+            type: string
+            format: date
+            nullable: true
       responses:
         "200":
           description: successful operation
@@ -1670,8 +1703,8 @@ components:
     PublicCollectionDTO:
       type: object
       required:
-      - id
-      - name
+        - id
+        - name
       properties:
         id:
           type: integer
@@ -1682,8 +1715,8 @@ components:
     PublicExternalPublicationDTO:
       type: object
       required:
-      - doi
-      - relationshipType
+        - doi
+        - relationshipType
       properties:
         doi:
           type: string
@@ -1844,3 +1877,18 @@ components:
         downloads:
           type: integer
           format: int32
+
+    DatasetsByDOIResponse:
+      type: object
+      required:
+        - published
+        - unpublished
+      properties:
+        published:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PublicDatasetDTO"
+        unpublished:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/TombstoneDTO"

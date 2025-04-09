@@ -146,17 +146,109 @@ object PublicDatasetVersionsMapper
       .result
       .headOption
       .flatMap {
-        case Some((d, v))
-            if v.status in Seq(
-              PublishStatus.PublishSucceeded,
-              PublishStatus.EmbargoSucceeded
-            ) =>
+        case Some((d, v)) if v.status in successfulStates =>
           DBIO.successful((d, v))
         case Some((d, v)) if v.status == PublishStatus.Unpublished =>
           DBIO.failed(DatasetUnpublishedException(d, v))
         case _ =>
           DBIO.failed(NoDatasetForDoiException(doi))
       }
+
+  case class DatasetDetails(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion,
+    contributors: IndexedSeq[PublicContributor],
+    sponsorship: Option[Sponsorship],
+    revision: Option[Revision],
+    collections: IndexedSeq[PublicCollection],
+    externalPublications: IndexedSeq[PublicExternalPublication],
+    release: Option[PublicDatasetRelease]
+  )
+
+  case class GetDatasetsByDoiResult(
+    published: Map[String, DatasetDetails] = Map.empty,
+    unpublished: Map[String, (PublicDataset, PublicDatasetVersion)] = Map.empty
+  )
+
+  def getDatasetsByDoi(
+    dois: List[String]
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[GetDatasetsByDoiResult, NoStream, Effect.Read] = {
+    val distinctDois = dois.distinct
+    if (distinctDois.isEmpty) {
+      return DBIO.successful(GetDatasetsByDoiResult())
+    }
+
+    val datasetsWithSponsorshipsQuery = PublicDatasetsMapper
+      .join(this)
+      .on(_.id === _.datasetId)
+      .joinLeft(SponsorshipsMapper)
+      .on(_._1.id === _.datasetId)
+      .filter(_._1._2.doi inSetBind distinctDois)
+
+    for {
+      datasetsWithSponsorships <- datasetsWithSponsorshipsQuery.result
+
+      (publishedWithSponsorships, unpublished) = datasetsWithSponsorships
+        .partition(_._1._2.status in successfulStates)
+
+      contributorsMap <- PublicContributorsMapper.getDatasetContributors(
+        publishedWithSponsorships.map {
+          case ((dataset, version), _) => (dataset, version)
+        }
+      )
+      collectionsMap <- PublicCollectionsMapper.getDatasetCollections(
+        publishedWithSponsorships.map {
+          case ((dataset, version), _) => (dataset, version)
+        }
+      )
+      externalPublicationsMap <- PublicExternalPublicationsMapper
+        .getExternalPublications(publishedWithSponsorships.map {
+          case ((dataset, version), _) => (dataset, version)
+        })
+
+      revisionsMap <- RevisionsMapper.getLatestRevisions(
+        publishedWithSponsorships.map {
+          case ((_, version), _) => version
+        }
+      )
+
+      releasesMap <- PublicDatasetReleaseMapper.getFor(
+        publishedWithSponsorships.map {
+          case ((dataset, version), _) => (dataset, version)
+        }
+      )
+
+    } yield {
+      val publishedByDoi = publishedWithSponsorships.view
+        .map(
+          tuple =>
+            tuple._1._2.doi -> DatasetDetails(
+              dataset = tuple._1._1,
+              version = tuple._1._2,
+              contributors =
+                contributorsMap.getOrElse(tuple._1, Nil).toIndexedSeq,
+              sponsorship = tuple._2,
+              revision = revisionsMap.get(tuple._1._2).flatten,
+              collections = collectionsMap.getOrElse(tuple._1, Nil).toIndexedSeq,
+              externalPublications =
+                externalPublicationsMap.getOrElse(tuple._1, Nil).toIndexedSeq,
+              release = releasesMap.get(tuple._1)
+            )
+        )
+        .toMap
+      val unpublishedByDoi =
+        unpublished.view
+          .map(tuple => tuple._1._2.doi -> (tuple._1._1, tuple._1._2))
+          .toMap
+      GetDatasetsByDoiResult(
+        published = publishedByDoi,
+        unpublished = unpublishedByDoi
+      )
+    }
+
+  }
 
   def getVersionCounts(
     status: PublishStatus = PublishSucceeded

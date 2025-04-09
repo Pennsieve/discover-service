@@ -54,6 +54,7 @@ import com.pennsieve.discover.server.definitions.{
 import com.pennsieve.models.PublishStatus.{
   EmbargoSucceeded,
   NotPublished,
+  PublishFailed,
   PublishInProgress,
   PublishSucceeded,
   Unpublished
@@ -79,6 +80,8 @@ import com.pennsieve.discover.Authenticator.{
   generateServiceToken,
   generateUserToken
 }
+import com.pennsieve.models.RelationshipType.{ Documents, References, Requires }
+import org.scalatest.Inside.inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -470,6 +473,256 @@ class DatasetHandlerSpec
           updatedAt = dataset.updatedAt
         )
       )
+    }
+  }
+
+  "GET /datasets/doi" should {
+    "get dataset DTOs and Tombstone DTOs" in {
+      val doiPrefix = "10.9999.9"
+      def randomDoi() = s"$doiPrefix/${randomString()}"
+
+      val ds1 =
+        TestUtilities.createDataset(ports.db)(sourceDatasetId = 1, name = "A")
+      val ds2 =
+        TestUtilities.createDataset(ports.db)(sourceDatasetId = 2, name = "B")
+      val ds3 =
+        TestUtilities.createDataset(ports.db)(sourceDatasetId = 3, name = "C")
+      val ds4 =
+        TestUtilities.createDataset(ports.db)(sourceDatasetId = 4, name = "D")
+      val ds1_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = ds1.id,
+        status = PublishSucceeded,
+        doi = randomDoi()
+      )
+      val ds2_v1_failed = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = ds2.id,
+        status = PublishFailed,
+        size = 100L,
+        doi = randomDoi()
+      )
+      val ds3_v1_embargoed = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = ds3.id,
+        status = EmbargoSucceeded,
+        size = 90L,
+        doi = randomDoi()
+      )
+      val ds4_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = ds4.id,
+        status = PublishSucceeded,
+        size = 80L,
+        doi = randomDoi()
+      )
+      val ds1_v2 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = ds1.id,
+        status = PublishSucceeded,
+        size = 70L,
+        doi = randomDoi()
+      )
+
+      val ds1_v1_contrib = TestUtilities.createContributor(ports.db)(
+        firstName = "Henry",
+        lastName = "Winkler",
+        orcid = None,
+        datasetId = ds1.id,
+        organizationId = 1,
+        version = ds1_v1.version,
+        sourceContributorId = 1,
+        sourceUserId = Some(1)
+      )
+
+      TestUtilities.createContributor(ports.db)(
+        firstName = "Tom",
+        lastName = "Hanks",
+        orcid = None,
+        datasetId = ds2.id,
+        organizationId = 1,
+        version = ds2_v1_failed.version,
+        sourceContributorId = 2,
+        sourceUserId = Some(2)
+      )
+      val ds3_v1_embargoed_contrib = TestUtilities.createContributor(ports.db)(
+        firstName = "Tony",
+        lastName = "Parker",
+        orcid = None,
+        datasetId = ds3.id,
+        organizationId = 1,
+        version = ds3_v1_embargoed.version,
+        sourceContributorId = 3,
+        sourceUserId = Some(3)
+      )
+      val ds4_v1_contrib = TestUtilities.createContributor(ports.db)(
+        firstName = "Sally",
+        lastName = "Fields",
+        orcid = None,
+        datasetId = ds4.id,
+        organizationId = 1,
+        version = ds4_v1.version,
+        sourceContributorId = 4,
+        sourceUserId = Some(4)
+      )
+      val ds1_v2_contrib = TestUtilities.createContributor(ports.db)(
+        firstName = "Henry",
+        lastName = "Winkler",
+        orcid = None,
+        datasetId = ds1.id,
+        organizationId = 1,
+        version = ds1_v2.version,
+        sourceContributorId = 1,
+        sourceUserId = Some(1)
+      )
+
+      val ds1_sponsorship = TestUtilities.createSponsorship(ports.db)(
+        sourceOrganizationId = ds1.sourceOrganizationId,
+        sourceDatasetId = ds1.sourceDatasetId
+      )
+
+      val ds4_v1_revision = TestUtilities.createRevision(ports.db)(ds4_v1)
+
+      val ds1_v2_collection = TestUtilities.createCollection(ports.db)(
+        datasetId = ds1_v2.datasetId,
+        version = ds1_v2.version,
+        sourceCollectionId = 1
+      )
+
+      val ds4_v1_release = TestUtilities.createDatasetRelease(ports.db)(
+        ds4_v1.datasetId,
+        ds4_v1.version,
+        "GitHub",
+        "v1.0.0",
+        "https://github.com/Pennsieve/test-repo"
+      )
+
+      val ds1_v1_externalPub = TestUtilities.createExternalPublication(
+        ports.db
+      )(ds1_v1.datasetId, ds1_v1.version, References)
+
+      val ds4_v1_externalPub1 = TestUtilities.createExternalPublication(
+        ports.db
+      )(ds4_v1.datasetId, ds4_v1.version, Requires)
+
+      val ds4_v1_externalPub2 = TestUtilities.createExternalPublication(
+        ports.db
+      )(ds4_v1.datasetId, ds4_v1.version, Documents)
+
+      val response = datasetClient
+        .getDatasetsByDoi(
+          List(
+            ds1_v1.doi,
+            ds1_v2.doi,
+            ds2_v1_failed.doi,
+            ds3_v1_embargoed.doi,
+            ds4_v1.doi
+          )
+        )
+        .awaitFinite()
+        .value
+
+      inside(response) {
+        case GetDatasetsByDoiResponse.OK(result) =>
+          // Check Unpublished
+          result.unpublished.size shouldBe 1
+
+          result.unpublished should contain key ds2_v1_failed.doi
+          result.unpublished(ds2_v1_failed.doi) shouldBe client.definitions
+            .TombstoneDto(
+              id = ds2_v1_failed.datasetId,
+              version = ds2_v1_failed.version,
+              name = ds2.name,
+              tags = ds2.tags.toVector,
+              status = PublishStatus.PublishFailed,
+              doi = ds2_v1_failed.doi,
+              updatedAt = ds2.updatedAt
+            )
+
+          // Check published
+          result.published.size shouldBe 4
+
+          result.published should contain key ds1_v1.doi
+          result.published(ds1_v1.doi) shouldBe toClientDefinition(
+            models.PublicDatasetDTO(
+              dataset = ds1,
+              version = ds1_v1,
+              contributors = Seq(ds1_v1_contrib),
+              sponsorship = Some(ds1_sponsorship),
+              revision = None,
+              collections = Seq.empty,
+              externalPublications = Seq(ds1_v1_externalPub),
+              datasetPreview = None,
+              release = None
+            )
+          )
+
+          result.published should contain key ds1_v2.doi
+          result.published(ds1_v2.doi) shouldBe toClientDefinition(
+            models.PublicDatasetDTO(
+              dataset = ds1,
+              version = ds1_v2,
+              contributors = IndexedSeq(ds1_v2_contrib),
+              sponsorship = Some(ds1_sponsorship),
+              revision = None,
+              collections = IndexedSeq(ds1_v2_collection),
+              externalPublications = IndexedSeq.empty,
+              datasetPreview = None,
+              release = None
+            )
+          )
+
+          result.published should contain key ds3_v1_embargoed.doi
+          result.published(ds3_v1_embargoed.doi) shouldBe toClientDefinition(
+            models.PublicDatasetDTO(
+              dataset = ds3,
+              version = ds3_v1_embargoed,
+              contributors = IndexedSeq(ds3_v1_embargoed_contrib),
+              sponsorship = None,
+              revision = None,
+              collections = IndexedSeq.empty,
+              externalPublications = IndexedSeq.empty,
+              datasetPreview = None,
+              release = None
+            )
+          )
+
+          // Breaking this one up because the external pubs are not returned in a deterministic order
+          result.published should contain key ds4_v1.doi
+          val ds4_v1_result = result.published(ds4_v1.doi)
+
+          // only difference between these two should be the order of the external publications
+          val ds4_v1_expectedServerDef1 = models.PublicDatasetDTO(
+            dataset = ds4,
+            version = ds4_v1,
+            contributors = IndexedSeq(ds4_v1_contrib),
+            sponsorship = None,
+            revision = Some(ds4_v1_revision),
+            collections = IndexedSeq.empty,
+            externalPublications =
+              IndexedSeq(ds4_v1_externalPub1, ds4_v1_externalPub2),
+            datasetPreview = None,
+            release = Some(ds4_v1_release)
+          )
+          val ds4_v1_expectedServerDef2 = models.PublicDatasetDTO(
+            dataset = ds4,
+            version = ds4_v1,
+            contributors = IndexedSeq(ds4_v1_contrib),
+            sponsorship = None,
+            revision = Some(ds4_v1_revision),
+            collections = IndexedSeq.empty,
+            externalPublications =
+              IndexedSeq(ds4_v1_externalPub2, ds4_v1_externalPub1),
+            datasetPreview = None,
+            release = Some(ds4_v1_release)
+          )
+
+          ds4_v1_result should (be(
+            toClientDefinition(ds4_v1_expectedServerDef1)
+          ) or be(toClientDefinition(ds4_v1_expectedServerDef2)))
+      }
+    }
+
+    "fail if there are no doi query params" in {
+      val response =
+        datasetClient.getDatasetsByDoi(doi = Nil).awaitFinite().value
+
+      response shouldBe GetDatasetsByDoiResponse.BadRequest("missing DOIs")
     }
   }
 

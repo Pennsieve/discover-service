@@ -22,11 +22,13 @@ import com.pennsieve.discover.{
 }
 import com.pennsieve.models.PublishStatus
 import com.pennsieve.models.PublishStatus.{
+  EmbargoSucceeded,
   PublishFailed,
   PublishInProgress,
   PublishSucceeded,
   Unpublished
 }
+import com.pennsieve.models.RelationshipType.{ Documents, References, Requires }
 import com.pennsieve.test.AwaitableImplicits
 import org.postgresql.util.PSQLException
 import org.scalatest.matchers.should.Matchers
@@ -734,5 +736,222 @@ class PublicDatasetVersionsMapperSpec
         ReleaseFailed
       )
     } yield version.copy(status = status).underEmbargo shouldBe true
+  }
+
+  "retrieve dataset versions for given DOIs" in {
+    val ds1 =
+      TestUtilities.createDataset(ports.db)(sourceDatasetId = 1, name = "A")
+    val ds2 =
+      TestUtilities.createDataset(ports.db)(sourceDatasetId = 2, name = "B")
+    val ds3 =
+      TestUtilities.createDataset(ports.db)(sourceDatasetId = 3, name = "C")
+    val ds4 =
+      TestUtilities.createDataset(ports.db)(sourceDatasetId = 4, name = "D")
+    val ds1_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = ds1.id,
+      status = PublishSucceeded
+    )
+    val ds2_v1_failed = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = ds2.id,
+      status = PublishFailed,
+      size = 100L
+    )
+    val ds3_v1_embargoed = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = ds3.id,
+      status = EmbargoSucceeded,
+      size = 90L
+    )
+    val ds4_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = ds4.id,
+      status = PublishSucceeded,
+      size = 80L
+    )
+    val ds1_v2 = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = ds1.id,
+      status = PublishSucceeded,
+      size = 70L
+    )
+
+    val ds1_v1_contrib = TestUtilities.createContributor(ports.db)(
+      firstName = "Henry",
+      lastName = "Winkler",
+      orcid = None,
+      datasetId = ds1.id,
+      organizationId = 1,
+      version = ds1_v1.version,
+      sourceContributorId = 1,
+      sourceUserId = Some(1)
+    )
+
+    TestUtilities.createContributor(ports.db)(
+      firstName = "Tom",
+      lastName = "Hanks",
+      orcid = None,
+      datasetId = ds2.id,
+      organizationId = 1,
+      version = ds2_v1_failed.version,
+      sourceContributorId = 2,
+      sourceUserId = Some(2)
+    )
+    val ds3_v1_embargoed_contrib = TestUtilities.createContributor(ports.db)(
+      firstName = "Tony",
+      lastName = "Parker",
+      orcid = None,
+      datasetId = ds3.id,
+      organizationId = 1,
+      version = ds3_v1_embargoed.version,
+      sourceContributorId = 3,
+      sourceUserId = Some(3)
+    )
+    val ds4_v1_contrib = TestUtilities.createContributor(ports.db)(
+      firstName = "Sally",
+      lastName = "Fields",
+      orcid = None,
+      datasetId = ds4.id,
+      organizationId = 1,
+      version = ds4_v1.version,
+      sourceContributorId = 4,
+      sourceUserId = Some(4)
+    )
+    val ds1_v2_contrib = TestUtilities.createContributor(ports.db)(
+      firstName = "Henry",
+      lastName = "Winkler",
+      orcid = None,
+      datasetId = ds1.id,
+      organizationId = 1,
+      version = ds1_v2.version,
+      sourceContributorId = 1,
+      sourceUserId = Some(1)
+    )
+
+    val ds1_sponsorship = TestUtilities.createSponsorship(ports.db)(
+      sourceOrganizationId = ds1.sourceOrganizationId,
+      sourceDatasetId = ds1.sourceDatasetId
+    )
+
+    val ds4_v1_revision = TestUtilities.createRevision(ports.db)(ds4_v1)
+
+    val ds1_v2_collection = TestUtilities.createCollection(ports.db)(
+      datasetId = ds1_v2.datasetId,
+      version = ds1_v2.version,
+      sourceCollectionId = 1
+    )
+
+    val ds4_v1_release = TestUtilities.createDatasetRelease(ports.db)(
+      ds4_v1.datasetId,
+      ds4_v1.version,
+      "GitHub",
+      "v1.0.0",
+      "https://github.com/Pennsieve/test-repo"
+    )
+
+    val ds1_v1_externalPub = TestUtilities.createExternalPublication(ports.db)(
+      ds1_v1.datasetId,
+      ds1_v1.version,
+      References
+    )
+
+    val ds4_v1_externalPub1 = TestUtilities.createExternalPublication(ports.db)(
+      ds4_v1.datasetId,
+      ds4_v1.version,
+      Requires
+    )
+
+    val ds4_v1_externalPub2 = TestUtilities.createExternalPublication(ports.db)(
+      ds4_v1.datasetId,
+      ds4_v1.version,
+      Documents
+    )
+
+    val result = ports.db
+      .run(
+        PublicDatasetVersionsMapper.getDatasetsByDoi(
+          dois = List(
+            ds1_v1.doi,
+            ds1_v2.doi,
+            ds2_v1_failed.doi,
+            ds3_v1_embargoed.doi,
+            ds4_v1.doi
+          )
+        )
+      )
+      .await
+
+    // Check published
+    result.published.size shouldBe 4
+
+    result.published should contain key ds1_v1.doi
+    result.published(ds1_v1.doi) shouldBe PublicDatasetVersionsMapper
+      .DatasetDetails(
+        dataset = ds1,
+        version = ds1_v1,
+        contributors = IndexedSeq(ds1_v1_contrib),
+        sponsorship = Some(ds1_sponsorship),
+        revision = None,
+        collections = IndexedSeq.empty,
+        externalPublications = IndexedSeq(ds1_v1_externalPub),
+        release = None
+      )
+
+    result.published should contain key ds1_v2.doi
+    result.published(ds1_v2.doi) shouldBe PublicDatasetVersionsMapper
+      .DatasetDetails(
+        dataset = ds1,
+        version = ds1_v2,
+        contributors = IndexedSeq(ds1_v2_contrib),
+        sponsorship = Some(ds1_sponsorship),
+        revision = None,
+        collections = IndexedSeq(ds1_v2_collection),
+        externalPublications = IndexedSeq.empty,
+        release = None
+      )
+
+    result.published should contain key ds3_v1_embargoed.doi
+    result.published(ds3_v1_embargoed.doi) shouldBe PublicDatasetVersionsMapper
+      .DatasetDetails(
+        dataset = ds3,
+        version = ds3_v1_embargoed,
+        contributors = IndexedSeq(ds3_v1_embargoed_contrib),
+        sponsorship = None,
+        revision = None,
+        collections = IndexedSeq.empty,
+        externalPublications = IndexedSeq.empty,
+        release = None
+      )
+
+    // Breaking this one up because the external pubs are not returned in a deterministic order
+    result.published should contain key ds4_v1.doi
+    result.published(ds4_v1.doi).dataset shouldBe ds4
+    result.published(ds4_v1.doi).version shouldBe ds4_v1
+    result.published(ds4_v1.doi).contributors shouldBe IndexedSeq(
+      ds4_v1_contrib
+    )
+    result.published(ds4_v1.doi).sponsorship shouldBe empty
+    result.published(ds4_v1.doi).revision shouldBe Some(ds4_v1_revision)
+    result.published(ds4_v1.doi).collections shouldBe empty
+    result
+      .published(ds4_v1.doi)
+      .externalPublications should contain theSameElementsAs IndexedSeq(
+      ds4_v1_externalPub1,
+      ds4_v1_externalPub2
+    )
+    result.published(ds4_v1.doi).release shouldBe Some(ds4_v1_release)
+
+    // Check Unpublished
+    result.unpublished.size shouldBe 1
+
+    result.unpublished should contain key ds2_v1_failed.doi
+    result.unpublished(ds2_v1_failed.doi) shouldBe (ds2, ds2_v1_failed)
+
+  }
+
+  "return empty response when given an empty list of DOIs" in {
+    val result = ports.db
+      .run(PublicDatasetVersionsMapper.getDatasetsByDoi(dois = List.empty))
+      .await
+
+    result.published shouldBe empty
+    result.unpublished shouldBe empty
+
   }
 }
