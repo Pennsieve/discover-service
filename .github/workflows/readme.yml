@@ -15,10 +15,6 @@ jobs:
           find: "https://api.pennsieve.io"
           replace: "https://api.pennsieve.io/discover"
           include: "openapi/discover-service.yml"
-      - uses: readmeio/github-readme-sync@v2
+      - uses: readmeio/rdme@v10
         with:
-          readme-oas-key: ${{ secrets.README_OAS_KEY }}
-           
-          # OPTIONAL CONFIG, use if necessary
-          oas-file-path: 'openapi/discover-service.yml'
-          api-version: 'v1.0.0'
+          rdme: openapi openapi/discover-service.yml --key=${{ secrets.README_OAS_KEY }} --id=${{vars.README_API_DEFINITION_ID}}
