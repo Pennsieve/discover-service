@@ -33,13 +33,13 @@ import com.pennsieve.discover.server.collection.{
   CollectionHandler => GuardrailHandler,
   CollectionResource => GuardrailResource
 }
-import com.pennsieve.discover.server.definitions.PublishCollectionRequest
+import com.pennsieve.discover.server.definitions.PublishDoiCollectionRequest
 import com.pennsieve.discover.utils.{ getOrCreateDoi, BucketResolver }
 import com.pennsieve.models.PublishStatus
 import io.circe.DecodingFailure
 import slick.jdbc.TransactionIsolation
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.handlers.CollectionHandler.{
+import com.pennsieve.discover.handlers.DoiCollectionHandler.{
   collectionOrgId,
   collectionOrgName
 }
@@ -48,21 +48,22 @@ import com.pennsieve.models.DatasetType.Collection
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
 
-class CollectionHandler(
+class DoiCollectionHandler(
   ports: Ports,
   claim: Jwt.Claim
 )(implicit
   system: ActorSystem,
   executionContext: ExecutionContext
 ) extends GuardrailHandler {
-  type PublishCollectionResponse = GuardrailResource.PublishCollectionResponse
+  type PublishDoiCollectionResponse =
+    GuardrailResource.PublishDoiCollectionResponse
 
-  override def publishCollection(
-    respond: GuardrailResource.PublishCollectionResponse.type
+  override def publishDoiCollection(
+    respond: GuardrailResource.PublishDoiCollectionResponse.type
   )(
     collectionId: Int,
-    body: PublishCollectionRequest
-  ): Future[PublishCollectionResponse] = {
+    body: PublishDoiCollectionRequest
+  ): Future[PublishDoiCollectionResponse] = {
     implicit val logContext: DiscoverLogContext = DiscoverLogContext(
       datasetId = Some(collectionId),
       userId = Some(body.ownerId)
@@ -76,7 +77,7 @@ class CollectionHandler(
         Some(PublishingWorkflow.Version5)
       )
 
-    withServiceOwnerAuthorization[PublishCollectionResponse](
+    withServiceOwnerAuthorization[PublishDoiCollectionResponse](
       claim,
       collectionOrgId,
       collectionId
@@ -121,7 +122,7 @@ class CollectionHandler(
             _ = ports.log.info(s"Public dataset version : $version")
 
             response = com.pennsieve.discover.server.definitions
-              .PublishCollectionResponse(
+              .PublishDoiCollectionResponse(
                 name = publicDataset.name,
                 sourceCollectionId = publicDataset.sourceDatasetId,
                 publishedDatasetId = version.datasetId,
@@ -168,7 +169,7 @@ class CollectionHandler(
   }
 }
 
-object CollectionHandler {
+object DoiCollectionHandler {
   val collectionOrgId = -20
   val collectionOrgName = "Fake Collection Organization"
   def routes(
@@ -179,7 +180,7 @@ object CollectionHandler {
   ): Route = {
     logRequestAndResponse(ports) {
       authenticateJwt(system.name)(ports.jwt) { claim =>
-        GuardrailResource.routes(new CollectionHandler(ports, claim))
+        GuardrailResource.routes(new DoiCollectionHandler(ports, claim))
       }
     }
   }

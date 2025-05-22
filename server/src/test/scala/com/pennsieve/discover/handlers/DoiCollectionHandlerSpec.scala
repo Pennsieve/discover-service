@@ -12,12 +12,12 @@ import com.pennsieve.discover.Authenticator.{
   generateUserToken
 }
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
-import com.pennsieve.discover.client.collection.PublishCollectionResponse
+import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse
 import com.pennsieve.discover.client.collection.CollectionClient
 import com.pennsieve.discover.client.{ collection, definitions }
 import com.pennsieve.discover.client.definitions.{
   DatasetPublishStatus,
-  PublishCollectionRequest
+  PublishDoiCollectionRequest
 }
 import com.pennsieve.discover.clients.MockDoiClient
 import com.pennsieve.discover.db.{
@@ -36,14 +36,14 @@ import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class CollectionHandlerSpec
+class DoiCollectionHandlerSpec
     extends AnyWordSpec
     with Matchers
     with Inside
     with ScalatestRouteTest
     with ServiceSpecHarness {
   def createRoutes(): Route =
-    Route.seal(CollectionHandler.routes(ports))
+    Route.seal(DoiCollectionHandler.routes(ports))
 
   def createClient(routes: Route): CollectionClient =
     CollectionClient.httpClient(Route.toFunction(routes))
@@ -59,18 +59,19 @@ class CollectionHandlerSpec
   val ownerLastName = "Digger"
   val ownerOrcid = "0000-0012-3456-7890"
 
-  private val requestBody: PublishCollectionRequest = PublishCollectionRequest(
-    name = collectionName,
-    description = "This is a test collection for publishing",
-    ownerId = ownerId,
-    doiCount = 5,
-    license = License.`Apache License 2.0`,
-    ownerNodeId = ownerNodeId,
-    ownerFirstName = ownerFirstName,
-    ownerLastName = ownerLastName,
-    ownerOrcid = ownerOrcid,
-    collectionNodeId = collectionNodeId
-  )
+  private val requestBody: PublishDoiCollectionRequest =
+    PublishDoiCollectionRequest(
+      name = collectionName,
+      description = "This is a test collection for publishing",
+      ownerId = ownerId,
+      doiCount = 5,
+      license = License.`Apache License 2.0`,
+      ownerNodeId = ownerNodeId,
+      ownerFirstName = ownerFirstName,
+      ownerLastName = ownerLastName,
+      ownerOrcid = ownerOrcid,
+      collectionNodeId = collectionNodeId
+    )
 
   private val customBucketConfig =
     definitions.BucketConfig("org-publish-bucket", "org-embargo-bucket")
@@ -81,7 +82,7 @@ class CollectionHandlerSpec
   val token: Jwt.Token =
     generateServiceToken(
       ports.jwt,
-      organizationId = CollectionHandler.collectionOrgId,
+      organizationId = DoiCollectionHandler.collectionOrgId,
       datasetId = collectionId
     )
 
@@ -91,7 +92,7 @@ class CollectionHandlerSpec
     generateUserToken(
       ports.jwt,
       1,
-      CollectionHandler.collectionOrgId,
+      DoiCollectionHandler.collectionOrgId,
       Some(collectionId)
     )
 
@@ -103,20 +104,20 @@ class CollectionHandlerSpec
     "fail without a JWT" in {
 
       val response = client
-        .publishCollection(collectionId, requestBody)
+        .publishDoiCollection(collectionId, requestBody)
         .awaitFinite()
         .value
 
-      response shouldBe PublishCollectionResponse.Unauthorized
+      response shouldBe PublishDoiCollectionResponse.Unauthorized
     }
 
     "fail with a user JWT" in {
       val response = client
-        .publishCollection(collectionId, requestBody, userAuthToken)
+        .publishDoiCollection(collectionId, requestBody, userAuthToken)
         .awaitFinite()
         .value
 
-      response shouldBe PublishCollectionResponse.Forbidden(
+      response shouldBe PublishDoiCollectionResponse.Forbidden(
         "Only allowed for service level requests"
       )
     }
@@ -124,24 +125,24 @@ class CollectionHandlerSpec
     "create a DB entry and link a DOI" in {
 
       val response = client
-        .publishCollection(collectionId, requestBody, authToken)
+        .publishDoiCollection(collectionId, requestBody, authToken)
         .awaitFinite()
         .value
-        .asInstanceOf[PublishCollectionResponse.Created]
+        .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
       val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
             .getDatasetFromSourceIds(
-              CollectionHandler.collectionOrgId,
+              DoiCollectionHandler.collectionOrgId,
               collectionId
             )
         )
         .awaitFinite()
 
       publicDataset.name shouldBe requestBody.name
-      publicDataset.sourceOrganizationId shouldBe CollectionHandler.collectionOrgId
+      publicDataset.sourceOrganizationId shouldBe DoiCollectionHandler.collectionOrgId
       publicDataset.sourceDatasetId shouldBe collectionId
       publicDataset.ownerId shouldBe requestBody.ownerId
       publicDataset.ownerFirstName shouldBe requestBody.ownerFirstName
@@ -159,7 +160,7 @@ class CollectionHandlerSpec
 
       val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .getMockDoi(CollectionHandler.collectionOrgId, collectionId)
+        .getMockDoi(DoiCollectionHandler.collectionOrgId, collectionId)
         .get
 
       publicVersion.version shouldBe 1
@@ -174,7 +175,7 @@ class CollectionHandlerSpec
       publicVersion.doi shouldBe doiDto.doi
 
       response shouldBe com.pennsieve.discover.client.definitions
-        .PublishCollectionResponse(
+        .PublishDoiCollectionResponse(
           name = collectionName,
           sourceCollectionId = collectionId,
           publishedDatasetId = publicDataset.id,
@@ -190,17 +191,17 @@ class CollectionHandlerSpec
     "correctly use custom publish bucket" in {
 
       client
-        .publishCollection(collectionId, customBucketRequestBody, authToken)
+        .publishDoiCollection(collectionId, customBucketRequestBody, authToken)
         .awaitFinite()
         .value
-        .asInstanceOf[PublishCollectionResponse.Created]
+        .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
       val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
             .getDatasetFromSourceIds(
-              CollectionHandler.collectionOrgId,
+              DoiCollectionHandler.collectionOrgId,
               collectionId
             )
         )
@@ -221,7 +222,7 @@ class CollectionHandlerSpec
     "return the publishing status of the dataset" in {
 
       val publicDataset = TestUtilities.createDataset(ports.db)(
-        sourceOrganizationId = CollectionHandler.collectionOrgId,
+        sourceOrganizationId = DoiCollectionHandler.collectionOrgId,
         sourceDatasetId = collectionId
       )
       val publicDataset1_V1 =
@@ -231,10 +232,10 @@ class CollectionHandlerSpec
         )
 
       val response = client
-        .publishCollection(collectionId, requestBody, authToken)
+        .publishDoiCollection(collectionId, requestBody, authToken)
         .awaitFinite()
         .value
-        .asInstanceOf[PublishCollectionResponse.Created]
+        .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
       val publicVersion = ports.db
@@ -246,7 +247,7 @@ class CollectionHandlerSpec
         .get
 
       response shouldBe com.pennsieve.discover.client.definitions
-        .PublishCollectionResponse(
+        .PublishDoiCollectionResponse(
           name = collectionName,
           sourceCollectionId = collectionId,
           publishedDatasetId = publicDataset.id,
@@ -259,7 +260,7 @@ class CollectionHandlerSpec
 
       val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .getMockDoi(CollectionHandler.collectionOrgId, collectionId)
+        .getMockDoi(DoiCollectionHandler.collectionOrgId, collectionId)
         .get
 
       publicVersion.version shouldBe 2
@@ -277,7 +278,7 @@ class CollectionHandlerSpec
     "delete a previously failed version before creating a new one" in {
 
       val publicDataset = TestUtilities.createDataset(ports.db)(
-        sourceOrganizationId = CollectionHandler.collectionOrgId,
+        sourceOrganizationId = DoiCollectionHandler.collectionOrgId,
         sourceDatasetId = collectionId,
         datasetType = Collection
       )
@@ -287,10 +288,10 @@ class CollectionHandlerSpec
       )
 
       val response = client
-        .publishCollection(collectionId, requestBody, authToken)
+        .publishDoiCollection(collectionId, requestBody, authToken)
         .awaitFinite()
         .value
-        .asInstanceOf[PublishCollectionResponse.Created]
+        .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
       val latestVersion = ports.db
@@ -302,7 +303,7 @@ class CollectionHandlerSpec
         .get
 
       response shouldBe com.pennsieve.discover.client.definitions
-        .PublishCollectionResponse(
+        .PublishDoiCollectionResponse(
           name = collectionName,
           sourceCollectionId = collectionId,
           publishedDatasetId = publicDataset.id,
@@ -315,7 +316,7 @@ class CollectionHandlerSpec
 
       val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .getMockDoi(CollectionHandler.collectionOrgId, collectionId)
+        .getMockDoi(DoiCollectionHandler.collectionOrgId, collectionId)
         .get
 
       latestVersion.version shouldBe 1
@@ -333,13 +334,13 @@ class CollectionHandlerSpec
     "not create a new DOI if draft DOI is only associated with a failed version" in {
 
       val publicDataset = TestUtilities.createDataset(ports.db)(
-        sourceOrganizationId = CollectionHandler.collectionOrgId,
+        sourceOrganizationId = DoiCollectionHandler.collectionOrgId,
         sourceDatasetId = collectionId,
         datasetType = Collection
       )
       val draftDoi = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .createMockDoi(CollectionHandler.collectionOrgId, collectionId)
+        .createMockDoi(DoiCollectionHandler.collectionOrgId, collectionId)
         .doi
 
       TestUtilities.createNewDatasetVersion(ports.db)(
@@ -349,10 +350,10 @@ class CollectionHandlerSpec
       )
 
       client
-        .publishCollection(collectionId, requestBody, authToken)
+        .publishDoiCollection(collectionId, requestBody, authToken)
         .awaitFinite()
         .value
-        .asInstanceOf[PublishCollectionResponse.Created]
+        .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
       val latestVersion = ports.db
