@@ -1,0 +1,186 @@
+// Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
+
+package com.pennsieve.discover.handlers
+
+import akka.actor.ActorSystem
+import akka.http.scaladsl.server.Route
+import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
+import com.pennsieve.auth.middleware.Jwt
+import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
+import com.pennsieve.discover.db.{
+  PublicDatasetVersionsMapper,
+  PublicDatasetsMapper
+}
+import com.pennsieve.discover.logging.{
+  logRequestAndResponse,
+  DiscoverLogContext
+}
+import com.pennsieve.discover.models.{
+  PennsieveSchemaVersion,
+  PublishingWorkflow
+}
+import com.pennsieve.discover.{
+  DoiCreationException,
+  DoiServiceException,
+  DuplicateDoiException,
+  ForbiddenException,
+  MissingParameterException,
+  Ports,
+  PublishJobException,
+  UnauthorizedException
+}
+import com.pennsieve.discover.server.collection.{
+  CollectionHandler => GuardrailHandler,
+  CollectionResource => GuardrailResource
+}
+import com.pennsieve.discover.server.definitions.PublishCollectionRequest
+import com.pennsieve.discover.utils.{ getOrCreateDoi, BucketResolver }
+import com.pennsieve.models.PublishStatus
+import io.circe.DecodingFailure
+import slick.jdbc.TransactionIsolation
+import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.handlers.CollectionHandler.{
+  collectionOrgId,
+  collectionOrgName
+}
+import com.pennsieve.models.DatasetType.Collection
+
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.control.NonFatal
+
+class CollectionHandler(
+  ports: Ports,
+  claim: Jwt.Claim
+)(implicit
+  system: ActorSystem,
+  executionContext: ExecutionContext
+) extends GuardrailHandler {
+  type PublishCollectionResponse = GuardrailResource.PublishCollectionResponse
+
+  override def publishCollection(
+    respond: GuardrailResource.PublishCollectionResponse.type
+  )(
+    collectionId: Int,
+    body: PublishCollectionRequest
+  ): Future[PublishCollectionResponse] = {
+    implicit val logContext: DiscoverLogContext = DiscoverLogContext(
+      datasetId = Some(collectionId),
+      userId = Some(body.ownerId)
+    )
+
+    ports.log.info(s"publishCollection() starting request: ${body}")
+    val bucketResolver = BucketResolver(ports)
+    val (targetS3Bucket, _) =
+      bucketResolver.resolveBucketConfig(
+        body.bucketConfig,
+        Some(PublishingWorkflow.Version5)
+      )
+
+    withServiceOwnerAuthorization[PublishCollectionResponse](
+      claim,
+      collectionOrgId,
+      collectionId
+    ) { _ =>
+      getOrCreateDoi(ports, collectionOrgId, collectionId)
+        .flatMap { doi =>
+          ports.log.info(s"DOI: $doi")
+
+          val query = for {
+            publicDataset <- PublicDatasetsMapper
+              .createOrUpdate(
+                name = body.name,
+                sourceOrganizationId = collectionOrgId,
+                sourceOrganizationName = collectionOrgName,
+                sourceDatasetId = collectionId,
+                ownerId = body.ownerId,
+                ownerFirstName = body.ownerFirstName,
+                ownerLastName = body.ownerLastName,
+                ownerOrcid = body.ownerOrcid,
+                license = body.license,
+                tags = body.tags.toList,
+                datasetType = Collection
+              )
+
+            _ = ports.log.info(s"Public dataset: $publicDataset")
+
+            // If the previous publish job failed, roll the dataset back to the
+            // previous version
+            _ <- PublicDatasetVersionsMapper.rollbackIfNeeded(publicDataset)
+
+            version <- PublicDatasetVersionsMapper
+              .create(
+                id = publicDataset.id,
+                status = PublishStatus.PublishInProgress,
+                description = body.description,
+                fileCount = 1,
+                s3Bucket = targetS3Bucket,
+                doi = doi.doi,
+                schemaVersion = PennsieveSchemaVersion.`5.0`,
+                migrated = true
+              )
+            _ = ports.log.info(s"Public dataset version : $version")
+
+            response = com.pennsieve.discover.server.definitions
+              .PublishCollectionResponse(
+                name = publicDataset.name,
+                sourceCollectionId = publicDataset.sourceDatasetId,
+                publishedDatasetId = version.datasetId,
+                publishedVersion = version.version,
+                status = version.status,
+                lastPublishedDate = Some(version.createdAt),
+                sponsorship = None,
+                publicId = version.doi
+              )
+
+          } yield respond.Created(response)
+
+          // Slick does not provide an easy way to do insertOrUpdate for non-primary
+          // keys without using Serializable transactions. The performance costs
+          // of Serializable should not be a problem since publishing is an infrequent
+          // event and the table is tiny.
+          ports.db
+            .run(
+              query.transactionally
+                .withTransactionIsolation(TransactionIsolation.Serializable)
+            )
+        }
+    }.recover {
+      case UnauthorizedException => respond.Unauthorized
+      case DecodingFailure(msg, path) =>
+        respond.InternalServerError(s"Failed to decode DOI: $msg [$path]")
+      case DoiCreationException(e) =>
+        respond.BadRequest(s"Failed to create a DOI for the collection: $e")
+      case DoiServiceException(e) =>
+        respond.InternalServerError(
+          s"Failed to communicate with DOI service: $e"
+        )
+      case DuplicateDoiException =>
+        respond.InternalServerError(
+          "A dataset version has already been published with this DOI"
+        )
+      case MissingParameterException(parameter) =>
+        respond.BadRequest(s"Missing parameter '$parameter'")
+      case ForbiddenException(e) => respond.Forbidden(e)
+      case PublishJobException(e) => respond.InternalServerError(e)
+      case NonFatal(e) => respond.InternalServerError(e.toString)
+    }
+
+  }
+}
+
+object CollectionHandler {
+  val collectionOrgId = -20
+  val collectionOrgName = "Fake Collection Organization"
+  def routes(
+    ports: Ports
+  )(implicit
+    system: ActorSystem,
+    executionContext: ExecutionContext
+  ): Route = {
+    logRequestAndResponse(ports) {
+      authenticateJwt(system.name)(ports.jwt) { claim =>
+        GuardrailResource.routes(new CollectionHandler(ports, claim))
+      }
+    }
+  }
+}
