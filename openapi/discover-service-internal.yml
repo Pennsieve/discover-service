@@ -1002,8 +1002,9 @@ components:
       required:
         - name
         - description
+        - banners
+        - dois
         - ownerId
-        - doiCount
         - license
         - contributors
         - tags
@@ -1017,13 +1018,21 @@ components:
           type: string
         description:
           type: string
+        banners:
+          description: at most 4 banner URLs
+          maxItems: 4
+          type: array
+          items:
+            type: string
+        dois:
+          description: the DOIs in the collection
+          minItems: 1
+          type: array
+          items:
+            type: string
         ownerId:
           type: integer
           format: int32
-        doiCount:
-          description: number of DOIs in the collection
-          type: integer
-          format: int64
         license:
           type: string
           x-scala-type: com.pennsieve.models.License
@@ -1031,10 +1040,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/InternalContributor"
-        collections:
-          type: array
-          items:
-            $ref: "#/components/schemas/InternalCollection"
         externalPublications:
           type: array
           items:

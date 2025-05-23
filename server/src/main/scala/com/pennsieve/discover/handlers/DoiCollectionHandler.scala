@@ -8,6 +8,8 @@ import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
 import com.pennsieve.discover.db.{
+  PublicDatasetDoiCollectionDoisMapper,
+  PublicDatasetDoiCollectionsMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper
 }
@@ -17,6 +19,7 @@ import com.pennsieve.discover.logging.{
 }
 import com.pennsieve.discover.models.{
   PennsieveSchemaVersion,
+  PublicDatasetDoiCollection,
   PublishingWorkflow
 }
 import com.pennsieve.discover.{
@@ -121,6 +124,18 @@ class DoiCollectionHandler(
               )
             _ = ports.log.info(s"Public dataset version : $version")
 
+            _ <- PublicDatasetDoiCollectionsMapper.add(
+              PublicDatasetDoiCollection(
+                datasetId = version.datasetId,
+                datasetVersion = version.version,
+                banners = body.banners.toList
+              )
+            )
+            _ <- PublicDatasetDoiCollectionDoisMapper.addDOIs(
+              datasetId = version.datasetId,
+              datasetVersion = version.version,
+              dois = body.dois.distinct.toList
+            )
             response = com.pennsieve.discover.server.definitions
               .PublishDoiCollectionResponse(
                 name = publicDataset.name,
@@ -162,7 +177,6 @@ class DoiCollectionHandler(
       case MissingParameterException(parameter) =>
         respond.BadRequest(s"Missing parameter '$parameter'")
       case ForbiddenException(e) => respond.Forbidden(e)
-      case PublishJobException(e) => respond.InternalServerError(e)
       case NonFatal(e) => respond.InternalServerError(e.toString)
     }
 
@@ -170,8 +184,9 @@ class DoiCollectionHandler(
 }
 
 object DoiCollectionHandler {
-  val collectionOrgId = -20
-  val collectionOrgName = "Fake Collection Organization"
+  val collectionOrgId: Int = PublicDatasetDoiCollection.collectionOrgId
+  val collectionOrgName: String = PublicDatasetDoiCollection.collectionOrgName
+
   def routes(
     ports: Ports
   )(implicit

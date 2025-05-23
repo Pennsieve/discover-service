@@ -14,24 +14,25 @@ import com.pennsieve.discover.Authenticator.{
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse
 import com.pennsieve.discover.client.collection.CollectionClient
-import com.pennsieve.discover.client.{ collection, definitions }
 import com.pennsieve.discover.client.definitions.{
-  DatasetPublishStatus,
+  BucketConfig,
   PublishDoiCollectionRequest
 }
 import com.pennsieve.discover.clients.MockDoiClient
 import com.pennsieve.discover.db.{
+  PublicDatasetDoiCollectionDoisMapper,
+  PublicDatasetDoiCollectionsMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper
 }
-import com.pennsieve.discover.models.{ PublishingWorkflow, S3Bucket, S3Key }
+import com.pennsieve.discover.models.S3Key
 import com.pennsieve.models.DatasetType.Collection
 import com.pennsieve.models.PublishStatus.{
   PublishFailed,
   PublishInProgress,
   PublishSucceeded
 }
-import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
+import com.pennsieve.models.{ License, PublishStatus }
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -63,8 +64,14 @@ class DoiCollectionHandlerSpec
     PublishDoiCollectionRequest(
       name = collectionName,
       description = "This is a test collection for publishing",
+      banners = Vector(
+        "https://example.com/banner_9.png",
+        "https://example.com/banner_11.png",
+        "https://example.com/banner_31.png",
+        "https://example.com/banner_1.png"
+      ),
+      dois = Vector(s"10.0000/${TestUtilities.randomString()}"),
       ownerId = ownerId,
-      doiCount = 5,
       license = License.`Apache License 2.0`,
       ownerNodeId = ownerNodeId,
       ownerFirstName = ownerFirstName,
@@ -74,7 +81,7 @@ class DoiCollectionHandlerSpec
     )
 
   private val customBucketConfig =
-    definitions.BucketConfig("org-publish-bucket", "org-embargo-bucket")
+    BucketConfig("org-publish-bucket", "org-embargo-bucket")
 
   private val customBucketRequestBody =
     requestBody.copy(bucketConfig = Some(customBucketConfig))
@@ -174,6 +181,24 @@ class DoiCollectionHandlerSpec
       publicVersion.s3Key shouldBe S3Key.Version(s"${publicDataset.id}/")
       publicVersion.doi shouldBe doiDto.doi
 
+      val doiCollection = ports.db
+        .run(
+          PublicDatasetDoiCollectionsMapper
+            .getVersion(publicVersion.datasetId, publicVersion.version)
+        )
+        .awaitFinite()
+
+      doiCollection.banners shouldBe requestBody.banners.toList
+
+      val doiCollectionDOIs = ports.db
+        .run(
+          PublicDatasetDoiCollectionDoisMapper
+            .getDOIs(publicVersion.datasetId, publicVersion.version)
+        )
+        .awaitFinite()
+
+      doiCollectionDOIs shouldBe requestBody.dois.toList
+
       response shouldBe com.pennsieve.discover.client.definitions
         .PublishDoiCollectionResponse(
           name = collectionName,
@@ -225,11 +250,11 @@ class DoiCollectionHandlerSpec
         sourceOrganizationId = DoiCollectionHandler.collectionOrgId,
         sourceDatasetId = collectionId
       )
-      val publicDataset1_V1 =
-        TestUtilities.createNewDatasetVersion(ports.db)(
-          id = publicDataset.id,
-          status = PublishSucceeded
-        )
+
+      TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishSucceeded
+      )
 
       val response = client
         .publishDoiCollection(collectionId, requestBody, authToken)
