@@ -209,6 +209,7 @@ class DoiCollectionHandler(
         case _ => Future.successful(())
       }
 
+      // For now, non-Pennsieve DOIs are not allowed. May be allowed in future.
       _ <- findNonPennsieveDois(dois) match {
         case Nil => Future.successful(())
         case nonPenn =>
@@ -219,6 +220,9 @@ class DoiCollectionHandler(
           )
       }
 
+      // Decided not to check on the published DOIs since in the future, if we
+      // allow non-Pennsieve DOIs it will be normal to have DOIs that do
+      // not appear in the published part of getDatasetsByDoi response.
       unpublishedDois <- findUnpublishedDois(dois)
       _ <- unpublishedDois match {
         case Nil => Future.successful(())

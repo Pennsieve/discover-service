@@ -414,14 +414,48 @@ class DoiCollectionHandlerSpec
     }
 
     "fail with Bad Request if given no DOIs" in {
-      val nonPennsieveBody = requestBody.copy(dois = Vector.empty)
+      val noDoisBody = requestBody.copy(dois = Vector.empty)
       val response = client
-        .publishDoiCollection(collectionId, nonPennsieveBody, authToken)
+        .publishDoiCollection(collectionId, noDoisBody, authToken)
         .awaitFinite()
         .value
 
       response shouldBe PublishDoiCollectionResponse.BadRequest(
         "no DOIs in request"
+      )
+    }
+
+    "fail with Bad Request if given unpublished Pennsieve DOI" in {
+      // In anticipation of allowing non-Pennsieve DOIs, the validation code does not
+      // currently complain about DOIs that
+      // are not found in our DB at all, so no need to create a test dataset to go with
+      // this DOI.
+      val publishedDoi = s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
+
+      val unpublishedDataset = TestUtilities.createDataset(ports.db)(
+        sourceOrganizationId = DoiCollectionHandler.collectionOrgId,
+        sourceDatasetId = collectionId,
+        datasetType = Collection
+      )
+
+      val unpublishedDoi =
+        s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
+
+      TestUtilities.createNewDatasetVersion(ports.db)(
+        id = unpublishedDataset.id,
+        status = PublishStatus.Unpublished,
+        doi = unpublishedDoi
+      )
+
+      val unpublishedBody =
+        requestBody.copy(dois = Vector(unpublishedDoi, publishedDoi))
+      val response = client
+        .publishDoiCollection(collectionId, unpublishedBody, authToken)
+        .awaitFinite()
+        .value
+
+      response shouldBe PublishDoiCollectionResponse.BadRequest(
+        s"Collection contains unpublished DOIs: $unpublishedDoi"
       )
     }
 
