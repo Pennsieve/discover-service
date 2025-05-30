@@ -61,4 +61,7 @@ locals {
   }
 
   sparc_environment_name = var.environment_name == "dev" ? "dev" : "prd"
+
+  pennsieve_doi_prefix = var.environment_name == "prod" ? "10.26275" : "10.21397"
+
 }

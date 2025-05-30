@@ -60,6 +60,8 @@ class DoiCollectionHandler(
 ) extends GuardrailHandler {
   type PublishDoiCollectionResponse =
     GuardrailResource.PublishDoiCollectionResponse
+  private val pennsieveDoiPrefix =
+    ports.config.doiCollections.pennsieveDoiPrefix
 
   override def publishDoiCollection(
     respond: GuardrailResource.PublishDoiCollectionResponse.type
@@ -85,81 +87,83 @@ class DoiCollectionHandler(
       collectionOrgId,
       collectionId
     ) { _ =>
-      getOrCreateDoi(ports, collectionOrgId, collectionId)
-        .flatMap { doi =>
-          ports.log.info(s"DOI: $doi")
+      validateBody(body).flatMap { _ =>
+        getOrCreateDoi(ports, collectionOrgId, collectionId)
+          .flatMap { doi =>
+            ports.log.info(s"DOI: $doi")
 
-          val query = for {
-            publicDataset <- PublicDatasetsMapper
-              .createOrUpdate(
-                name = body.name,
-                sourceOrganizationId = collectionOrgId,
-                sourceOrganizationName = collectionOrgName,
-                sourceDatasetId = collectionId,
-                ownerId = body.ownerId,
-                ownerFirstName = body.ownerFirstName,
-                ownerLastName = body.ownerLastName,
-                ownerOrcid = body.ownerOrcid,
-                license = body.license,
-                tags = body.tags.toList,
-                datasetType = Collection
+            val query = for {
+              publicDataset <- PublicDatasetsMapper
+                .createOrUpdate(
+                  name = body.name,
+                  sourceOrganizationId = collectionOrgId,
+                  sourceOrganizationName = collectionOrgName,
+                  sourceDatasetId = collectionId,
+                  ownerId = body.ownerId,
+                  ownerFirstName = body.ownerFirstName,
+                  ownerLastName = body.ownerLastName,
+                  ownerOrcid = body.ownerOrcid,
+                  license = body.license,
+                  tags = body.tags.toList,
+                  datasetType = Collection
+                )
+
+              _ = ports.log.info(s"Public dataset: $publicDataset")
+
+              // If the previous publish job failed, roll the dataset back to the
+              // previous version
+              _ <- PublicDatasetVersionsMapper.rollbackIfNeeded(publicDataset)
+
+              version <- PublicDatasetVersionsMapper
+                .create(
+                  id = publicDataset.id,
+                  status = PublishStatus.PublishInProgress,
+                  description = body.description,
+                  fileCount = 1,
+                  s3Bucket = targetS3Bucket,
+                  doi = doi.doi,
+                  schemaVersion = PennsieveSchemaVersion.`5.0`,
+                  migrated = true
+                )
+              _ = ports.log.info(s"Public dataset version : $version")
+
+              _ <- PublicDatasetDoiCollectionsMapper.add(
+                PublicDatasetDoiCollection(
+                  datasetId = version.datasetId,
+                  datasetVersion = version.version,
+                  banners = body.banners.toList
+                )
               )
-
-            _ = ports.log.info(s"Public dataset: $publicDataset")
-
-            // If the previous publish job failed, roll the dataset back to the
-            // previous version
-            _ <- PublicDatasetVersionsMapper.rollbackIfNeeded(publicDataset)
-
-            version <- PublicDatasetVersionsMapper
-              .create(
-                id = publicDataset.id,
-                status = PublishStatus.PublishInProgress,
-                description = body.description,
-                fileCount = 1,
-                s3Bucket = targetS3Bucket,
-                doi = doi.doi,
-                schemaVersion = PennsieveSchemaVersion.`5.0`,
-                migrated = true
-              )
-            _ = ports.log.info(s"Public dataset version : $version")
-
-            _ <- PublicDatasetDoiCollectionsMapper.add(
-              PublicDatasetDoiCollection(
+              _ <- PublicDatasetDoiCollectionDoisMapper.addDOIs(
                 datasetId = version.datasetId,
                 datasetVersion = version.version,
-                banners = body.banners.toList
+                dois = body.dois.toList
               )
-            )
-            _ <- PublicDatasetDoiCollectionDoisMapper.addDOIs(
-              datasetId = version.datasetId,
-              datasetVersion = version.version,
-              dois = body.dois.distinct.toList
-            )
-            response = com.pennsieve.discover.server.definitions
-              .PublishDoiCollectionResponse(
-                name = publicDataset.name,
-                sourceCollectionId = publicDataset.sourceDatasetId,
-                publishedDatasetId = version.datasetId,
-                publishedVersion = version.version,
-                status = version.status,
-                lastPublishedDate = Some(version.createdAt),
-                sponsorship = None,
-                publicId = version.doi
+              response = com.pennsieve.discover.server.definitions
+                .PublishDoiCollectionResponse(
+                  name = publicDataset.name,
+                  sourceCollectionId = publicDataset.sourceDatasetId,
+                  publishedDatasetId = version.datasetId,
+                  publishedVersion = version.version,
+                  status = version.status,
+                  lastPublishedDate = Some(version.createdAt),
+                  sponsorship = None,
+                  publicId = version.doi
+                )
+
+            } yield respond.Created(response)
+
+            // Slick does not provide an easy way to do insertOrUpdate for non-primary
+            // keys without using Serializable transactions. The performance costs
+            // of Serializable should not be a problem since publishing is an infrequent
+            // event and the table is tiny.
+            ports.db
+              .run(
+                query.transactionally
+                  .withTransactionIsolation(TransactionIsolation.Serializable)
               )
-
-          } yield respond.Created(response)
-
-          // Slick does not provide an easy way to do insertOrUpdate for non-primary
-          // keys without using Serializable transactions. The performance costs
-          // of Serializable should not be a problem since publishing is an infrequent
-          // event and the table is tiny.
-          ports.db
-            .run(
-              query.transactionally
-                .withTransactionIsolation(TransactionIsolation.Serializable)
-            )
-        }
+          }
+      }
     }.recover {
       case UnauthorizedException => respond.Unauthorized
       case DecodingFailure(msg, path) =>
@@ -177,10 +181,31 @@ class DoiCollectionHandler(
       case MissingParameterException(parameter) =>
         respond.BadRequest(s"Missing parameter '$parameter'")
       case ForbiddenException(e) => respond.Forbidden(e)
+      case PublishDoiCollectionRequestValidationError(msg) =>
+        respond.BadRequest(msg)
       case NonFatal(e) => respond.InternalServerError(e.toString)
     }
 
   }
+
+  private def validateBody(body: PublishDoiCollectionRequest): Future[Unit] = {
+    if (body.dois == null || body.dois.isEmpty) {
+      return Future.failed(
+        PublishDoiCollectionRequestValidationError("no DOIs in request")
+      )
+    }
+    val nonPennsieveDois =
+      body.dois.filterNot(_.startsWith(s"$pennsieveDoiPrefix/"))
+    if (nonPennsieveDois.nonEmpty) {
+      return Future.failed(
+        PublishDoiCollectionRequestValidationError(
+          s"Collection contains non-Pennsieve DOIs: ${nonPennsieveDois.mkString(", ")}"
+        )
+      )
+    }
+    Future.successful(())
+  }
+
 }
 
 object DoiCollectionHandler {
@@ -199,4 +224,9 @@ object DoiCollectionHandler {
       }
     }
   }
+}
+
+case class PublishDoiCollectionRequestValidationError(msg: String)
+    extends Throwable {
+  override def getMessage: String = msg
 }

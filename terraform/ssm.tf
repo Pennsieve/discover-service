@@ -354,3 +354,10 @@ resource "aws_ssm_parameter" "delete_release_intermediate_file" {
   type = "String"
   value = "false"
 }
+
+// DOI Collection settings
+resource "aws_ssm_parameter" "pennsieve_doi_prefix" {
+  name = "/${var.environment_name}/${var.service_name}/pennsieve-doi-prefix"
+  type = "String"
+  value = local.pennsieve_doi_prefix
+}

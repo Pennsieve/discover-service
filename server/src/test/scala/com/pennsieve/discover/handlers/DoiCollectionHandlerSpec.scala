@@ -60,6 +60,8 @@ class DoiCollectionHandlerSpec
   val ownerLastName = "Digger"
   val ownerOrcid = "0000-0012-3456-7890"
 
+  private val pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
+
   private val requestBody: PublishDoiCollectionRequest =
     PublishDoiCollectionRequest(
       name = collectionName,
@@ -70,7 +72,7 @@ class DoiCollectionHandlerSpec
         "https://example.com/banner_31.png",
         "https://example.com/banner_1.png"
       ),
-      dois = Vector(s"10.0000/${TestUtilities.randomString()}"),
+      dois = Vector(s"${pennsieveDoiPrefix}/${TestUtilities.randomString()}"),
       ownerId = ownerId,
       license = License.`Apache License 2.0`,
       ownerNodeId = ownerNodeId,
@@ -391,6 +393,24 @@ class DoiCollectionHandlerSpec
 
       latestVersion.doi shouldBe draftDoi
 
+    }
+
+    "fail with Bad Request if given non-Pennsieve DOI" in {
+      val nonPennsieveDoi = s"10.99999/${TestUtilities.randomString()}"
+      val nonPennsieveBody = requestBody.copy(
+        dois = Vector(
+          s"$pennsieveDoiPrefix/${TestUtilities.randomString()}",
+          nonPennsieveDoi
+        )
+      )
+      val response = client
+        .publishDoiCollection(collectionId, nonPennsieveBody, authToken)
+        .awaitFinite()
+        .value
+
+      response shouldBe PublishDoiCollectionResponse.BadRequest(
+        s"Collection contains non-Pennsieve DOIs: $nonPennsieveDoi"
+      )
     }
 
   }
