@@ -3,7 +3,7 @@
 package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.{ FIXME, Route }
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
@@ -188,22 +188,49 @@ class DoiCollectionHandler(
 
   }
 
+  private def findNonPennsieveDois(dois: Seq[String]): Seq[String] =
+    dois.filterNot(_.startsWith(s"$pennsieveDoiPrefix/"))
+
+  private def findUnpublishedDois(dois: Seq[String]): Future[Seq[String]] = {
+    ports.db
+      .run(PublicDatasetVersionsMapper.getDatasetsByDoi(dois.toList))
+      .map(_.unpublished.keys.toList)
+  }
+
   private def validateBody(body: PublishDoiCollectionRequest): Future[Unit] = {
-    if (body.dois == null || body.dois.isEmpty) {
-      return Future.failed(
-        PublishDoiCollectionRequestValidationError("no DOIs in request")
-      )
-    }
-    val nonPennsieveDois =
-      body.dois.filterNot(_.startsWith(s"$pennsieveDoiPrefix/"))
-    if (nonPennsieveDois.nonEmpty) {
-      return Future.failed(
-        PublishDoiCollectionRequestValidationError(
-          s"Collection contains non-Pennsieve DOIs: ${nonPennsieveDois.mkString(", ")}"
-        )
-      )
-    }
-    Future.successful(())
+    val dois = Option(body.dois).getOrElse(Seq.empty)
+
+    for {
+      _ <- dois match {
+        case Nil =>
+          Future.failed(
+            PublishDoiCollectionRequestValidationError("no DOIs in request")
+          )
+        case _ => Future.successful(())
+      }
+
+      _ <- findNonPennsieveDois(dois) match {
+        case Nil => Future.successful(())
+        case nonPenn =>
+          Future.failed(
+            PublishDoiCollectionRequestValidationError(
+              s"Collection contains non-Pennsieve DOIs: ${nonPenn.mkString(", ")}"
+            )
+          )
+      }
+
+      unpublishedDois <- findUnpublishedDois(dois)
+      _ <- unpublishedDois match {
+        case Nil => Future.successful(())
+        case unpublished =>
+          Future.failed(
+            PublishDoiCollectionRequestValidationError(
+              s"Collection contains unpublished DOIs: ${unpublished.mkString(", ")}"
+            )
+          )
+      }
+
+    } yield ()
   }
 
 }

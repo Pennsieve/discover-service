@@ -413,5 +413,17 @@ class DoiCollectionHandlerSpec
       )
     }
 
+    "fail with Bad Request if given no DOIs" in {
+      val nonPennsieveBody = requestBody.copy(dois = Vector.empty)
+      val response = client
+        .publishDoiCollection(collectionId, nonPennsieveBody, authToken)
+        .awaitFinite()
+        .value
+
+      response shouldBe PublishDoiCollectionResponse.BadRequest(
+        "no DOIs in request"
+      )
+    }
+
   }
 }
