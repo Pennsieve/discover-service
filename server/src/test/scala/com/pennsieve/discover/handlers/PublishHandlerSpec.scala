@@ -461,7 +461,7 @@ class PublishHandlerSpec
     }
 
     "publish to an embargo bucket" in {
-      val expectedEmbargoReleaseDate = LocalDate.of(2025, 6, 1)
+      val expectedEmbargoReleaseDate = LocalDate.now().plusDays(30)
 
       val response = client
         .publish(
@@ -539,7 +539,7 @@ class PublishHandlerSpec
     }
 
     "correctly use custom embargo bucket" in {
-      val expectedEmbargoReleaseDate = LocalDate.of(2025, 6, 1)
+      val expectedEmbargoReleaseDate = LocalDate.now().plusDays(30)
 
       val response = client
         .publish(
