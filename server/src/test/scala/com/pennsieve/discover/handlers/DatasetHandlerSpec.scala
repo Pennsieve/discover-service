@@ -342,6 +342,7 @@ class DatasetHandlerSpec
             embargoAccess = "Requested"
           )
         ),
+        None,
         None
       )
 
@@ -364,6 +365,7 @@ class DatasetHandlerSpec
         None,
         Some(IndexedSeq(PublicCollectionDTO.apply(collection))),
         Some(IndexedSeq.empty),
+        None,
         None,
         None
       )
@@ -1121,6 +1123,7 @@ class DatasetHandlerSpec
             Some(IndexedSeq(PublicCollectionDTO(collection3))),
             Some(IndexedSeq.empty),
             None,
+            None,
             None
           )
         )
@@ -1137,6 +1140,7 @@ class DatasetHandlerSpec
             Some(IndexedSeq(PublicCollectionDTO(collection2))),
             Some(IndexedSeq.empty),
             None,
+            None,
             None
           )
         ),
@@ -1150,6 +1154,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq(PublicCollectionDTO(collection1))),
             Some(IndexedSeq.empty),
+            None,
             None,
             None
           )
@@ -2659,6 +2664,7 @@ class DatasetHandlerSpec
             Some(IndexedSeq.empty),
             Some(IndexedSeq.empty),
             None,
+            None,
             None
           )
         ),
@@ -2672,6 +2678,7 @@ class DatasetHandlerSpec
             Some(IndexedSeq.empty),
             Some(IndexedSeq.empty),
             None,
+            None,
             None
           )
         ),
@@ -2684,6 +2691,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq.empty),
             Some(IndexedSeq.empty),
+            None,
             None,
             None
           )
@@ -2785,6 +2793,7 @@ class DatasetHandlerSpec
             None,
             Some(IndexedSeq.empty),
             Some(IndexedSeq.empty),
+            None,
             None,
             None
           )
