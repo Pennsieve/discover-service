@@ -562,6 +562,67 @@ object TestUtilities extends AwaitableImplicits {
       .await
   }
 
+  def createDoiCollectionDataset(
+    db: Database
+  )(
+    name: String = "My Dataset",
+    sourceDatasetId: Int = 1,
+    ownerId: Int = 1,
+    ownerFirstName: String = "Fynn",
+    ownerLastName: String = "Blackwell",
+    ownerOrcid: String = "0000-0001-2345-6789",
+    license: License = License.`Apache 2.0`
+  )(implicit
+    executionContext: ExecutionContext
+  ): PublicDataset = {
+    db.run(
+        PublicDatasetsMapper.createOrUpdate(
+          name = name,
+          sourceOrganizationId = PublicDatasetDoiCollection.collectionOrgId,
+          sourceOrganizationName = PublicDatasetDoiCollection.collectionOrgName,
+          sourceDatasetId = sourceDatasetId,
+          ownerId = ownerId,
+          ownerFirstName = ownerFirstName,
+          ownerLastName = ownerLastName,
+          ownerOrcid = ownerOrcid,
+          license = license,
+          tags = List.empty,
+          datasetType = DatasetType.Collection
+        )
+      )
+      .await
+
+  }
+
+  def randomBannerUrls: List[String] =
+    List(
+      s"https://example.com/${randomString()}.png",
+      s"https://images.example.com/${randomString()}/${randomString()}.jpg",
+      s"https://example.com/${randomString()}.png",
+      s"https://images.example.com/${randomString()}/${randomString()}.jpg"
+    )
+
+  def createDatasetDoiCollection(
+    db: Database
+  )(
+    datasetId: Int,
+    datasetVersion: Int,
+    banners: List[String]
+  )(implicit
+    executionContext: ExecutionContext
+  ): PublicDatasetDoiCollection = {
+    db.run(
+        PublicDatasetDoiCollectionsMapper.add(
+          PublicDatasetDoiCollection(
+            datasetId = datasetId,
+            datasetVersion = datasetVersion,
+            banners = banners
+          )
+        )
+      )
+      .await
+  }
+
   /**
     * Our tests use a Whisk library, that in turn uses a Spotify library, to manage
     * docker containers created for tests. The Spotify part of this is no longer updated and breaks

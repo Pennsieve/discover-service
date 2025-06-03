@@ -4,10 +4,14 @@ package com.pennsieve.discover.db
 
 import com.pennsieve.discover.NoDoiCollectionVersionException
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.models.PublicDatasetDoiCollection
+import com.pennsieve.discover.models.{
+  PublicDataset,
+  PublicDatasetDoiCollection,
+  PublicDatasetVersion
+}
 import slick.dbio.{ DBIOAction, Effect }
 
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
 
 final class PublicDatasetDoiCollectionsTable(tag: Tag)
@@ -59,4 +63,39 @@ object PublicDatasetDoiCollectionsMapper
           )
         case Some(dataset) => DBIO.successful(dataset)
       }
+
+  def get(
+    datasetId: Int,
+    datasetVersion: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Option[PublicDatasetDoiCollection], NoStream, Effect.Read with Effect] =
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === datasetVersion)
+      .result
+      .headOption
+
+  def getFor(
+    targetDatasets: Seq[(PublicDataset, PublicDatasetVersion)]
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[
+    Map[(PublicDataset, PublicDatasetVersion), PublicDatasetDoiCollection],
+    NoStream,
+    Effect.Read
+  ] = {
+    PublicDatasetsMapper
+      .join(PublicDatasetVersionsMapper.getMany(targetDatasets.map(_._2)))
+      .on(_.id === _.datasetId)
+      .join(PublicDatasetDoiCollectionsMapper)
+      .on {
+        case ((dataset, version), doiCollection) =>
+          dataset.id === doiCollection.datasetId && version.version === doiCollection.datasetVersion
+      }
+      .result
+      .map {
+        _.toMap
+      }
+  }
 }
