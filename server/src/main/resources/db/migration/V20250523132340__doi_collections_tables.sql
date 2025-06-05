@@ -1,6 +1,6 @@
 /*
 ** Public Dataset DOI Collections
-**   This table holds the details of a DOI Collection.
+**   This table holds the DOI Collection specific details of a DOI Collection.
 ** Postgres does not enforce ARRAY[4] size. Just for documentation.
 */
 CREATE TABLE public_dataset_doi_collections
