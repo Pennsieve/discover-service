@@ -381,6 +381,112 @@ class DatasetHandlerSpec
       )
     }
 
+    "return a published DOI collection dataset" in {
+
+      val collectionDataset =
+        TestUtilities.createDoiCollectionDataset(ports.db)()
+
+      val collectionDatasetV1 =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = collectionDataset.id,
+          status = PublishSucceeded
+        )
+
+      val collectionDatasetV1DoiCollection =
+        TestUtilities.createDatasetDoiCollection(ports.db)(
+          datasetId = collectionDatasetV1.datasetId,
+          datasetVersion = collectionDatasetV1.version,
+          banners = TestUtilities.randomBannerUrls
+        )
+
+      val contributor = TestUtilities.createContributor(ports.db)(
+        firstName = "Sally",
+        lastName = "Fields",
+        orcid = None,
+        datasetId = collectionDataset.id,
+        organizationId = organizationId,
+        version = collectionDatasetV1.version,
+        sourceContributorId = 1,
+        sourceUserId = Some(1)
+      )
+
+      ports.db.run(
+        SponsorshipsMapper.createOrUpdate(
+          collectionDataset.sourceOrganizationId,
+          collectionDataset.sourceDatasetId,
+          Some("foo"),
+          Some("bar"),
+          Some("baz")
+        )
+      )
+
+      val dataset: PublicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDataset(collectionDataset.id)
+        )
+        .await
+
+      val collection = TestUtilities.createCollection(ports.db)(
+        datasetId = collectionDataset.id,
+        version = collectionDatasetV1.version,
+        sourceCollectionId = 1
+      )
+
+      // If an authorization header is present, include the corresponding dataset preview:
+      val expectedWithAuth = models.PublicDatasetDTO(
+        dataset,
+        collectionDatasetV1,
+        IndexedSeq(PublicContributorDTO.apply(contributor)),
+        Some(SponsorshipDto(Some("foo"), Some("bar"), Some("baz"))),
+        None,
+        Some(IndexedSeq(PublicCollectionDTO.apply(collection))),
+        Some(IndexedSeq.empty),
+        Some(
+          DatasetPreview(
+            user = User("N:user:1", "Joe Schmo", 1),
+            embargoAccess = "Requested"
+          )
+        ),
+        None,
+        Some(collectionDatasetV1DoiCollection)
+      )
+
+      val responseWithAuth =
+        datasetClient
+          .getDataset(collectionDataset.id, headers = authToken)
+          .awaitFinite()
+          .value
+
+      responseWithAuth shouldBe GetDatasetResponse.OK(
+        toClientDefinition(expectedWithAuth)
+      )
+
+      // If an authorization header is present, include the corresponding dataset preview:
+      val expectedNoAuth = models.PublicDatasetDTO(
+        dataset,
+        collectionDatasetV1,
+        IndexedSeq(PublicContributorDTO.apply(contributor)),
+        Some(SponsorshipDto(Some("foo"), Some("bar"), Some("baz"))),
+        None,
+        Some(IndexedSeq(PublicCollectionDTO.apply(collection))),
+        Some(IndexedSeq.empty),
+        None,
+        None,
+        Some(collectionDatasetV1DoiCollection)
+      )
+
+      val responseNoAuth =
+        datasetClient
+          .getDataset(collectionDataset.id)
+          .awaitFinite()
+          .value
+
+      responseNoAuth shouldBe GetDatasetResponse.OK(
+        toClientDefinition(expectedNoAuth)
+      )
+    }
+
     "fail if the dataset is not found" in {
 
       val response =
@@ -445,6 +551,46 @@ class DatasetHandlerSpec
               List.empty,
               List.empty,
               None
+            )
+        )
+      )
+    }
+
+    "get a DOI collection dataset" in {
+
+      val dataset = TestUtilities.createDoiCollectionDataset(ports.db)()
+      val version = {
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = dataset.id,
+          status = PublishSucceeded,
+          doi = "10.12345/abcd-efgh"
+        )
+      }
+      val doiCollection = TestUtilities.createDatasetDoiCollection(ports.db)(
+        datasetId = version.datasetId,
+        datasetVersion = version.version,
+        banners = TestUtilities.randomBannerUrls
+      )
+
+      val response: GetDatasetByDoiResponse = datasetClient
+        .getDatasetByDoi("10.12345", "abcd-efgh")
+        .awaitFinite()
+        .value
+
+      response shouldBe GetDatasetByDoiResponse.OK(
+        toClientDefinition(
+          models
+            .PublicDatasetDTO(
+              dataset,
+              version,
+              List.empty,
+              None,
+              None,
+              List.empty,
+              List.empty,
+              None,
+              None,
+              Some(doiCollection)
             )
         )
       )
@@ -976,6 +1122,53 @@ class DatasetHandlerSpec
 
       val response =
         datasetClient.getDatasetVersion(publicDataset.id, 1).awaitFinite().value
+
+      response shouldBe GetDatasetVersionResponse
+        .OK(toClientDefinition(expected))
+
+    }
+
+    "return a DOI collection dataset version" in {
+
+      val collectionDataset =
+        TestUtilities.createDoiCollectionDataset(ports.db)()
+      val collectionDatasetV1 =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = collectionDataset.id,
+          status = PublishSucceeded
+        )
+      val collectionDatasetV1DoiCollection =
+        TestUtilities.createDatasetDoiCollection(ports.db)(
+          datasetId = collectionDatasetV1.datasetId,
+          datasetVersion = collectionDatasetV1.version,
+          banners = TestUtilities.randomBannerUrls
+        )
+
+      val dataset: PublicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDataset(collectionDataset.id)
+        )
+        .await
+
+      val expected = models.PublicDatasetDTO(
+        dataset,
+        collectionDatasetV1,
+        List.empty,
+        None,
+        None,
+        List.empty,
+        List.empty,
+        None,
+        None,
+        Some(collectionDatasetV1DoiCollection)
+      )
+
+      val response =
+        datasetClient
+          .getDatasetVersion(collectionDataset.id, 1)
+          .awaitFinite()
+          .value
 
       response shouldBe GetDatasetVersionResponse
         .OK(toClientDefinition(expected))
