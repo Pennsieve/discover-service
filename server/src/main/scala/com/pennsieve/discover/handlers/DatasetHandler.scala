@@ -165,7 +165,8 @@ class DatasetHandler(
             x.collections,
             x.externalPublications,
             datasetPreview = None,
-            release = x.release
+            release = x.release,
+            doiCollection = x.doiCollection
           )
       )
     val unpublished = queryResults.unpublished.view

@@ -491,6 +491,11 @@ class DatasetHandlerSpec
         TestUtilities.createDataset(ports.db)(sourceDatasetId = 3, name = "C")
       val ds4 =
         TestUtilities.createDataset(ports.db)(sourceDatasetId = 4, name = "D")
+      val ds5 = TestUtilities.createDoiCollectionDataset(ports.db)(
+        sourceDatasetId = 5,
+        name = "E"
+      )
+
       val ds1_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
         id = ds1.id,
         status = PublishSucceeded,
@@ -512,6 +517,12 @@ class DatasetHandlerSpec
         id = ds4.id,
         status = PublishSucceeded,
         size = 80L,
+        doi = randomDoi()
+      )
+      val ds5_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = ds5.id,
+        status = PublishSucceeded,
+        size = 10L,
         doi = randomDoi()
       )
       val ds1_v2 = TestUtilities.createNewDatasetVersion(ports.db)(
@@ -594,6 +605,13 @@ class DatasetHandlerSpec
         "https://github.com/Pennsieve/test-repo"
       )
 
+      val ds5_v1_doiCollection =
+        TestUtilities.createDatasetDoiCollection(ports.db)(
+          datasetId = ds5_v1.datasetId,
+          datasetVersion = ds5_v1.version,
+          banners = TestUtilities.randomBannerUrls
+        )
+
       val ds1_v1_externalPub = TestUtilities.createExternalPublication(
         ports.db
       )(ds1_v1.datasetId, ds1_v1.version, References)
@@ -613,7 +631,8 @@ class DatasetHandlerSpec
             ds1_v2.doi,
             ds2_v1_failed.doi,
             ds3_v1_embargoed.doi,
-            ds4_v1.doi
+            ds4_v1.doi,
+            ds5_v1.doi
           )
         )
         .awaitFinite()
@@ -637,7 +656,7 @@ class DatasetHandlerSpec
             )
 
           // Check published
-          result.published.size shouldBe 4
+          result.published.size shouldBe 5
 
           result.published should contain key ds1_v1.doi
           result.published(ds1_v1.doi) shouldBe toClientDefinition(
@@ -717,6 +736,19 @@ class DatasetHandlerSpec
           ds4_v1_result should (be(
             toClientDefinition(ds4_v1_expectedServerDef1)
           ) or be(toClientDefinition(ds4_v1_expectedServerDef2)))
+
+          result.published should contain key ds5_v1.doi
+          result.published(ds5_v1.doi) shouldBe toClientDefinition(
+            models.PublicDatasetDTO(
+              dataset = ds5,
+              version = ds5_v1,
+              contributors = IndexedSeq.empty,
+              collections = IndexedSeq.empty,
+              externalPublications = IndexedSeq.empty,
+              datasetPreview = None,
+              doiCollection = Some(ds5_v1_doiCollection)
+            )
+          )
       }
     }
 
@@ -1016,6 +1048,22 @@ class DatasetHandlerSpec
           status = PublishStatus.PublishSucceeded
         )
 
+      //Dataset 4, a DOI collection
+      // Placed here, before Dataset 3 (embargoed) so that 3 is still the newest dataset
+      // to keep the order simple when checking below. (by default datasets returned in desc pub date order)
+      val publicDataset4 =
+        TestUtilities.createDoiCollectionDataset(ports.db)(sourceDatasetId = 4)
+      val publicDataset4_V1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset4.id,
+        status = PublishSucceeded
+      )
+      val publicDataset4_V1_doiCollection =
+        TestUtilities.createDatasetDoiCollection(ports.db)(
+          datasetId = publicDataset4_V1.datasetId,
+          datasetVersion = publicDataset4_V1.version,
+          banners = TestUtilities.randomBannerUrls
+        )
+
       // Dataset 3 (embargoed)
       val publicDataset3 = TestUtilities.createDataset(ports.db)(
         sourceOrganizationId = 1,
@@ -1130,6 +1178,20 @@ class DatasetHandlerSpec
       )
 
       val nonEmbargoedDatasets = IndexedSeq(
+        toClientDefinition(
+          PublicDatasetDTO(
+            publicDataset4,
+            publicDataset4_V1,
+            IndexedSeq.empty,
+            None,
+            None,
+            Some(IndexedSeq.empty),
+            Some(IndexedSeq.empty),
+            None,
+            None,
+            Some(publicDataset4_V1_doiCollection)
+          )
+        ),
         toClientDefinition(
           PublicDatasetDTO.apply(
             publicDataset2,
