@@ -7,6 +7,7 @@ import akka.http.scaladsl.server.{ FIXME, Route }
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
+import com.pennsieve.discover.db.PublicDatasetVersionsMapper.DatasetDetails
 import com.pennsieve.discover.db.{
   PublicDatasetDoiCollectionDoisMapper,
   PublicDatasetDoiCollectionsMapper,
@@ -19,7 +20,9 @@ import com.pennsieve.discover.logging.{
 }
 import com.pennsieve.discover.models.{
   PennsieveSchemaVersion,
+  PublicDataset,
   PublicDatasetDoiCollection,
+  PublicDatasetVersion,
   PublishingWorkflow
 }
 import com.pennsieve.discover.{
@@ -46,7 +49,7 @@ import com.pennsieve.discover.handlers.DoiCollectionHandler.{
   collectionOrgId,
   collectionOrgName
 }
-import com.pennsieve.models.DatasetType.Collection
+import com.pennsieve.models.DatasetType.{ Collection, Release }
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
@@ -191,11 +194,15 @@ class DoiCollectionHandler(
   private def findNonPennsieveDois(dois: Seq[String]): Seq[String] =
     dois.filterNot(_.startsWith(s"$pennsieveDoiPrefix/"))
 
-  private def findUnpublishedDois(dois: Seq[String]): Future[Seq[String]] = {
+  private def lookupPennsieveDois(dois: Seq[String]): Future[
+    (
+      Map[String, PublicDatasetVersionsMapper.DatasetDetails],
+      Map[String, (PublicDataset, PublicDatasetVersion)]
+    )
+  ] =
     ports.db
       .run(PublicDatasetVersionsMapper.getDatasetsByDoi(dois.toList))
-      .map(_.unpublished.keys.toList)
-  }
+      .map(x => (x.published, x.unpublished))
 
   private def validateBody(body: PublishDoiCollectionRequest): Future[Unit] = {
     val dois = Option(body.dois).getOrElse(Seq.empty)
@@ -219,21 +226,33 @@ class DoiCollectionHandler(
             )
           )
       }
+      (pennsievePublished, pennsieveUnpublished) <- lookupPennsieveDois(dois)
 
-      // Decided not to check on the published DOIs since in the future, if we
-      // allow non-Pennsieve DOIs it will be normal to have DOIs that do
-      // not appear in the published part of getDatasetsByDoi response.
-      unpublishedDois <- findUnpublishedDois(dois)
-      _ <- unpublishedDois match {
-        case Nil => Future.successful(())
-        case unpublished =>
+      // Don't allow publication of a DOI collection that contains unpublished DOIs
+      _ <- pennsieveUnpublished match {
+        case m if m.isEmpty => Future.successful(())
+        case _ =>
+          val nonPenn = pennsieveUnpublished.view.mapValues(_._2.status).toList
           Future.failed(
             PublishDoiCollectionRequestValidationError(
-              s"Collection contains unpublished DOIs: ${unpublished.mkString(", ")}"
+              s"Collection contains unpublished DOIs: ${nonPenn.mkString(", ")}"
             )
           )
       }
 
+      // Don't allow publication of a DOI collection that contains another DOI collection
+      _ <- pennsievePublished.view
+        .filter(_._2.dataset.datasetType == Collection)
+        .keys
+        .toList match {
+        case l if l.isEmpty => Future.successful(())
+        case collectionDois =>
+          Future.failed(
+            PublishDoiCollectionRequestValidationError(
+              s"Collection contains collection DOIs: ${collectionDois.mkString(", ")}"
+            )
+          )
+      }
     } yield ()
   }
 
