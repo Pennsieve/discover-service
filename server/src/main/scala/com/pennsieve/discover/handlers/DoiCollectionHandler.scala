@@ -3,11 +3,10 @@
 package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.server.{ FIXME, Route }
+import akka.http.scaladsl.server.Route
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
-import com.pennsieve.discover.db.PublicDatasetVersionsMapper.DatasetDetails
 import com.pennsieve.discover.db.{
   PublicDatasetDoiCollectionDoisMapper,
   PublicDatasetDoiCollectionsMapper,
@@ -32,14 +31,16 @@ import com.pennsieve.discover.{
   ForbiddenException,
   MissingParameterException,
   Ports,
-  PublishJobException,
   UnauthorizedException
 }
 import com.pennsieve.discover.server.collection.{
   CollectionHandler => GuardrailHandler,
   CollectionResource => GuardrailResource
 }
-import com.pennsieve.discover.server.definitions.PublishDoiCollectionRequest
+import com.pennsieve.discover.server.definitions.{
+  FinalizeDoiCollectionRequest,
+  PublishDoiCollectionRequest
+}
 import com.pennsieve.discover.utils.{ getOrCreateDoi, BucketResolver }
 import com.pennsieve.models.PublishStatus
 import io.circe.DecodingFailure
@@ -49,7 +50,7 @@ import com.pennsieve.discover.handlers.DoiCollectionHandler.{
   collectionOrgId,
   collectionOrgName
 }
-import com.pennsieve.models.DatasetType.{ Collection, Release }
+import com.pennsieve.models.DatasetType.Collection
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
@@ -63,6 +64,8 @@ class DoiCollectionHandler(
 ) extends GuardrailHandler {
   type PublishDoiCollectionResponse =
     GuardrailResource.PublishDoiCollectionResponse
+  type FinalizeDoiCollectionResponse =
+    GuardrailResource.FinalizeDoiCollectionResponse
   private val pennsieveDoiPrefix =
     ports.config.doiCollections.pennsieveDoiPrefix
 
@@ -256,6 +259,12 @@ class DoiCollectionHandler(
     } yield ()
   }
 
+  override def finalizeDoiCollection(
+    respond: GuardrailResource.FinalizeDoiCollectionResponse.type
+  )(
+    collectionId: Int,
+    body: FinalizeDoiCollectionRequest
+  ): Future[FinalizeDoiCollectionResponse] = ???
 }
 
 object DoiCollectionHandler {
