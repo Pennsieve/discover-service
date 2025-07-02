@@ -51,6 +51,7 @@ import com.pennsieve.discover.handlers.DoiCollectionHandler.{
   collectionOrgName
 }
 import com.pennsieve.models.DatasetType.Collection
+import com.pennsieve.models.PublishStatus.PublishFailed
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
@@ -80,7 +81,7 @@ class DoiCollectionHandler(
       userId = Some(body.ownerId)
     )
 
-    ports.log.info(s"publishCollection() starting request: ${body}")
+    ports.log.info(s"publishDoiCollection() starting request: ${body}")
     val bucketResolver = BucketResolver(ports)
     val (targetS3Bucket, _) =
       bucketResolver.resolveBucketConfig(
@@ -96,7 +97,7 @@ class DoiCollectionHandler(
       validateBody(body).flatMap { _ =>
         getOrCreateDoi(ports, collectionOrgId, collectionId)
           .flatMap { doi =>
-            ports.log.info(s"DOI: $doi")
+            ports.log.info(s"publishDoiCollection() DOI: $doi")
 
             val query = for {
               publicDataset <- PublicDatasetsMapper
@@ -114,7 +115,9 @@ class DoiCollectionHandler(
                   datasetType = Collection
                 )
 
-              _ = ports.log.info(s"Public dataset: $publicDataset")
+              _ = ports.log.info(
+                s"publishDoiCollection() public dataset: $publicDataset"
+              )
 
               // If the previous publish job failed, roll the dataset back to the
               // previous version
@@ -131,7 +134,9 @@ class DoiCollectionHandler(
                   schemaVersion = PennsieveSchemaVersion.`5.0`,
                   migrated = true
                 )
-              _ = ports.log.info(s"Public dataset version : $version")
+              _ = ports.log.info(
+                s"publishDoiCollection() public dataset version : $version"
+              )
 
               _ <- PublicDatasetDoiCollectionsMapper.add(
                 PublicDatasetDoiCollection(
@@ -173,7 +178,7 @@ class DoiCollectionHandler(
     }.recover {
       case UnauthorizedException => respond.Unauthorized
       case DecodingFailure(msg, path) =>
-        respond.InternalServerError(s"Failed to decode DOI: $msg [$path]")
+        respond.InternalServerError(s"Decoding error: $msg [$path]")
       case DoiCreationException(e) =>
         respond.BadRequest(s"Failed to create a DOI for the collection: $e")
       case DoiServiceException(e) =>
@@ -264,7 +269,89 @@ class DoiCollectionHandler(
   )(
     collectionId: Int,
     body: FinalizeDoiCollectionRequest
-  ): Future[FinalizeDoiCollectionResponse] = ???
+  ): Future[FinalizeDoiCollectionResponse] = {
+    implicit val logContext: DiscoverLogContext = DiscoverLogContext(
+      datasetId = Some(collectionId),
+      publicDatasetId = Some(body.publishedDatasetId),
+      publicDatasetVersion = Some(body.publishedVersion)
+    )
+
+    withServiceOwnerAuthorization[FinalizeDoiCollectionResponse](
+      claim,
+      collectionOrgId,
+      collectionId
+    ) { _ =>
+      val query = for {
+        publicDataset <- PublicDatasetsMapper
+          .getDatasetFromSourceIds(collectionOrgId, collectionId)
+
+        _ = ports.log.info(s"finalizeDoiCollection() dataset: ${publicDataset}")
+
+        version <- PublicDatasetVersionsMapper.getVersion(
+          publicDataset.id,
+          body.publishedVersion
+        )
+        _ = ports.log.info(s"finalizeDoiCollection() version: ${version}")
+
+        finalStatus <- body.publishSuccess match {
+          case true => publishSucceeded(publicDataset, version, body)
+          case false => publishFailed(publicDataset, version)
+        }
+
+        updatedVersion <- PublicDatasetVersionsMapper.setStatus(
+          id = publicDataset.id,
+          version = version.version,
+          status = finalStatus
+        )
+        _ = ports.log.info(
+          s"finalizeDoiCollection() updated version: ${updatedVersion}"
+        )
+        response = com.pennsieve.discover.server.definitions
+          .FinalizeDoiCollectionResponse(status = updatedVersion.status)
+        _ = ports.log.info(
+          "finalizeDoiCollection() finished [response]: $response"
+        )
+
+      } yield respond.OK(response)
+      ports.db
+        .run(
+          query.transactionally
+            .withTransactionIsolation(TransactionIsolation.Serializable)
+        )
+    }.recover {
+      case UnauthorizedException => respond.Unauthorized
+      case DecodingFailure(msg, path) =>
+        respond.InternalServerError(s"Decoding error: $msg [$path]")
+      case MissingParameterException(parameter) =>
+        respond.BadRequest(s"Missing parameter '$parameter'")
+      case ForbiddenException(e) => respond.Forbidden(e)
+      case NonFatal(e) => respond.InternalServerError(e.toString)
+    }
+  }
+
+  private def publishSucceeded(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion,
+    body: FinalizeDoiCollectionRequest
+  )(implicit
+    logContext: DiscoverLogContext
+  ): DBIOAction[
+    PublishStatus,
+    NoStream,
+    Effect.Read with Effect.Write with Effect.Transactional with Effect
+  ] = ???
+
+  private def publishFailed(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion
+  )(implicit
+    logContext: DiscoverLogContext
+  ): DBIOAction[PublishStatus, NoStream, Effect] = {
+    ports.log.warn(
+      s"DoiCollectionHandler.publishFailed() datasetId: ${dataset.id} version: ${version.version}"
+    )
+    DBIO.from(Future.successful(PublishFailed))
+  }
 }
 
 object DoiCollectionHandler {

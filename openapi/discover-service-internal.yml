@@ -1180,6 +1180,7 @@ components:
       properties:
         status:
           type: string
+          x-scala-type: com.pennsieve.models.PublishStatus
 
     DatasetPublishStatus:
       type: object
