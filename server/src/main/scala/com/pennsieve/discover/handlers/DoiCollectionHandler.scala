@@ -10,8 +10,10 @@ import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
 import com.pennsieve.discover.db.{
   PublicDatasetDoiCollectionDoisMapper,
   PublicDatasetDoiCollectionsMapper,
+  PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
-  PublicDatasetsMapper
+  PublicDatasetsMapper,
+  PublicFileVersionsMapper
 }
 import com.pennsieve.discover.logging.{
   logRequestAndResponse,
@@ -50,8 +52,14 @@ import com.pennsieve.discover.handlers.DoiCollectionHandler.{
   collectionOrgId,
   collectionOrgName
 }
+import com.pennsieve.discover.notifications.{
+  PushDoiRequest,
+  SQSMessenger,
+  SQSNotificationType
+}
 import com.pennsieve.models.DatasetType.Collection
 import com.pennsieve.models.PublishStatus.PublishFailed
+import slick.dbio.{ DBIO, DBIOAction }
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
@@ -309,7 +317,7 @@ class DoiCollectionHandler(
         response = com.pennsieve.discover.server.definitions
           .FinalizeDoiCollectionResponse(status = updatedVersion.status)
         _ = ports.log.info(
-          "finalizeDoiCollection() finished [response]: $response"
+          s"finalizeDoiCollection() finished [response]: ${response}"
         )
 
       } yield respond.OK(response)
@@ -339,7 +347,75 @@ class DoiCollectionHandler(
     PublishStatus,
     NoStream,
     Effect.Read with Effect.Write with Effect.Transactional with Effect
-  ] = ???
+  ] =
+    for {
+      finalizedVersion <- PublicDatasetVersionsMapper.setResultMetadata(
+        version = version,
+        size = body.totalSize,
+        fileCount = body.fileCount
+      )
+      _ = ports.log.info(
+        s"DoiCollectionHandler.publishSucceeded() finalized version: ${finalizedVersion}"
+      )
+
+      // load the metadata (manifest.json) file from S3
+      metadata <- DBIO.from(
+        ports.s3StreamClient
+          .loadDatasetMetadata(finalizedVersion)
+      )
+      _ = ports.log.info(
+        s"DoiCollectionHandler.publishSucceeded() metadata: ${metadata}"
+      )
+
+      _ <- DBIO.from(metadata match {
+        case Some(_) => Future.successful(())
+        case None =>
+          Future.failed(new Throwable("dataset metadata not found"))
+      })
+
+      manifestFiles = metadata.get.files
+      manifestFile = manifestFiles
+        .filter(_.path.equals("manifest.json"))
+        .head
+      files = manifestFile.copy(s3VersionId = Some(body.manifestVersionId)) :: manifestFiles
+        .filterNot(_.path.equals("manifest.json"))
+      _ = ports.log.info(
+        s"DoiCollectionHandler.publishSucceeded() updated manifestFiles: ${files}"
+      )
+
+      publicFileVersions <- DBIO.sequence(files.map { file =>
+        PublicFileVersionsMapper.createOne(finalizedVersion, file)
+      })
+      _ = ports.log.info(
+        s"DoiCollectionHandler.publishSucceeded() publicFileVersions: ${publicFileVersions}"
+      )
+
+      publicFileVersionLinks <- DBIO.sequence(
+        publicFileVersions
+          .map { pfv =>
+            PublicDatasetVersionFilesTableMapper
+              .storeLink(finalizedVersion, pfv)
+          }
+      )
+      _ = ports.log.info(
+        s"DoiCollectionHandler.publishSucceeded() publicFileVersionLinks: ${publicFileVersionLinks}"
+      )
+
+      _ = ports.log.info(
+        "DoiCollectionHandler.publishSucceeded() [action] queue push DOI message"
+      )
+      _ <- DBIOAction.from(
+        SQSMessenger.queueMessage(
+          ports.config.sqs.queueUrl,
+          PushDoiRequest(
+            jobType = SQSNotificationType.PUSH_DOI,
+            datasetId = finalizedVersion.datasetId,
+            version = finalizedVersion.version,
+            doi = finalizedVersion.doi
+          )
+        )(executionContext, logContext, ports)
+      )
+    } yield PublishStatus.PublishSucceeded
 
   private def publishFailed(
     dataset: PublicDataset,

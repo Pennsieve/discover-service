@@ -13,19 +13,23 @@ import com.pennsieve.discover.Authenticator.{
 }
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse
+import com.pennsieve.discover.client.collection.FinalizeDoiCollectionResponse
 import com.pennsieve.discover.client.collection.CollectionClient
 import com.pennsieve.discover.client.definitions.{
   BucketConfig,
+  FinalizeDoiCollectionRequest,
   PublishDoiCollectionRequest
 }
-import com.pennsieve.discover.clients.MockDoiClient
+import com.pennsieve.discover.clients.{ MockDoiClient, MockS3StreamClient }
 import com.pennsieve.discover.db.{
   PublicDatasetDoiCollectionDoisMapper,
   PublicDatasetDoiCollectionsMapper,
+  PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
-  PublicDatasetsMapper
+  PublicDatasetsMapper,
+  PublicFileVersionsMapper
 }
-import com.pennsieve.discover.models.S3Key
+import com.pennsieve.discover.models.{ PublicDatasetDoiCollection, S3Key }
 import com.pennsieve.models.DatasetType.Collection
 import com.pennsieve.models.PublishStatus.{
   PublishFailed,
@@ -484,6 +488,253 @@ class DoiCollectionHandlerSpec
       response shouldBe PublishDoiCollectionResponse.BadRequest(
         s"Collection contains collection DOIs: $doiCollectionDoi"
       )
+    }
+
+  }
+  "POST /collection/{collectionId}/finalize" should {
+
+    val randomRequestBody: FinalizeDoiCollectionRequest =
+      FinalizeDoiCollectionRequest(
+        publishedDatasetId = 11,
+        publishedVersion = 1,
+        publishSuccess = true,
+        fileCount = 1,
+        totalSize = 17,
+        manifestKey = TestUtilities.randomString(),
+        manifestVersionId = TestUtilities.randomString()
+      )
+
+    "fail without a JWT" in {
+
+      val response = client
+        .finalizeDoiCollection(sourceCollectionId, randomRequestBody)
+        .awaitFinite()
+        .value
+
+      response shouldBe FinalizeDoiCollectionResponse.Unauthorized
+    }
+
+    "fail with a user JWT" in {
+      val response = client
+        .finalizeDoiCollection(
+          sourceCollectionId,
+          randomRequestBody,
+          userAuthToken
+        )
+        .awaitFinite()
+        .value
+
+      response shouldBe FinalizeDoiCollectionResponse.Forbidden(
+        "Only allowed for service level requests"
+      )
+    }
+
+    "handle failure notifications" in {
+      client
+        .publishDoiCollection(sourceCollectionId, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishDoiCollectionResponse.Created]
+        .value
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(
+              DoiCollectionHandler.collectionOrgId,
+              sourceCollectionId
+            )
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      publicVersion.status shouldBe PublishStatus.PublishInProgress
+
+      val finalizeRequest = FinalizeDoiCollectionRequest(
+        publishedDatasetId = publicDataset.id,
+        publishedVersion = publicVersion.version,
+        publishSuccess = false,
+        fileCount = 0,
+        totalSize = 0,
+        manifestKey = "",
+        manifestVersionId = ""
+      )
+
+      val finalizeResponse = client
+        .finalizeDoiCollection(sourceCollectionId, finalizeRequest, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[FinalizeDoiCollectionResponse.OK]
+        .value
+
+      finalizeResponse.status shouldBe PublishStatus.PublishFailed
+
+      val updatedVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      updatedVersion.status shouldBe PublishStatus.PublishFailed
+    }
+
+    "handle a successful publish" in {
+      client
+        .publishDoiCollection(sourceCollectionId, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishDoiCollectionResponse.Created]
+        .value
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(
+              DoiCollectionHandler.collectionOrgId,
+              sourceCollectionId
+            )
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      publicVersion.status shouldBe PublishStatus.PublishInProgress
+
+      val manifestJson =
+        s"""
+           |{
+           |  "pennsieveDatasetId": 1791,
+           |  "version": 14,
+           |  "name": "f1df25c0-f5b7-43a2-8482-250acaabfc18",
+           |  "description": "29ceef0e-bd65-45b7-a5e6-8feb8da813ea",
+           |  "creator": {
+           |    "first_name": "9ea5bebc-620a-4019-b0d9-fbe42bcb24b5",
+           |    "last_name": "13fa3d78-2bbc-4ac0-90ba-051907689dc8",
+           |    "orcid": "3510ff82-91ac-4883-a120-0d394d609ab6",
+           |    "middle_initial": "b",
+           |    "degree": "Ph.D."
+           |  },
+           |  "contributors": [
+           |    {
+           |      "first_name": "9ea5bebc-620a-4019-b0d9-fbe42bcb24b5",
+           |      "last_name": "13fa3d78-2bbc-4ac0-90ba-051907689dc8",
+           |      "orcid": "3510ff82-91ac-4883-a120-0d394d609ab6",
+           |      "middle_initial": "b",
+           |      "degree": "Ph.D."
+           |    }
+           |  ],
+           |  "sourceOrganization": "",
+           |  "keywords": [
+           |    "f272254c-da93-4b8b-aba6-8aef77f10457",
+           |    "b880141d-6f8f-4441-aa1b-b4a126de19ae"
+           |  ],
+           |  "datePublished": "2025-07-07",
+           |  "license": "Apache 2.0",
+           |  "@id": "10.1111/4b5a87a7-82ca-4122-aa16-697135cd14bb",
+           |  "publisher": "The University of Pennsylvania",
+           |  "@context": "http://schema.org/",
+           |  "@type": "Collection",
+           |  "schemaVersion": "http://schema.org/version/3.7/",
+           |  "files": [
+           |    {
+           |      "name": "manifest.json",
+           |      "path": "manifest.json",
+           |      "size": 1445,
+           |      "fileType": "Json"
+           |    }
+           |  ],
+           |  "references": {"ids": [
+           |    "10.1111/635e620f-ca11-469b-88de-f9ad84557d45",
+           |    "10.1111/b5833ade-a29a-4d09-a040-a2b31ea54587",
+           |    "10.1111/a3222e95-e4d6-416c-9610-fac73180bbbf"
+           |  ]},
+           |  "pennsieveSchemaVersion": "5.0"
+           |}
+           |""".stripMargin
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .storeDatasetMetadata(publicVersion, manifestJson)
+
+      val expectedFileCount = 1
+      val expectedTotalSize = 1445
+      val expectedManifestKey = s"${publicDataset.id}/manifest.json"
+      val expectedManifestVersionId = TestUtilities.randomString()
+
+      val finalizeRequest = FinalizeDoiCollectionRequest(
+        publishedDatasetId = publicDataset.id,
+        publishedVersion = publicVersion.version,
+        publishSuccess = true,
+        fileCount = expectedFileCount,
+        totalSize = expectedTotalSize,
+        manifestKey = expectedManifestKey,
+        manifestVersionId = expectedManifestVersionId
+      )
+
+      val finalizeResponse = client
+        .finalizeDoiCollection(sourceCollectionId, finalizeRequest, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[FinalizeDoiCollectionResponse.OK]
+        .value
+
+      finalizeResponse.status shouldBe PublishStatus.PublishSucceeded
+
+      // check: dataset, version, files
+      val publicDatasetFinal = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(
+              PublicDatasetDoiCollection.collectionOrgId,
+              sourceCollectionId
+            )
+        )
+        .awaitFinite()
+
+      val publicVersionFinal = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDatasetFinal.id)
+        )
+        .awaitFinite()
+        .get
+
+      publicVersionFinal.status shouldBe PublishStatus.PublishSucceeded
+      publicVersionFinal.fileCount shouldBe expectedFileCount
+      publicVersionFinal.size shouldBe expectedTotalSize
+
+      val links = ports.db
+        .run(
+          PublicDatasetVersionFilesTableMapper
+            .getLinks(publicDatasetFinal.id, publicVersionFinal.version)
+        )
+        .awaitFinite()
+
+      links.length shouldEqual 1
+
+      val files = ports.db
+        .run(PublicFileVersionsMapper.getAll(publicDatasetFinal.id))
+        .awaitFinite()
+
+      files.length shouldEqual 1
+      val actualManifestFile = files.head
+
+      actualManifestFile.s3Key.value shouldBe expectedManifestKey
+      actualManifestFile.s3Version shouldBe expectedManifestVersionId
     }
 
   }
