@@ -719,15 +719,6 @@ class DoiCollectionHandlerSpec
       publicVersionFinal.fileCount shouldBe expectedFileCount
       publicVersionFinal.size shouldBe expectedTotalSize
 
-      val links = ports.db
-        .run(
-          PublicDatasetVersionFilesTableMapper
-            .getLinks(publicDatasetFinal.id, publicVersionFinal.version)
-        )
-        .awaitFinite()
-
-      links.length shouldEqual 1
-
       val files = ports.db
         .run(PublicFileVersionsMapper.getAll(publicDatasetFinal.id))
         .awaitFinite()
@@ -737,6 +728,58 @@ class DoiCollectionHandlerSpec
 
       actualManifestFile.s3Key.value shouldBe expectedManifestKey
       actualManifestFile.s3Version shouldBe expectedManifestVersionId
+      actualManifestFile.fileType shouldBe "Json"
+
+      val links = ports.db
+        .run(
+          PublicDatasetVersionFilesTableMapper
+            .getLinks(publicDatasetFinal.id, publicVersionFinal.version)
+        )
+        .awaitFinite()
+
+      links.length shouldEqual 1
+      links.head.fileId shouldBe actualManifestFile.id
+    }
+
+    "fail if called on a version that is in a failed state" in {
+
+      val publicDataset = TestUtilities.createDoiCollectionDataset(ports.db)(
+        sourceDatasetId = sourceCollectionId
+      )
+      val beforeVersion = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishFailed
+      )
+
+      val finalizeRequest = FinalizeDoiCollectionRequest(
+        publishedDatasetId = publicDataset.id,
+        publishedVersion = beforeVersion.version,
+        publishSuccess = true,
+        fileCount = 1,
+        totalSize = 1234,
+        manifestKey = s"${publicDataset.id}/manifest.json",
+        manifestVersionId = TestUtilities.randomString()
+      )
+
+      val finalizeResponse = client
+        .finalizeDoiCollection(sourceCollectionId, finalizeRequest, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[FinalizeDoiCollectionResponse.BadRequest]
+        .value
+
+      finalizeResponse shouldBe s"no DOICollection publish in progress; status is ${beforeVersion.status}"
+
+      val afterVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      afterVersion.version shouldBe beforeVersion.version
+      afterVersion.status shouldBe beforeVersion.status
     }
 
   }

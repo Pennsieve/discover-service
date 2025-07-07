@@ -58,7 +58,7 @@ import com.pennsieve.discover.notifications.{
   SQSNotificationType
 }
 import com.pennsieve.models.DatasetType.Collection
-import com.pennsieve.models.PublishStatus.PublishFailed
+import com.pennsieve.models.PublishStatus.{ PublishFailed, PublishInProgress }
 import slick.dbio.{ DBIO, DBIOAction }
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -301,6 +301,8 @@ class DoiCollectionHandler(
         )
         _ = ports.log.info(s"finalizeDoiCollection() version: ${version}")
 
+        _ <- checkVersionStatusForFinalize(version)
+
         finalStatus <- body.publishSuccess match {
           case true => publishSucceeded(publicDataset, version, body)
           case false => publishFailed(publicDataset, version)
@@ -332,8 +334,32 @@ class DoiCollectionHandler(
         respond.InternalServerError(s"Decoding error: $msg [$path]")
       case MissingParameterException(parameter) =>
         respond.BadRequest(s"Missing parameter '$parameter'")
+      case FinalizeDoiCollectionStatusError(msg) => respond.BadRequest(msg)
       case ForbiddenException(e) => respond.Forbidden(e)
       case NonFatal(e) => respond.InternalServerError(e.toString)
+    }
+  }
+
+  private def checkVersionStatusForFinalize(
+    version: PublicDatasetVersion
+  )(implicit
+    logContext: DiscoverLogContext
+  ): DBIOAction[Unit, NoStream, Effect] = {
+    version.status match {
+      case PublishInProgress => DBIOAction.from(Future.successful())
+      case _ => {
+        ports.log.warn(
+          s"DoiCollectionHandler.checkVersionStatusForFinalize() datasetId: ${version.datasetId} version: ${version.version} is in state ${version.status}"
+        )
+        DBIO.from(
+          Future.failed(
+            FinalizeDoiCollectionStatusError(
+              s"no DOICollection publish in progress; status is ${version.status}"
+            )
+          )
+        )
+      }
+
     }
   }
 
@@ -450,5 +476,9 @@ object DoiCollectionHandler {
 
 case class PublishDoiCollectionRequestValidationError(msg: String)
     extends Throwable {
+  override def getMessage: String = msg
+}
+
+case class FinalizeDoiCollectionStatusError(msg: String) extends Throwable {
   override def getMessage: String = msg
 }
