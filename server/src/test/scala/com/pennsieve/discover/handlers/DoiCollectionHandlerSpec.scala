@@ -618,34 +618,34 @@ class DoiCollectionHandlerSpec
       val manifestJson =
         s"""
            |{
-           |  "pennsieveDatasetId": 1791,
-           |  "version": 14,
-           |  "name": "f1df25c0-f5b7-43a2-8482-250acaabfc18",
-           |  "description": "29ceef0e-bd65-45b7-a5e6-8feb8da813ea",
+           |  "pennsieveDatasetId": 3862,
+           |  "version": 3,
+           |  "name": "90acb367-515d-43b3-b88c-54403cbdc9b6",
+           |  "description": "c302d2ec-7ae6-457b-8a69-4715cac9c8aa",
            |  "creator": {
-           |    "first_name": "9ea5bebc-620a-4019-b0d9-fbe42bcb24b5",
-           |    "last_name": "13fa3d78-2bbc-4ac0-90ba-051907689dc8",
-           |    "orcid": "3510ff82-91ac-4883-a120-0d394d609ab6",
-           |    "middle_initial": "b",
-           |    "degree": "Ph.D."
+           |    "first_name": "81db83d6-ad29-43d6-97c4-500396355b38",
+           |    "last_name": "9eedf149-f13f-4c55-a3d5-a274060a58f1",
+           |    "orcid": "d54200dc-009d-4ca8-b277-ff0d5274ddd3",
+           |    "middle_initial": "0",
+           |    "degree": "M.S."
            |  },
            |  "contributors": [
            |    {
-           |      "first_name": "9ea5bebc-620a-4019-b0d9-fbe42bcb24b5",
-           |      "last_name": "13fa3d78-2bbc-4ac0-90ba-051907689dc8",
-           |      "orcid": "3510ff82-91ac-4883-a120-0d394d609ab6",
-           |      "middle_initial": "b",
-           |      "degree": "Ph.D."
+           |      "first_name": "81db83d6-ad29-43d6-97c4-500396355b38",
+           |      "last_name": "9eedf149-f13f-4c55-a3d5-a274060a58f1",
+           |      "orcid": "d54200dc-009d-4ca8-b277-ff0d5274ddd3",
+           |      "middle_initial": "0",
+           |      "degree": "M.S."
            |    }
            |  ],
            |  "sourceOrganization": "",
            |  "keywords": [
-           |    "f272254c-da93-4b8b-aba6-8aef77f10457",
-           |    "b880141d-6f8f-4441-aa1b-b4a126de19ae"
+           |    "813228ad-bd2f-42b7-acf9-70b95cb2c144",
+           |    "9d79aabf-21c2-4870-ae75-8def7d6218cf"
            |  ],
            |  "datePublished": "2025-07-07",
-           |  "license": "Apache 2.0",
-           |  "@id": "10.1111/4b5a87a7-82ca-4122-aa16-697135cd14bb",
+           |  "license": "BSD 3-Clause \\"New\\" or \\"Revised\\" License",
+           |  "@id": "10.1111/05a5a504-a0b1-4023-b788-041228f01c41",
            |  "publisher": "The University of Pennsylvania",
            |  "@context": "http://schema.org/",
            |  "@type": "Collection",
@@ -654,15 +654,17 @@ class DoiCollectionHandlerSpec
            |    {
            |      "name": "manifest.json",
            |      "path": "manifest.json",
-           |      "size": 1445,
+           |      "size": 1478,
            |      "fileType": "Json"
            |    }
            |  ],
-           |  "references": {"ids": [
-           |    "10.1111/635e620f-ca11-469b-88de-f9ad84557d45",
-           |    "10.1111/b5833ade-a29a-4d09-a040-a2b31ea54587",
-           |    "10.1111/a3222e95-e4d6-416c-9610-fac73180bbbf"
-           |  ]},
+           |  "references": {
+           |    "ids": [
+           |      "10.1111/31080ffa-858b-40f1-96b0-d042c4a67928",
+           |      "10.1111/116bd2df-0be3-4c80-9bd0-5cdb9210a414",
+           |      "10.1111/5d2ec43a-45d6-4d96-a841-371f7a30e10e"
+           |    ]
+           |  },
            |  "pennsieveSchemaVersion": "5.0"
            |}
            |""".stripMargin
@@ -671,7 +673,7 @@ class DoiCollectionHandlerSpec
         .storeDatasetMetadata(publicVersion, manifestJson)
 
       val expectedFileCount = 1
-      val expectedTotalSize = 1445
+      val expectedTotalSize = 1478
       val expectedManifestKey = s"${publicDataset.id}/manifest.json"
       val expectedManifestVersionId = TestUtilities.randomString()
 
