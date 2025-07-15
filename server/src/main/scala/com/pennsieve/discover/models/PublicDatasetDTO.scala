@@ -29,6 +29,13 @@ object PublicDatasetDTO {
       case None => None
     }
 
+  private def doiCollectionInfo(
+    doiCollection: Option[PublicDatasetDoiCollection]
+  ): Option[definitions.DoiCollectionInfo] =
+    doiCollection.map(
+      c => definitions.DoiCollectionInfo(banners = c.banners.toVector)
+    )
+
   def apply(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
@@ -40,7 +47,8 @@ object PublicDatasetDTO {
       IndexedSeq[definitions.PublicExternalPublicationDto]
     ],
     datasetPreview: Option[DatasetPreview],
-    release: Option[PublicDatasetRelease]
+    release: Option[PublicDatasetRelease],
+    doiCollection: Option[PublicDatasetDoiCollection]
   )(implicit
     config: Config
   ): definitions.PublicDatasetDto =
@@ -121,6 +129,7 @@ object PublicDatasetDTO {
       )
       .withFieldComputed(_.sponsorship, _ => sponsorship)
       .withFieldComputed(_.release, _ => releaseInfo(release))
+      .withFieldComputed(_.doiCollection, _ => doiCollectionInfo(doiCollection))
       // TODO: pennsieveSchemaVersion can be non-optional once ElasticSearch has
       // been reindexed in production so that all datasets have a schema
       // version.
@@ -150,7 +159,8 @@ object PublicDatasetDTO {
     collections: Seq[PublicCollection],
     externalPublications: Seq[PublicExternalPublication],
     datasetPreview: Option[DatasetPreview],
-    release: Option[PublicDatasetRelease] = None
+    release: Option[PublicDatasetRelease] = None,
+    doiCollection: Option[PublicDatasetDoiCollection] = None
   )(implicit
     config: Config
   ): definitions.PublicDatasetDto = {
@@ -173,7 +183,8 @@ object PublicDatasetDTO {
           .toIndexedSeq
       ),
       datasetPreview = datasetPreview,
-      release
+      release,
+      doiCollection
     )
   }
 }

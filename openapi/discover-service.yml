@@ -1371,6 +1371,8 @@ components:
           description: "the dataset type (research, release, collection)"
         release:
           $ref: "#/components/schemas/ReleaseInfo"
+        doiCollection:
+          $ref: "#/components/schemas/DOICollectionInfo"
 
     SponsorshipDTO:
       type: object
@@ -1661,6 +1663,18 @@ components:
         type:
           type: string
           description: either file or folder
+
+    DOICollectionInfo:
+      type: object
+      required:
+        - banners
+      properties:
+        banners:
+          description: at most 4 banner URLs
+          maxItems: 4
+          type: array
+          items:
+            type: string
 
     GenericResponsePage:
       description: >
