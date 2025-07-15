@@ -381,7 +381,7 @@ class DatasetHandlerSpec
       )
     }
 
-    "return a published DOI collection dataset" in {
+    "return a published DOI collection dataset with auth" in {
 
       val collectionDataset =
         TestUtilities.createDoiCollectionDataset(ports.db)()
@@ -460,6 +460,59 @@ class DatasetHandlerSpec
 
       responseWithAuth shouldBe GetDatasetResponse.OK(
         toClientDefinition(expectedWithAuth)
+      )
+    }
+
+    "return a published DOI collection dataset without auth" in {
+
+      val collectionDataset =
+        TestUtilities.createDoiCollectionDataset(ports.db)()
+
+      val collectionDatasetV1 =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = collectionDataset.id,
+          status = PublishSucceeded
+        )
+
+      val collectionDatasetV1DoiCollection =
+        TestUtilities.createDatasetDoiCollection(ports.db)(
+          datasetId = collectionDatasetV1.datasetId,
+          datasetVersion = collectionDatasetV1.version,
+          banners = TestUtilities.randomBannerUrls
+        )
+
+      val contributor = TestUtilities.createContributor(ports.db)(
+        firstName = "Sally",
+        lastName = "Fields",
+        orcid = None,
+        datasetId = collectionDataset.id,
+        organizationId = organizationId,
+        version = collectionDatasetV1.version,
+        sourceContributorId = 1,
+        sourceUserId = Some(1)
+      )
+
+      ports.db.run(
+        SponsorshipsMapper.createOrUpdate(
+          collectionDataset.sourceOrganizationId,
+          collectionDataset.sourceDatasetId,
+          Some("foo"),
+          Some("bar"),
+          Some("baz")
+        )
+      )
+
+      val dataset: PublicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDataset(collectionDataset.id)
+        )
+        .await
+
+      val collection = TestUtilities.createCollection(ports.db)(
+        datasetId = collectionDataset.id,
+        version = collectionDatasetV1.version,
+        sourceCollectionId = 1
       )
 
       // If an authorization header is present, include the corresponding dataset preview:

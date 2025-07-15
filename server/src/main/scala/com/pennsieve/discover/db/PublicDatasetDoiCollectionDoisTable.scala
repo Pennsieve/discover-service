@@ -8,6 +8,7 @@ import slick.dbio.{ DBIOAction, Effect }
 
 import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
+
 final class PublicDatasetDoiCollectionDoisTable(tag: Tag)
     extends Table[PublicDatasetDoiCollectionDoi](
       tag,
