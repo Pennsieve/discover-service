@@ -44,5 +44,11 @@ class ConfigSpec extends AnyWordSpec with Matchers {
       config.doiCollections.pennsieveDoiPrefix shouldBe "10.00000"
     }
 
+    "correctly set SQS extended visibility timeout" in {
+      val config: Config =
+        Config.loadForTest("config-with-sqs-extended-visibility-timeout.conf")
+
+      config.sqs.extendedVisibilityTimeout shouldBe 900
+    }
   }
 }

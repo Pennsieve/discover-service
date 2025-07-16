@@ -103,7 +103,13 @@ case class DownloadConfiguration(
   ratePerSecond: Information
 )
 
-case class SQSConfiguration(region: Region, queueUrl: String, parallelism: Int)
+case class SQSConfiguration(
+  region: Region,
+  queueUrl: String,
+  parallelism: Int,
+  extendedVisibilityThreshold: Int,
+  extendedVisibilityTimeout: Int
+)
 
 case class PennsieveApiConfiguration(host: String)
 

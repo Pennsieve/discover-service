@@ -178,6 +178,18 @@ resource "aws_ssm_parameter" "queue_url" {
   value = data.terraform_remote_state.platform_infrastructure.outputs.discover_publish_queue_id
 }
 
+resource "aws_ssm_parameter" "extended_visibility_threshold" {
+  name  = "/${var.environment_name}/${var.service_name}/extended-visibility-threshold"
+  type  = "String"
+  value = var.sqs_extended_visibility_threshold
+}
+
+resource "aws_ssm_parameter" "extended_visibility_timeout" {
+  name  = "/${var.environment_name}/${var.service_name}/extended-visibility-timeout"
+  type  = "String"
+  value = var.sqs_extended_visibility_timeout
+}
+
 // PENNSIEVE API CONFIGURATION
 
 resource "aws_ssm_parameter" "api_host" {

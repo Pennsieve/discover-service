@@ -50,7 +50,11 @@ import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
-import software.amazon.awssdk.services.sqs.model.{ Message, SendMessageRequest }
+import software.amazon.awssdk.services.sqs.model.{
+  ChangeMessageVisibilityRequest,
+  Message,
+  SendMessageRequest
+}
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 
 import java.time.LocalDate
@@ -202,6 +206,13 @@ class SQSNotificationHandler(
             datasetId = Some(message.datasetId)
           )
 
+        // in order to extend SQS message visibility
+        val receiptHandle = sqsMessage.receiptHandle()
+        val extendedVisibilityThreshold =
+          ports.config.sqs.extendedVisibilityThreshold
+        val extendedVisibilityTimeout =
+          ports.config.sqs.extendedVisibilityTimeout
+
         ports.log.info(s"Decoded $message")
 
         val query = for {
@@ -269,6 +280,9 @@ class SQSNotificationHandler(
           _ <- message match {
             case notification: PublishNotification if notification.success =>
               handleSuccess(
+                receiptHandle,
+                extendedVisibilityThreshold,
+                extendedVisibilityTimeout,
                 notification,
                 publicDataset,
                 version,
@@ -321,6 +335,9 @@ class SQSNotificationHandler(
   }
 
   private def handleSuccess(
+    receiptHandle: String,
+    extendedVisibilityThreshold: Int,
+    extendedVisibilityTimeout: Int,
     message: PublishNotification,
     publicDataset: PublicDataset,
     version: PublicDatasetVersion,
@@ -342,6 +359,21 @@ class SQSNotificationHandler(
       _ = ports.log.info(
         s"handleSuccess() publishResult: ${publishResult} (${metadata.files.length} files)"
       )
+
+      // if the file list is greater than a threshold, extend the visibility timeout on the SQS message
+      _ = metadata.files.length > extendedVisibilityThreshold match {
+        case true =>
+          val request = ChangeMessageVisibilityRequest
+            .builder()
+            .queueUrl(queueUrl)
+            .receiptHandle(receiptHandle)
+            .visibilityTimeout(extendedVisibilityTimeout)
+            .build()
+          val _ = ports.sqsClient.changeMessageVisibility(request)
+          ()
+        case false =>
+          ()
+      }
 
       // Update the dataset version with the information in outputs.json
       updatedVersion <- ports.db.run(

@@ -94,6 +94,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
       "sqs:DeleteMessage",
       "sqs:ReceiveMessage",
       "sqs:SendMessage",
+      "sqs:ChangeMessageVisibility"
     ]
 
     resources = [

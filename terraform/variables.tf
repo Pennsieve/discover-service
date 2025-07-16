@@ -39,6 +39,14 @@ variable "rejoin_glue_catalog" {
   default = "rejoin_glue_catalog"
 }
 
+variable "sqs_extended_visibility_threshold" {
+  defailt = "10000"
+}
+
+variable "sqs_extended_visibility_timeout" {
+  default = "900"
+}
+
 locals {
   java_opts = [
     "-javaagent:/app/newrelic.jar",
