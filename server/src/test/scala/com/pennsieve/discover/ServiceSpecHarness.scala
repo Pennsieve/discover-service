@@ -99,7 +99,9 @@ trait ServiceSpecHarness
       sqs = SQSConfiguration(
         queueUrl = "http://localhost:9324/queue/test-queue",
         region = Region.US_EAST_1,
-        parallelism = 1
+        parallelism = 1,
+        extendedVisibilityThreshold = 10000,
+        extendedVisibilityTimeout = 3600
       ),
       sns =
         SNSConfiguration(alertTopic = "test-victorops-topic", Region.US_EAST_1),

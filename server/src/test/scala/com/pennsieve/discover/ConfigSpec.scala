@@ -37,5 +37,11 @@ class ConfigSpec extends AnyWordSpec with Matchers {
       config.externalPublishBuckets.isEmpty should be(true)
     }
 
+    "correctly set SQS extended visibility timeout" in {
+      val config: Config =
+        Config.loadForTest("config-with-sqs-extended-visibility-timeout.conf")
+
+      config.sqs.extendedVisibilityTimeout shouldBe 900
+    }
   }
 }
