@@ -118,7 +118,8 @@ trait ServiceSpecHarness
         rejoinBucketAccessTable =
           "rejoin_glue_catalog.dev_s3_access_logs_db.discover"
       ),
-      runtimeSettings = RuntimeSettings(deleteReleaseIntermediateFile = false)
+      runtimeSettings = RuntimeSettings(deleteReleaseIntermediateFile = false),
+      doiCollections = DoiCollections(pennsieveDoiPrefix = "10.00000")
     )
 
   def getPorts(config: Config): Ports = {

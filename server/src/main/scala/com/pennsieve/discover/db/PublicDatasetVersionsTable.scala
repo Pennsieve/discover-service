@@ -162,7 +162,8 @@ object PublicDatasetVersionsMapper
     revision: Option[Revision],
     collections: IndexedSeq[PublicCollection],
     externalPublications: IndexedSeq[PublicExternalPublication],
-    release: Option[PublicDatasetRelease]
+    release: Option[PublicDatasetRelease],
+    doiCollection: Option[PublicDatasetDoiCollection]
   )
 
   case class GetDatasetsByDoiResult(
@@ -193,31 +194,28 @@ object PublicDatasetVersionsMapper
       (publishedWithSponsorships, unpublished) = datasetsWithSponsorships
         .partition(_._1._2.status in successfulStates)
 
+      publishedVersions = publishedWithSponsorships.map {
+        case ((dataset, version), _) => (dataset, version)
+      }
+
       contributorsMap <- PublicContributorsMapper.getDatasetContributors(
-        publishedWithSponsorships.map {
-          case ((dataset, version), _) => (dataset, version)
-        }
+        publishedVersions
       )
+
       collectionsMap <- PublicCollectionsMapper.getDatasetCollections(
-        publishedWithSponsorships.map {
-          case ((dataset, version), _) => (dataset, version)
-        }
+        publishedVersions
       )
       externalPublicationsMap <- PublicExternalPublicationsMapper
-        .getExternalPublications(publishedWithSponsorships.map {
-          case ((dataset, version), _) => (dataset, version)
-        })
+        .getExternalPublications(publishedVersions)
 
-      revisionsMap <- RevisionsMapper.getLatestRevisions(
-        publishedWithSponsorships.map {
-          case ((_, version), _) => version
-        }
-      )
+      revisionsMap <- RevisionsMapper.getLatestRevisions(publishedVersions.map {
+        case (_, version) => version
+      })
 
-      releasesMap <- PublicDatasetReleaseMapper.getFor(
-        publishedWithSponsorships.map {
-          case ((dataset, version), _) => (dataset, version)
-        }
+      releasesMap <- PublicDatasetReleaseMapper.getFor(publishedVersions)
+
+      doiCollectionsMap <- PublicDatasetDoiCollectionsMapper.getFor(
+        publishedVersions
       )
 
     } yield {
@@ -234,7 +232,8 @@ object PublicDatasetVersionsMapper
               collections = collectionsMap.getOrElse(tuple._1, Nil).toIndexedSeq,
               externalPublications =
                 externalPublicationsMap.getOrElse(tuple._1, Nil).toIndexedSeq,
-              release = releasesMap.get(tuple._1)
+              release = releasesMap.get(tuple._1),
+              doiCollection = doiCollectionsMap.get(tuple._1)
             )
         )
         .toMap
@@ -508,7 +507,8 @@ object PublicDatasetVersionsMapper
     datasets: List[
       (PublicDataset, PublicDatasetVersion, IndexedSeq[PublicContributor],
         Option[Sponsorship], Option[Revision], IndexedSeq[PublicCollection],
-        IndexedSeq[PublicExternalPublication], Option[PublicDatasetRelease])
+        IndexedSeq[PublicExternalPublication], Option[PublicDatasetRelease],
+        Option[PublicDatasetDoiCollection])
     ]
   )
 
@@ -600,6 +600,12 @@ object PublicDatasetVersionsMapper
           case ((dataset, version), _) => (dataset, version)
         }
       )
+
+      doiCollectionsMap <- PublicDatasetDoiCollectionsMapper.getFor(
+        pagedDatasetsWithSponsorships.map {
+          case ((dataset, version), _) => (dataset, version)
+        }
+      )
     } yield
       PagedDatasetsResult(
         limit,
@@ -621,7 +627,8 @@ object PublicDatasetVersionsMapper
                 .get(dataset, version)
                 .getOrElse(Nil)
                 .toIndexedSeq,
-              releasesMap.get(dataset, version)
+              releasesMap.get(dataset, version),
+              doiCollectionsMap.get(dataset, version)
             )
         }.toList
       )

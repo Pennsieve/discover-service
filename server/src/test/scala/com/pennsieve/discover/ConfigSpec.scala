@@ -37,6 +37,13 @@ class ConfigSpec extends AnyWordSpec with Matchers {
       config.externalPublishBuckets.isEmpty should be(true)
     }
 
+    "parse the doi-collections section correctly" in {
+      val config: Config =
+        Config.loadForTest("config-with-external-buckets.conf")
+
+      config.doiCollections.pennsieveDoiPrefix shouldBe "10.00000"
+    }
+
     "correctly set SQS extended visibility timeout" in {
       val config: Config =
         Config.loadForTest("config-with-sqs-extended-visibility-timeout.conf")

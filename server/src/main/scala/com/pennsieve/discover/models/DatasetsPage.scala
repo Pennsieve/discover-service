@@ -30,7 +30,8 @@ object DatasetsPage {
                 revision,
                 collections,
                 externalPublications,
-                release
+                release,
+                doiCollection
                 ) =>
               PublicDatasetDTO
                 .apply(
@@ -42,7 +43,8 @@ object DatasetsPage {
                   collections,
                   externalPublications,
                   None,
-                  release
+                  release,
+                  doiCollection
                 )
           }.toVector
       )

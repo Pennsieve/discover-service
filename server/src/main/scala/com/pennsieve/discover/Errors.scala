@@ -123,3 +123,9 @@ case class UnsupportedDownloadVersion() extends Throwable {
   override def getMessage: String =
     "Only the most recent published dataset version can be downloaded"
 }
+
+case class NoDoiCollectionVersionException(id: Int, version: Int)
+    extends Throwable {
+  override def getMessage: String =
+    s"No DOI collection could be found for id=$id version=$version"
+}

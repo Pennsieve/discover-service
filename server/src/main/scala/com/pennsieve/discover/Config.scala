@@ -33,7 +33,8 @@ case class Config(
   download: DownloadConfiguration,
   externalPublishBuckets: Map[S3Bucket, Arn] = Map.empty,
   athena: AthenaConfig,
-  runtimeSettings: RuntimeSettings
+  runtimeSettings: RuntimeSettings,
+  doiCollections: DoiCollections
 )
 
 object Config {
@@ -135,3 +136,5 @@ case class AthenaConfig(
 )
 
 case class RuntimeSettings(deleteReleaseIntermediateFile: Boolean)
+
+case class DoiCollections(pennsieveDoiPrefix: String)

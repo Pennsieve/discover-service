@@ -747,6 +747,13 @@ class PublicDatasetVersionsMapperSpec
       TestUtilities.createDataset(ports.db)(sourceDatasetId = 3, name = "C")
     val ds4 =
       TestUtilities.createDataset(ports.db)(sourceDatasetId = 4, name = "D")
+
+    val ds5 =
+      TestUtilities.createDoiCollectionDataset(ports.db)(
+        sourceDatasetId = 5,
+        name = "E"
+      )
+
     val ds1_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
       id = ds1.id,
       status = PublishSucceeded
@@ -765,6 +772,11 @@ class PublicDatasetVersionsMapperSpec
       id = ds4.id,
       status = PublishSucceeded,
       size = 80L
+    )
+    val ds5_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = ds5.id,
+      status = PublishSucceeded,
+      size = 10L
     )
     val ds1_v2 = TestUtilities.createNewDatasetVersion(ports.db)(
       id = ds1.id,
@@ -863,6 +875,13 @@ class PublicDatasetVersionsMapperSpec
       Documents
     )
 
+    val ds5_v1_doiCollection =
+      TestUtilities.createDatasetDoiCollection(ports.db)(
+        datasetId = ds5.id,
+        datasetVersion = ds5_v1.version,
+        banners = TestUtilities.randomBannerUrls
+      )
+
     val result = ports.db
       .run(
         PublicDatasetVersionsMapper.getDatasetsByDoi(
@@ -871,14 +890,15 @@ class PublicDatasetVersionsMapperSpec
             ds1_v2.doi,
             ds2_v1_failed.doi,
             ds3_v1_embargoed.doi,
-            ds4_v1.doi
+            ds4_v1.doi,
+            ds5_v1.doi
           )
         )
       )
       .await
 
     // Check published
-    result.published.size shouldBe 4
+    result.published.size shouldBe 5
 
     result.published should contain key ds1_v1.doi
     result.published(ds1_v1.doi) shouldBe PublicDatasetVersionsMapper
@@ -890,7 +910,8 @@ class PublicDatasetVersionsMapperSpec
         revision = None,
         collections = IndexedSeq.empty,
         externalPublications = IndexedSeq(ds1_v1_externalPub),
-        release = None
+        release = None,
+        doiCollection = None
       )
 
     result.published should contain key ds1_v2.doi
@@ -903,7 +924,8 @@ class PublicDatasetVersionsMapperSpec
         revision = None,
         collections = IndexedSeq(ds1_v2_collection),
         externalPublications = IndexedSeq.empty,
-        release = None
+        release = None,
+        doiCollection = None
       )
 
     result.published should contain key ds3_v1_embargoed.doi
@@ -916,7 +938,8 @@ class PublicDatasetVersionsMapperSpec
         revision = None,
         collections = IndexedSeq.empty,
         externalPublications = IndexedSeq.empty,
-        release = None
+        release = None,
+        doiCollection = None
       )
 
     // Breaking this one up because the external pubs are not returned in a deterministic order
@@ -936,6 +959,20 @@ class PublicDatasetVersionsMapperSpec
       ds4_v1_externalPub2
     )
     result.published(ds4_v1.doi).release shouldBe Some(ds4_v1_release)
+
+    result.published should contain key ds5_v1.doi
+    result.published(ds5_v1.doi) shouldBe PublicDatasetVersionsMapper
+      .DatasetDetails(
+        dataset = ds5,
+        version = ds5_v1,
+        contributors = IndexedSeq.empty,
+        sponsorship = None,
+        revision = None,
+        collections = IndexedSeq.empty,
+        externalPublications = IndexedSeq.empty,
+        release = None,
+        doiCollection = Some(ds5_v1_doiCollection)
+      )
 
     // Check Unpublished
     result.unpublished.size shouldBe 1

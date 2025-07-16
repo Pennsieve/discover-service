@@ -25,6 +25,7 @@ import com.pennsieve.discover.clients.{
   HttpError
 }
 import com.pennsieve.discover.db.PublicDatasetVersionsMapper.{
+  deleteVersion,
   DatasetDetails,
   GetDatasetsByDoiResult
 }
@@ -130,7 +131,8 @@ class DatasetHandler(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
     preview: Option[DatasetPreview] = None,
-    release: Option[PublicDatasetRelease] = None
+    release: Option[PublicDatasetRelease] = None,
+    doiCollection: Option[PublicDatasetDoiCollection] = None
   ): DBIO[PublicDatasetDto] =
     for {
 
@@ -147,7 +149,8 @@ class DatasetHandler(
         collections.toSeq,
         externalPublications.toSeq,
         preview,
-        release = release
+        release = release,
+        doiCollection = doiCollection
       )
 
   private def datasetsByDoiResponse(
@@ -165,7 +168,8 @@ class DatasetHandler(
             x.collections,
             x.externalPublications,
             datasetPreview = None,
-            release = x.release
+            release = x.release,
+            doiCollection = x.doiCollection
           )
       )
     val unpublished = queryResults.unpublished.view
@@ -255,6 +259,10 @@ class DatasetHandler(
         }
 
       release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
+      doiCollection <- PublicDatasetDoiCollectionsMapper.get(
+        dataset.id,
+        version.version
+      )
 
       maybeDatasetPreview <- DBIO.from {
         claim
@@ -276,7 +284,13 @@ class DatasetHandler(
           .getOrElse(Future.successful(None))
       }
 
-      dto <- publicDatasetDTO(dataset, version, maybeDatasetPreview, release)
+      dto <- publicDatasetDTO(
+        dataset,
+        version,
+        maybeDatasetPreview,
+        release,
+        doiCollection
+      )
 
     } yield dto
 
@@ -317,7 +331,17 @@ class DatasetHandler(
 
       release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
 
-      dto <- publicDatasetDTO(dataset, version, release = release)
+      doiCollection <- PublicDatasetDoiCollectionsMapper.get(
+        dataset.id,
+        version.version
+      )
+
+      dto <- publicDatasetDTO(
+        dataset,
+        version,
+        release = release,
+        doiCollection = doiCollection
+      )
 
     } yield dto
 
@@ -523,7 +547,17 @@ class DatasetHandler(
 
       release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
 
-      dto <- publicDatasetDTO(dataset, version, release = release)
+      doiCollection <- PublicDatasetDoiCollectionsMapper.get(
+        dataset.id,
+        version.version
+      )
+
+      dto <- publicDatasetDTO(
+        dataset,
+        version,
+        release = release,
+        doiCollection = doiCollection
+      )
 
     } yield dto
 
