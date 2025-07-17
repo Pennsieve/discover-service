@@ -117,7 +117,10 @@ trait ServiceSpecHarness
           "rejoin_glue_catalog.dev_s3_access_logs_db.discover"
       ),
       runtimeSettings = RuntimeSettings(deleteReleaseIntermediateFile = false),
-      doiCollections = DoiCollections(pennsieveDoiPrefix = "10.00000")
+      doiCollections = DoiCollections(
+        pennsieveDoiPrefix = "10.00000",
+        IdSpace(99999, "Test Collections ID Space")
+      )
     )
 
   def getPorts(config: Config): Ports = {

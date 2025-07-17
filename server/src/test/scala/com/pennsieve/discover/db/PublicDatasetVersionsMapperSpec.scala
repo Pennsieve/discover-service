@@ -749,10 +749,10 @@ class PublicDatasetVersionsMapperSpec
       TestUtilities.createDataset(ports.db)(sourceDatasetId = 4, name = "D")
 
     val ds5 =
-      TestUtilities.createDoiCollectionDataset(ports.db)(
-        sourceDatasetId = 5,
-        name = "E"
-      )
+      TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )(sourceDatasetId = 5, name = "E")
 
     val ds1_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
       id = ds1.id,
