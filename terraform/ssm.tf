@@ -61,8 +61,8 @@ resource "aws_ssm_parameter" "doi_service_host" {
 // NEW RELIC CONFIGURATION
 
 resource "aws_ssm_parameter" "java_opts" {
-  name  = "/${var.environment_name}/${var.service_name}/java-opts"
-  type  = "String"
+  name = "/${var.environment_name}/${var.service_name}/java-opts"
+  type = "String"
   value = join(" ", local.java_opts)
 }
 
@@ -350,14 +350,26 @@ resource "aws_ssm_parameter" "rejoin_bucket_access_glue_table" {
 
 // Runtime settings
 resource "aws_ssm_parameter" "delete_release_intermediate_file" {
-  name = "/${var.environment_name}/${var.service_name}/delete-release-intermediate-file"
-  type = "String"
+  name  = "/${var.environment_name}/${var.service_name}/delete-release-intermediate-file"
+  type  = "String"
   value = "false"
 }
 
 // DOI Collection settings
 resource "aws_ssm_parameter" "pennsieve_doi_prefix" {
-  name = "/${var.environment_name}/${var.service_name}/pennsieve-doi-prefix"
-  type = "String"
+  name  = "/${var.environment_name}/${var.service_name}/pennsieve-doi-prefix"
+  type  = "String"
   value = local.pennsieve_doi_prefix
+}
+
+resource "aws_ssm_parameter" "doi_collections_id_space_id" {
+  name  = "/${var.environment_name}/${var.service_name}/doi-collections-id-space-id"
+  type  = "String"
+  value = var.doi_collections_id_space_id
+}
+
+resource "aws_ssm_parameter" "doi_collections_id_space_name" {
+  name  = "/${var.environment_name}/${var.service_name}/doi-collections-id-space-name"
+  type  = "String"
+  value = var.doi_collections_id_space_name
 }

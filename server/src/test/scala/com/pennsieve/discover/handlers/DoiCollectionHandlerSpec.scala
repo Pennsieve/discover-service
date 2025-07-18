@@ -65,6 +65,7 @@ class DoiCollectionHandlerSpec
   val ownerOrcid = "0000-0012-3456-7890"
 
   private val pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
+  private val collectionOrgId = config.doiCollections.idSpace.id
 
   private val requestBody: PublishDoiCollectionRequest =
     PublishDoiCollectionRequest(
@@ -95,19 +96,14 @@ class DoiCollectionHandlerSpec
   val token: Jwt.Token =
     generateServiceToken(
       ports.jwt,
-      organizationId = DoiCollectionHandler.collectionOrgId,
+      organizationId = collectionOrgId,
       datasetId = sourceCollectionId
     )
 
   private val authToken = List(Authorization(OAuth2BearerToken(token.value)))
 
   val userToken: Jwt.Token =
-    generateUserToken(
-      ports.jwt,
-      1,
-      DoiCollectionHandler.collectionOrgId,
-      Some(sourceCollectionId)
-    )
+    generateUserToken(ports.jwt, 1, collectionOrgId, Some(sourceCollectionId))
 
   private val userAuthToken = List(
     Authorization(OAuth2BearerToken(userToken.value))
@@ -147,15 +143,12 @@ class DoiCollectionHandlerSpec
       val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
-            .getDatasetFromSourceIds(
-              DoiCollectionHandler.collectionOrgId,
-              sourceCollectionId
-            )
+            .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
         )
         .awaitFinite()
 
       publicDataset.name shouldBe requestBody.name
-      publicDataset.sourceOrganizationId shouldBe DoiCollectionHandler.collectionOrgId
+      publicDataset.sourceOrganizationId shouldBe collectionOrgId
       publicDataset.sourceDatasetId shouldBe sourceCollectionId
       publicDataset.ownerId shouldBe requestBody.ownerId
       publicDataset.ownerFirstName shouldBe requestBody.ownerFirstName
@@ -173,7 +166,7 @@ class DoiCollectionHandlerSpec
 
       val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .getMockDoi(DoiCollectionHandler.collectionOrgId, sourceCollectionId)
+        .getMockDoi(collectionOrgId, sourceCollectionId)
         .get
 
       publicVersion.version shouldBe 1
@@ -235,10 +228,7 @@ class DoiCollectionHandlerSpec
       val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
-            .getDatasetFromSourceIds(
-              DoiCollectionHandler.collectionOrgId,
-              sourceCollectionId
-            )
+            .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
         )
         .awaitFinite()
 
@@ -256,9 +246,10 @@ class DoiCollectionHandlerSpec
 
     "return the publishing status of the dataset" in {
 
-      val publicDataset = TestUtilities.createDoiCollectionDataset(ports.db)(
-        sourceDatasetId = sourceCollectionId
-      )
+      val publicDataset = TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )(sourceDatasetId = sourceCollectionId)
 
       TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
@@ -294,7 +285,7 @@ class DoiCollectionHandlerSpec
 
       val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .getMockDoi(DoiCollectionHandler.collectionOrgId, sourceCollectionId)
+        .getMockDoi(collectionOrgId, sourceCollectionId)
         .get
 
       publicVersion.version shouldBe 2
@@ -311,9 +302,10 @@ class DoiCollectionHandlerSpec
 
     "delete a previously failed version before creating a new one" in {
 
-      val publicDataset = TestUtilities.createDoiCollectionDataset(ports.db)(
-        sourceDatasetId = sourceCollectionId
-      )
+      val publicDataset = TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )(sourceDatasetId = sourceCollectionId)
       TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
         status = PublishFailed
@@ -348,7 +340,7 @@ class DoiCollectionHandlerSpec
 
       val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .getMockDoi(DoiCollectionHandler.collectionOrgId, sourceCollectionId)
+        .getMockDoi(collectionOrgId, sourceCollectionId)
         .get
 
       latestVersion.version shouldBe 1
@@ -365,12 +357,13 @@ class DoiCollectionHandlerSpec
 
     "not create a new DOI if draft DOI is only associated with a failed version" in {
 
-      val publicDataset = TestUtilities.createDoiCollectionDataset(ports.db)(
-        sourceDatasetId = sourceCollectionId
-      )
+      val publicDataset = TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )(sourceDatasetId = sourceCollectionId)
       val draftDoi = ports.doiClient
         .asInstanceOf[MockDoiClient]
-        .createMockDoi(DoiCollectionHandler.collectionOrgId, sourceCollectionId)
+        .createMockDoi(collectionOrgId, sourceCollectionId)
         .doi
 
       TestUtilities.createNewDatasetVersion(ports.db)(
@@ -462,7 +455,8 @@ class DoiCollectionHandlerSpec
       val publishedDoi = s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
 
       val doiCollectionDataset = TestUtilities.createDoiCollectionDataset(
-        ports.db
+        ports.db,
+        ports.config.doiCollections.idSpace
       )(sourceDatasetId = sourceCollectionId)
 
       val doiCollectionDoi =
@@ -540,10 +534,7 @@ class DoiCollectionHandlerSpec
       val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
-            .getDatasetFromSourceIds(
-              DoiCollectionHandler.collectionOrgId,
-              sourceCollectionId
-            )
+            .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
         )
         .awaitFinite()
 
@@ -598,10 +589,7 @@ class DoiCollectionHandlerSpec
       val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
-            .getDatasetFromSourceIds(
-              DoiCollectionHandler.collectionOrgId,
-              sourceCollectionId
-            )
+            .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
         )
         .awaitFinite()
 
@@ -700,10 +688,7 @@ class DoiCollectionHandlerSpec
       val publicDatasetFinal = ports.db
         .run(
           PublicDatasetsMapper
-            .getDatasetFromSourceIds(
-              PublicDatasetDoiCollection.collectionOrgId,
-              sourceCollectionId
-            )
+            .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
         )
         .awaitFinite()
 
@@ -743,9 +728,10 @@ class DoiCollectionHandlerSpec
 
     "fail if called on a version that is in a failed state" in {
 
-      val publicDataset = TestUtilities.createDoiCollectionDataset(ports.db)(
-        sourceDatasetId = sourceCollectionId
-      )
+      val publicDataset = TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )(sourceDatasetId = sourceCollectionId)
       val beforeVersion = TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
         status = PublishFailed

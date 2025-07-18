@@ -131,4 +131,6 @@ case class AthenaConfig(
 
 case class RuntimeSettings(deleteReleaseIntermediateFile: Boolean)
 
-case class DoiCollections(pennsieveDoiPrefix: String)
+case class DoiCollections(pennsieveDoiPrefix: String, idSpace: IdSpace)
+
+case class IdSpace(id: Int, name: String)

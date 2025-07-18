@@ -39,6 +39,14 @@ variable "rejoin_glue_catalog" {
   default = "rejoin_glue_catalog"
 }
 
+// doi_collections_id_space_id is the id of the workspace that acts
+// as the id-space for published collections
+variable "doi_collections_id_space_id" {}
+
+// doi_collections_id_space_name is the name of the workspace that acts
+// as the id-space for published collections
+variable "doi_collections_id_space_name" {}
+
 locals {
   java_opts = [
     "-javaagent:/app/newrelic.jar",
@@ -48,7 +56,7 @@ locals {
   ]
 
   service = element(split("-", var.service_name), 0)
-  tier    = element(split("-", var.service_name), 1)
+  tier = element(split("-", var.service_name), 1)
 
   hosted_zone = data.terraform_remote_state.account.outputs.public_hosted_zone_id
   domain_name = data.terraform_remote_state.account.outputs.domain_name

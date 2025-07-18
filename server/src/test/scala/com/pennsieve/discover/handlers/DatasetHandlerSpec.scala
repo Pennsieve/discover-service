@@ -384,7 +384,10 @@ class DatasetHandlerSpec
     "return a published DOI collection dataset with auth" in {
 
       val collectionDataset =
-        TestUtilities.createDoiCollectionDataset(ports.db)()
+        TestUtilities.createDoiCollectionDataset(
+          ports.db,
+          ports.config.doiCollections.idSpace
+        )()
 
       val collectionDatasetV1 =
         TestUtilities.createNewDatasetVersion(ports.db)(
@@ -466,7 +469,10 @@ class DatasetHandlerSpec
     "return a published DOI collection dataset without auth" in {
 
       val collectionDataset =
-        TestUtilities.createDoiCollectionDataset(ports.db)()
+        TestUtilities.createDoiCollectionDataset(
+          ports.db,
+          ports.config.doiCollections.idSpace
+        )()
 
       val collectionDatasetV1 =
         TestUtilities.createNewDatasetVersion(ports.db)(
@@ -611,7 +617,10 @@ class DatasetHandlerSpec
 
     "get a DOI collection dataset" in {
 
-      val dataset = TestUtilities.createDoiCollectionDataset(ports.db)()
+      val dataset = TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )()
       val version = {
         TestUtilities.createNewDatasetVersion(ports.db)(
           id = dataset.id,
@@ -690,10 +699,10 @@ class DatasetHandlerSpec
         TestUtilities.createDataset(ports.db)(sourceDatasetId = 3, name = "C")
       val ds4 =
         TestUtilities.createDataset(ports.db)(sourceDatasetId = 4, name = "D")
-      val ds5 = TestUtilities.createDoiCollectionDataset(ports.db)(
-        sourceDatasetId = 5,
-        name = "E"
-      )
+      val ds5 = TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )(sourceDatasetId = 5, name = "E")
 
       val ds1_v1 = TestUtilities.createNewDatasetVersion(ports.db)(
         id = ds1.id,
@@ -1184,7 +1193,10 @@ class DatasetHandlerSpec
     "return a DOI collection dataset version" in {
 
       val collectionDataset =
-        TestUtilities.createDoiCollectionDataset(ports.db)()
+        TestUtilities.createDoiCollectionDataset(
+          ports.db,
+          ports.config.doiCollections.idSpace
+        )()
       val collectionDatasetV1 =
         TestUtilities.createNewDatasetVersion(ports.db)(
           id = collectionDataset.id,
@@ -1298,7 +1310,10 @@ class DatasetHandlerSpec
       // Placed here, before Dataset 3 (embargoed) so that 3 is still the newest dataset
       // to keep the order simple when checking below. (by default datasets returned in desc pub date order)
       val publicDataset4 =
-        TestUtilities.createDoiCollectionDataset(ports.db)(sourceDatasetId = 4)
+        TestUtilities.createDoiCollectionDataset(
+          ports.db,
+          ports.config.doiCollections.idSpace
+        )(sourceDatasetId = 4)
       val publicDataset4_V1 = TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset4.id,
         status = PublishSucceeded

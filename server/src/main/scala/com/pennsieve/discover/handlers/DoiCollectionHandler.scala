@@ -48,10 +48,6 @@ import com.pennsieve.models.PublishStatus
 import io.circe.DecodingFailure
 import slick.jdbc.TransactionIsolation
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.handlers.DoiCollectionHandler.{
-  collectionOrgId,
-  collectionOrgName
-}
 import com.pennsieve.discover.notifications.{
   PushDoiRequest,
   SQSMessenger,
@@ -77,6 +73,9 @@ class DoiCollectionHandler(
     GuardrailResource.FinalizeDoiCollectionResponse
   private val pennsieveDoiPrefix =
     ports.config.doiCollections.pennsieveDoiPrefix
+
+  private val collectionOrgId = ports.config.doiCollections.idSpace.id
+  private val collectionOrgName = ports.config.doiCollections.idSpace.name
 
   override def publishDoiCollection(
     respond: GuardrailResource.PublishDoiCollectionResponse.type
@@ -346,7 +345,7 @@ class DoiCollectionHandler(
     logContext: DiscoverLogContext
   ): DBIOAction[Unit, NoStream, Effect] = {
     version.status match {
-      case PublishInProgress => DBIOAction.from(Future.successful())
+      case PublishInProgress => DBIOAction.from(Future.successful(()))
       case _ => {
         ports.log.warn(
           s"DoiCollectionHandler.checkVersionStatusForFinalize() datasetId: ${version.datasetId} version: ${version.version} is in state ${version.status}"
@@ -457,9 +456,6 @@ class DoiCollectionHandler(
 }
 
 object DoiCollectionHandler {
-  val collectionOrgId: Int = PublicDatasetDoiCollection.collectionOrgId
-  val collectionOrgName: String = PublicDatasetDoiCollection.collectionOrgName
-
   def routes(
     ports: Ports
   )(implicit

@@ -15,8 +15,6 @@ case class PublicDatasetDoiCollection(
 
 object PublicDatasetDoiCollection {
 
-  val collectionOrgId = -20
-  val collectionOrgName = "DOI Collection ID Space"
   /*
    * This is required by slick when using a companion object on a case
    * class that defines a database table
