@@ -563,7 +563,8 @@ object TestUtilities extends AwaitableImplicits {
   }
 
   def createDoiCollectionDataset(
-    db: Database
+    db: Database,
+    idSpace: IdSpace
   )(
     name: String = "My Dataset",
     sourceDatasetId: Int = 1,
@@ -578,8 +579,8 @@ object TestUtilities extends AwaitableImplicits {
     db.run(
         PublicDatasetsMapper.createOrUpdate(
           name = name,
-          sourceOrganizationId = PublicDatasetDoiCollection.collectionOrgId,
-          sourceOrganizationName = PublicDatasetDoiCollection.collectionOrgName,
+          sourceOrganizationId = idSpace.id,
+          sourceOrganizationName = idSpace.name,
           sourceDatasetId = sourceDatasetId,
           ownerId = ownerId,
           ownerFirstName = ownerFirstName,
