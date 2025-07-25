@@ -1500,7 +1500,10 @@ class AlpakkaS3StreamClient(
         case Some(byteString) =>
           decode[DatasetMetadata](
             byteString.decodeString(akka.util.ByteString.UTF_8)
-          ).fold(l => None, r => Some(r))
+          ).fold(l => {
+            logger.error("error decoding DatasetMetadata; returning None", l)
+            None
+          }, r => Some(r))
         case None => None
       }
     } yield output
