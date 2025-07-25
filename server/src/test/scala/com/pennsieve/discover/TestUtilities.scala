@@ -3,6 +3,7 @@
 package com.pennsieve.discover
 
 import akka.Done
+import com.pennsieve.discover.client.definitions.InternalContributor
 import com.pennsieve.discover.db._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models._
@@ -20,6 +21,7 @@ import com.spotify.docker.client.DefaultDockerClient
 import com.spotify.docker.client.exceptions.DockerException
 import com.whisk.docker.DockerFactory
 import com.whisk.docker.impl.spotify.SpotifyDockerFactory
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import java.nio.file.{ Files, Path }
 import java.util.UUID
@@ -622,6 +624,28 @@ object TestUtilities extends AwaitableImplicits {
         )
       )
       .await
+  }
+
+  def internalAndPublicContributorsMatch(
+    datasetId: Int,
+    versionId: Int,
+    internal: List[InternalContributor],
+    public: List[PublicContributor]
+  ): Unit = {
+    internal.size shouldBe public.size
+    internal.zip(public).foreach {
+      case (i, p) =>
+        p.firstName shouldBe i.firstName
+        p.middleInitial shouldBe i.middleInitial
+        p.lastName shouldBe i.lastName
+        p.degree shouldBe i.degree
+        p.orcid shouldBe i.orcid
+        p.datasetId shouldBe datasetId
+        p.versionId shouldBe versionId
+        p.sourceContributorId shouldBe i.id
+        p.sourceUserId shouldBe i.userId
+    }
+
   }
 
   /**
