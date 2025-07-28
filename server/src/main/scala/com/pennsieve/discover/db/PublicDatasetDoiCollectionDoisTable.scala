@@ -61,4 +61,38 @@ object PublicDatasetDoiCollectionDoisMapper
       .map(_.doi)
       .result
       .map(_.toList)
+
+  def getDOIPage(
+    datasetId: Int,
+    datasetVersion: Int,
+    limit: Int = 10,
+    offset: Int = 0
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[PagedDoiResult, NoStream, Effect.Read] = {
+    // leaving off the () after over because slick adds a pair, I guess because it
+    // thinks of it as a function?
+    val countOver = SimpleFunction.nullary[Long]("count(*) over ")
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === datasetVersion)
+      .sortBy(_.position.asc)
+      .map(d => (d, countOver))
+      .drop(offset)
+      .take(limit)
+      .result
+      .map { r =>
+        val dois = r.map(_._1.doi).toList
+        val totalCount = r.headOption.map(_._2).getOrElse(0L)
+        PagedDoiResult(limit, offset, totalCount, dois)
+      }
+
+  }
 }
+
+case class PagedDoiResult(
+  limit: Int,
+  offset: Int,
+  totalCount: Long,
+  dois: List[String]
+)
