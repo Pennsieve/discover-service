@@ -132,7 +132,7 @@ class DatasetHandler(
     version: PublicDatasetVersion,
     preview: Option[DatasetPreview] = None,
     release: Option[PublicDatasetRelease] = None,
-    doiCollection: Option[PublicDatasetDoiCollection] = None
+    doiCollection: Option[PublicDatasetDoiCollectionWithSize] = None
   ): DBIO[PublicDatasetDto] =
     for {
 
@@ -259,7 +259,7 @@ class DatasetHandler(
         }
 
       release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
-      doiCollection <- PublicDatasetDoiCollectionsMapper.get(
+      doiCollection <- PublicDatasetDoiCollectionsMapper.getWithSize(
         dataset.id,
         version.version
       )
@@ -331,7 +331,7 @@ class DatasetHandler(
 
       release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
 
-      doiCollection <- PublicDatasetDoiCollectionsMapper.get(
+      doiCollection <- PublicDatasetDoiCollectionsMapper.getWithSize(
         dataset.id,
         version.version
       )
@@ -547,7 +547,7 @@ class DatasetHandler(
 
       release <- PublicDatasetReleaseMapper.get(dataset.id, version.version)
 
-      doiCollection <- PublicDatasetDoiCollectionsMapper.get(
+      doiCollection <- PublicDatasetDoiCollectionsMapper.getWithSize(
         dataset.id,
         version.version
       )

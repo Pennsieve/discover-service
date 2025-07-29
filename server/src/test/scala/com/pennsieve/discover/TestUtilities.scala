@@ -626,6 +626,30 @@ object TestUtilities extends AwaitableImplicits {
       .await
   }
 
+  def addDoiCollectionDois(
+    db: Database
+  )(
+    doiCollection: PublicDatasetDoiCollection,
+    dois: List[String]
+  )(implicit
+    executionContext: ExecutionContext
+  ): PublicDatasetDoiCollectionWithSize = {
+    db.run(
+        PublicDatasetDoiCollectionDoisMapper
+          .addDOIs(doiCollection.datasetId, doiCollection.datasetVersion, dois)
+      )
+      .await
+    PublicDatasetDoiCollectionWithSize(
+      id = doiCollection.id,
+      datasetId = doiCollection.datasetId,
+      datasetVersion = doiCollection.datasetVersion,
+      banners = doiCollection.banners,
+      size = dois.size,
+      createdAt = doiCollection.createdAt,
+      updatedAt = doiCollection.updatedAt
+    )
+  }
+
   def internalAndPublicContributorsMatch(
     datasetId: Int,
     versionId: Int,

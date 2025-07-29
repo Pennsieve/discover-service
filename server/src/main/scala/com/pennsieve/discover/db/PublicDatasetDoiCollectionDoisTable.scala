@@ -62,6 +62,18 @@ object PublicDatasetDoiCollectionDoisMapper
       .result
       .map(_.toList)
 
+  def getDOICount(
+    datasetId: Int,
+    datasetVersion: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Int, NoStream, Effect.Read] =
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === datasetVersion)
+      .length
+      .result
+
   def getDOIPage(
     datasetId: Int,
     datasetVersion: Int,
@@ -85,6 +97,21 @@ object PublicDatasetDoiCollectionDoisMapper
         val dois = r.map(_._1.doi).toList
         val totalCount = r.headOption.map(_._2).getOrElse(0L)
         PagedDoiResult(limit, offset, totalCount, dois)
+      } // return correct totalCount even if limit/offset means no rows are returned.
+      .flatMap {
+        case PagedDoiResult(_, _, _, List()) =>
+          this
+            .getDOICount(datasetId, datasetVersion)
+            .map(
+              totalCount =>
+                PagedDoiResult(
+                  limit = limit,
+                  offset = offset,
+                  totalCount = totalCount,
+                  dois = List.empty
+                )
+            )
+        case p => DBIOAction.successful(p)
       }
 
   }

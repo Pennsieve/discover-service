@@ -402,6 +402,12 @@ class DatasetHandlerSpec
           banners = TestUtilities.randomBannerUrls
         )
 
+      val collectionDatasetV1DoiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          collectionDatasetV1DoiCollection,
+          List(TestUtilities.randomString())
+        )
+
       val contributor = TestUtilities.createContributor(ports.db)(
         firstName = "Sally",
         lastName = "Fields",
@@ -452,7 +458,7 @@ class DatasetHandlerSpec
           )
         ),
         None,
-        Some(collectionDatasetV1DoiCollection)
+        Some(collectionDatasetV1DoiCollectionWithSize)
       )
 
       val responseWithAuth =
@@ -485,6 +491,12 @@ class DatasetHandlerSpec
           datasetId = collectionDatasetV1.datasetId,
           datasetVersion = collectionDatasetV1.version,
           banners = TestUtilities.randomBannerUrls
+        )
+
+      val collectionDatasetV1DoiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          collectionDatasetV1DoiCollection,
+          List(TestUtilities.randomString())
         )
 
       val contributor = TestUtilities.createContributor(ports.db)(
@@ -532,7 +544,7 @@ class DatasetHandlerSpec
         Some(IndexedSeq.empty),
         None,
         None,
-        Some(collectionDatasetV1DoiCollection)
+        Some(collectionDatasetV1DoiCollectionWithSize)
       )
 
       val responseNoAuth =
@@ -634,6 +646,19 @@ class DatasetHandlerSpec
         banners = TestUtilities.randomBannerUrls
       )
 
+      val doiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          doiCollection,
+          List(
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString()
+          )
+        )
+
       val response: GetDatasetByDoiResponse = datasetClient
         .getDatasetByDoi("10.12345", "abcd-efgh")
         .awaitFinite()
@@ -652,7 +677,7 @@ class DatasetHandlerSpec
               List.empty,
               None,
               None,
-              Some(doiCollection)
+              Some(doiCollectionWithSize)
             )
         )
       )
@@ -820,6 +845,12 @@ class DatasetHandlerSpec
           banners = TestUtilities.randomBannerUrls
         )
 
+      val ds5_v1_doiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          ds5_v1_doiCollection,
+          List(TestUtilities.randomString(), TestUtilities.randomString())
+        )
+
       val ds1_v1_externalPub = TestUtilities.createExternalPublication(
         ports.db
       )(ds1_v1.datasetId, ds1_v1.version, References)
@@ -954,7 +985,7 @@ class DatasetHandlerSpec
               collections = IndexedSeq.empty,
               externalPublications = IndexedSeq.empty,
               datasetPreview = None,
-              doiCollection = Some(ds5_v1_doiCollection)
+              doiCollection = Some(ds5_v1_doiCollectionWithSize)
             )
           )
       }
@@ -1208,6 +1239,20 @@ class DatasetHandlerSpec
           datasetVersion = collectionDatasetV1.version,
           banners = TestUtilities.randomBannerUrls
         )
+      val collectionDatasetV1DoiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          collectionDatasetV1DoiCollection,
+          List(
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString()
+          )
+        )
 
       val dataset: PublicDataset = ports.db
         .run(
@@ -1226,7 +1271,7 @@ class DatasetHandlerSpec
         List.empty,
         None,
         None,
-        Some(collectionDatasetV1DoiCollection)
+        Some(collectionDatasetV1DoiCollectionWithSize)
       )
 
       val response =
@@ -1323,6 +1368,11 @@ class DatasetHandlerSpec
           datasetId = publicDataset4_V1.datasetId,
           datasetVersion = publicDataset4_V1.version,
           banners = TestUtilities.randomBannerUrls
+        )
+      val publicDataset4_V1_doiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          publicDataset4_V1_doiCollection,
+          List(TestUtilities.randomString(), TestUtilities.randomString())
         )
 
       // Dataset 3 (embargoed)
@@ -1450,7 +1500,7 @@ class DatasetHandlerSpec
             Some(IndexedSeq.empty),
             None,
             None,
-            Some(publicDataset4_V1_doiCollection)
+            Some(publicDataset4_V1_doiCollectionWithSize)
           )
         ),
         toClientDefinition(
