@@ -382,22 +382,22 @@ lazy val client = project
         ScalaClient(
           file("openapi/discover-service.yml"),
           pkg = "com.pennsieve.discover.client",
-          modules = List("akka-http", "circe-0.11")
+          modules = List("akka-http", "circe-0.11"),
         ),
         ScalaClient(
           file("openapi/discover-service-internal.yml"),
           pkg = "com.pennsieve.discover.client",
-          modules = List("akka-http", "circe-0.11")
+          modules = List("akka-http", "circe-0.11"),
         )
       ),
       List(
         ScalaClient(
           file("openapi/discover-service.yml"),
-          pkg = "com.pennsieve.discover.client"
+          pkg = "com.pennsieve.discover.client",
         ),
         ScalaClient(
           file("openapi/discover-service-internal.yml"),
-          pkg = "com.pennsieve.discover.client"
+          pkg = "com.pennsieve.discover.client",
         )
       )
     )

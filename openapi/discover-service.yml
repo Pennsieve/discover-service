@@ -711,6 +711,81 @@ paths:
               schema:
                 $ref: "#/components/schemas/TombstoneDTO"
 
+  "/datasets/{datasetId}/versions/{versionId}/dois":
+    get:
+      tags:
+        - Datasets
+      security: [ ]
+      summary: get a page of DOIs contained in a dataset
+      operationId: getDoiPage
+      x-scala-package: dataset
+      description: >
+        Return a page of info on the DOIs in this collection.
+        Will be empty unless datasetType is collection.
+      parameters:
+        - name: datasetId
+          in: path
+          description: dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: versionId
+          in: path
+          description: version number
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: limit
+          in: query
+          description: max number of DOIs returned
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+        - name: offset
+          in: query
+          description: offset used for pagination of results
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+      responses:
+        "200":
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DOIPage"
+        "401":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "403":
+          description: dataset is under embargo
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: resource not found
+          content:
+            application/json:
+              schema:
+                type: string
+        "410":
+          description: dataset unpublished
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TombstoneDTO"
+
+
   "/datasets/{datasetId}/versions/{versionId}/files/download-manifest":
     post:
       tags:
@@ -1679,6 +1754,41 @@ components:
         size:
           description: number of DOIs in the collection
           type: integer
+
+    DOIPage:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/GenericResponsePage"
+        - type: object
+          required:
+            - dois
+          properties:
+            dois:
+              type: array
+              items:
+                $ref: "#/components/schemas/DOIInformation"
+
+
+    DOIInformation:
+      type: object
+      description: >
+        Information about the DOI retrieved either from Pennsieve or
+        an external source like DataCite.
+        The source field will be a DOIInformationSource.
+        The data field will be either a PublicDatasetDTO (source == Pennsieve), 
+        TombstoneDTO (source == PennsieveUnpublished), or ExternalDOIData (source == External)
+      x-scala-type: com.pennsieve.discover.models.DOIInformation
+
+    ExternalDOIData:
+      description: >
+        A placeholder for what we will return if DOI collections are allowed to
+        contain non-Pennsieve DOIs.
+      type: object
+      required:
+        - doi
+      properties:
+        doi:
+          type: string
 
     GenericResponsePage:
       description: >

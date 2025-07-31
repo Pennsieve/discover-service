@@ -605,12 +605,15 @@ object TestUtilities extends AwaitableImplicits {
       s"https://images.example.com/${randomString()}/${randomString()}.jpg"
     )
 
+  def randomPennsieveDoi(doiCollections: DoiCollections): String =
+    s"${doiCollections.pennsieveDoiPrefix}/${TestUtilities.randomString()}"
+
   def createDatasetDoiCollection(
     db: Database
   )(
     datasetId: Int,
     datasetVersion: Int,
-    banners: List[String]
+    banners: List[String] = TestUtilities.randomBannerUrls
   )(implicit
     executionContext: ExecutionContext
   ): PublicDatasetDoiCollection = {

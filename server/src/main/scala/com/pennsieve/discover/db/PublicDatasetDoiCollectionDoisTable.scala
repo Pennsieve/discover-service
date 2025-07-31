@@ -77,8 +77,8 @@ object PublicDatasetDoiCollectionDoisMapper
   def getDOIPage(
     datasetId: Int,
     datasetVersion: Int,
-    limit: Int = 10,
-    offset: Int = 0
+    limit: Int,
+    offset: Int
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[PagedDoiResult, NoStream, Effect.Read] = {

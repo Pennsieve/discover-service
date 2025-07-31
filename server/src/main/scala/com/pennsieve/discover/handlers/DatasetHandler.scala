@@ -36,6 +36,11 @@ import com.pennsieve.discover.logging.{
   logRequestAndResponse,
   DiscoverLogContext
 }
+import com.pennsieve.discover.models.DOIInformationSource.{
+  External,
+  Pennsieve,
+  PennsieveUnpublished
+}
 import com.pennsieve.discover.models._
 import com.pennsieve.discover.server.dataset.{
   DatasetHandler => GuardrailHandler,
@@ -46,9 +51,11 @@ import com.pennsieve.discover.server.definitions.{
   AssetTreeNodeDto,
   AssetTreePage,
   DatasetsByDoiResponse,
+  DoiPage,
   DownloadRequest,
   DownloadResponse,
   DownloadResponseHeader,
+  ExternalDoiData,
   FileTreePage,
   PreviewAccessRequest,
   PublicDatasetDto
@@ -85,6 +92,8 @@ class DatasetHandler(
 
   val defaultFileLimit = 100
   val defaultFileOffset = 0
+
+  private val pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
 
   /**
     * Optional authorization for embargoed datasets
@@ -157,21 +166,7 @@ class DatasetHandler(
     queryResults: GetDatasetsByDoiResult
   ): DatasetsByDoiResponse = {
     val published = queryResults.published.view
-      .mapValues(
-        x =>
-          models.PublicDatasetDTO(
-            x.dataset,
-            x.version,
-            x.contributors,
-            x.sponsorship,
-            x.revision,
-            x.collections,
-            x.externalPublications,
-            datasetPreview = None,
-            release = x.release,
-            doiCollection = x.doiCollection
-          )
-      )
+      .mapValues(x => datasetDetailsToPublicDatasetDto(x))
     val unpublished = queryResults.unpublished.view
       .mapValues(t => models.TombstoneDTO(t._1, t._2))
     DatasetsByDoiResponse(
@@ -1281,6 +1276,110 @@ class DatasetHandler(
       }
   }
 
+  override def getDoiPage(
+    respond: GuardrailResource.GetDoiPageResponse.type
+  )(
+    datasetId: Int,
+    versionId: Int,
+    limit: Option[Int],
+    offset: Option[Int]
+  ): Future[GuardrailResource.GetDoiPageResponse] = {
+    val query = for {
+      dataset <- PublicDatasetsMapper.getDataset(datasetId)
+      version <- PublicDatasetVersionsMapper.getVisibleVersion(
+        dataset,
+        versionId
+      )
+      _ <- authorizeIfUnderEmbargo(dataset, version)
+
+      pagedDoiResult <- PublicDatasetDoiCollectionDoisMapper.getDOIPage(
+        datasetId = datasetId,
+        datasetVersion = versionId,
+        limit = limit.getOrElse(DatasetHandler.defaultDoiLimit),
+        offset = offset.getOrElse(DatasetHandler.defaultDoiOffset)
+      )
+      (pennsieveDois, externalDois) = pagedDoiResult.dois.partition(
+        _.startsWith(s"$pennsieveDoiPrefix/")
+      )
+      datasetDetails <- PublicDatasetVersionsMapper.getDatasetsByDoi(
+        pennsieveDois
+      )
+      // Put the infos we return in the correct order
+      doiInfos = pagedDoiResult.dois.map { doi =>
+        (datasetDetails.published.get(doi), datasetDetails.unpublished.get(doi)) match {
+          case (Some(published), None) =>
+            DOIInformation(
+              source = Pennsieve,
+              data = DOIData.FromPublicDTO(
+                datasetDetailsToPublicDatasetDto(published)
+              )
+            )
+          case (None, Some(unpublished)) =>
+            DOIInformation(
+              source = PennsieveUnpublished,
+              data = DOIData.FromTombstoneDTO(
+                models.TombstoneDTO(unpublished._1, unpublished._2)
+              )
+            )
+          case _ =>
+            DOIInformation(
+              source = External,
+              data = DOIData.FromExternalDoiData(ExternalDoiData(doi))
+            )
+        }
+      }
+
+    } yield
+      (
+        pagedDoiResult.limit,
+        pagedDoiResult.offset,
+        pagedDoiResult.totalCount,
+        doiInfos.toVector
+      )
+
+    ports.db
+      .run(query)
+      .map {
+        case (limit, offset, totalCount, doiInfos) =>
+          GuardrailResource.GetDoiPageResponse.OK(
+            DoiPage(
+              limit = limit,
+              offset = offset,
+              totalCount = totalCount,
+              dois = doiInfos
+            )
+          )
+      }
+      .recover {
+        case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
+          GuardrailResource.GetDoiPageResponse
+            .NotFound(datasetId.toString)
+        case UnauthorizedException =>
+          GuardrailResource.GetDoiPageResponse.Unauthorized(
+            "Dataset is under embargo"
+          )
+        case DatasetUnderEmbargo =>
+          GuardrailResource.GetDoiPageResponse.Forbidden(
+            "Dataset is under embargo"
+          )
+      }
+  }
+
+  private def datasetDetailsToPublicDatasetDto(
+    x: DatasetDetails
+  ): PublicDatasetDto = models.PublicDatasetDTO(
+    x.dataset,
+    x.version,
+    x.contributors,
+    x.sponsorship,
+    x.revision,
+    x.collections,
+    x.externalPublications,
+    datasetPreview = None,
+    release = x.release,
+    doiCollection = x.doiCollection
+  )
+
   private def formatAgreement(
     dataset: PublicDataset,
     version: PublicDatasetVersion,
@@ -1297,6 +1396,8 @@ class DatasetHandler(
 }
 
 object DatasetHandler {
+  val defaultDoiLimit = 10
+  val defaultDoiOffset = 0
 
   def routes(
     ports: Ports

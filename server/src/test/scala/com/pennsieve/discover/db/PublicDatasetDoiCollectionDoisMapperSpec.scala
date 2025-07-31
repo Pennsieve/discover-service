@@ -139,7 +139,8 @@ class PublicDatasetDoiCollectionDoisMapperSpec
           PublicDatasetDoiCollectionDoisMapper.getDOIPage(
             datasetId = dataset1.id,
             datasetVersion = dataset1V.version,
-            limit = 0
+            limit = 0,
+            offset = 0
           )
         )
         .awaitFinite()

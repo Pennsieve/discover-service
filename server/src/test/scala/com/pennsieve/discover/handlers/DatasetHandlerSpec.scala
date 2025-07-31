@@ -42,6 +42,8 @@ import com.pennsieve.discover.clients.{
 }
 import com.pennsieve.discover.db.{
   DatasetDownloadsMapper,
+  PagedDoiResult,
+  PublicDatasetDoiCollectionDoisMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   SponsorshipsMapper
@@ -79,6 +81,11 @@ import com.pennsieve.discover.Authenticator.{
   generateServiceClaim,
   generateServiceToken,
   generateUserToken
+}
+import com.pennsieve.discover.models.DOIInformationSource.{
+  External,
+  Pennsieve,
+  PennsieveUnpublished
 }
 import com.pennsieve.models.RelationshipType.{ Documents, References, Requires }
 import org.scalatest.Inside.inside
@@ -3376,6 +3383,128 @@ class DatasetHandlerSpec
         .value
 
       response.assets.length shouldEqual 5
+    }
+  }
+
+  def setupForDoiCollectionTesting(): (PublicDataset, PublicDatasetVersion) = {
+    val collectionDataset = TestUtilities.createDoiCollectionDataset(
+      ports.db,
+      ports.config.doiCollections.idSpace
+    )(name = "collection dataset 1", sourceDatasetId = 1)
+
+    val collectionVersion = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = collectionDataset.id,
+      status = PublishStatus.PublishSucceeded
+    )
+
+    TestUtilities.createDatasetDoiCollection(ports.db)(
+      datasetId = collectionVersion.datasetId,
+      datasetVersion = collectionVersion.version
+    )
+
+    (collectionDataset, collectionVersion)
+  }
+
+  def createDatasetAndVersion(
+    name: String,
+    sourceDatasetId: Int,
+    doi: String,
+    status: PublishStatus
+  ): (PublicDataset, PublicDatasetVersion) = {
+    val publicDataset = TestUtilities.createDataset(ports.db)(
+      name = name,
+      sourceDatasetId = sourceDatasetId
+    )
+
+    val publicVersion = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = publicDataset.id,
+      status = status,
+      doi = doi
+    )
+
+    (publicDataset, publicVersion)
+  }
+
+  "get DOI page" should {
+    "return empty page for non-DOI collection dataset" in {
+      val dataset = TestUtilities.createDataset(ports.db)(
+        name = "research dataset 1",
+        datasetType = DatasetType.Research,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 1
+      )
+
+      // create version
+      val version: PublicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = dataset.id,
+          status = PublishStatus.PublishSucceeded
+        )
+
+      val response = datasetClient
+        .getDoiPage(version.datasetId, version.version)
+        .awaitFinite()
+        .value
+        .asInstanceOf[GetDoiPageResponse.OK]
+        .value
+
+      response.limit shouldBe DatasetHandler.defaultDoiLimit
+      response.offset shouldBe DatasetHandler.defaultDoiOffset
+      response.totalCount shouldBe 0
+      response.dois shouldBe empty
+    }
+
+    "distinguish between published, unpublished, and external" in {
+      val (dataset, version) = setupForDoiCollectionTesting()
+      val publishedDoi =
+        TestUtilities.randomPennsieveDoi(ports.config.doiCollections)
+
+      val (published, publishedVersion) = createDatasetAndVersion(
+        "published 1",
+        10,
+        publishedDoi,
+        PublishSucceeded
+      )
+
+      val unpublishedDoi =
+        TestUtilities.randomPennsieveDoi(ports.config.doiCollections)
+
+      val (unpublished, unpublishedVersion) = createDatasetAndVersion(
+        "unpublished 1",
+        20,
+        unpublishedDoi,
+        Unpublished
+      )
+      val externalDoi = TestUtilities.randomString()
+
+      ports.db
+        .run(
+          PublicDatasetDoiCollectionDoisMapper.addDOIs(
+            version.datasetId,
+            version.version,
+            List(publishedDoi, unpublishedDoi, externalDoi)
+          )
+        )
+        .awaitFinite()
+
+      val rawResponse = datasetClient
+        .getDoiPage(version.datasetId, version.version)
+        .awaitFinite()
+        .value
+
+      val response = rawResponse
+        .asInstanceOf[GetDoiPageResponse.OK]
+        .value
+
+      response.limit shouldBe DatasetHandler.defaultDoiLimit
+      response.offset shouldBe DatasetHandler.defaultDoiOffset
+      response.totalCount shouldBe 3
+
+      response.dois.size shouldBe 3
+
+      response.dois(0).source shouldBe Pennsieve
+      response.dois(1).source shouldBe PennsieveUnpublished
+      response.dois(2).source shouldBe External
     }
   }
 }
