@@ -82,6 +82,11 @@ import com.pennsieve.discover.Authenticator.{
   generateServiceToken,
   generateUserToken
 }
+import com.pennsieve.discover.models.DOIData.{
+  FromExternalDoiData,
+  FromPublicDTO,
+  FromTombstoneDTO
+}
 import com.pennsieve.discover.models.DOIInformationSource.{
   External,
   Pennsieve,
@@ -3487,12 +3492,10 @@ class DatasetHandlerSpec
         )
         .awaitFinite()
 
-      val rawResponse = datasetClient
+      val response = datasetClient
         .getDoiPage(version.datasetId, version.version)
         .awaitFinite()
         .value
-
-      val response = rawResponse
         .asInstanceOf[GetDoiPageResponse.OK]
         .value
 
@@ -3503,8 +3506,28 @@ class DatasetHandlerSpec
       response.dois.size shouldBe 3
 
       response.dois(0).source shouldBe Pennsieve
+      inside(response.dois(0).data) {
+        case FromPublicDTO(publicDTO) =>
+          publicDTO.name shouldBe published.name
+          publicDTO.id shouldBe published.id
+          publicDTO.version shouldBe publishedVersion.version
+          publicDTO.doi shouldBe publishedVersion.doi
+      }
+
       response.dois(1).source shouldBe PennsieveUnpublished
+      inside(response.dois(1).data) {
+        case FromTombstoneDTO(tombstoneDTO) =>
+          tombstoneDTO.name shouldBe unpublished.name
+          tombstoneDTO.id shouldBe unpublished.id
+          tombstoneDTO.version shouldBe unpublishedVersion.version
+          tombstoneDTO.doi shouldBe unpublishedVersion.doi
+      }
+
       response.dois(2).source shouldBe External
+      inside(response.dois(2).data) {
+        case FromExternalDoiData(externalDTO) =>
+          externalDTO.doi shouldBe externalDoi
+      }
     }
   }
 }

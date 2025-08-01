@@ -2,7 +2,7 @@
 
 package com.pennsieve.discover.models
 
-import io.circe.{ Decoder, Encoder }
+import io.circe.{ Decoder, Encoder, Json }
 import io.circe.generic.semiauto._
 import enumeratum.{ CirceEnum, Enum, EnumEntry }
 
