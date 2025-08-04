@@ -2,9 +2,16 @@
 
 package com.pennsieve.discover.models
 
+import com.pennsieve.discover.models.DOIData.{
+  FromExternalDoiData,
+  FromPublicDTO,
+  FromTombstoneDTO
+}
+import com.pennsieve.discover.models.DOIInformationSource.Pennsieve
 import enumeratum.{ CirceEnum, Enum, EnumEntry }
-import io.circe.{ Decoder, Encoder }
+import io.circe.{ Decoder, Encoder, Json }
 import io.circe.generic.semiauto._
+import io.circe.syntax.EncoderOps
 
 sealed trait DOIData
 
@@ -39,6 +46,37 @@ object DOIInformationSource
 case class DOIInformation(source: DOIInformationSource, data: DOIData)
 
 object DOIInformation {
-  implicit val encoder: Encoder[DOIInformation] = deriveEncoder
-  implicit val decoder: Decoder[DOIInformation] = deriveDecoder
+  // Custom encoder to avoid nested Json DOIData objects
+  implicit val encoder: Encoder[DOIInformation] = Encoder.instance { outer =>
+    Json.obj("source" -> outer.source.asJson, "data" -> {
+      outer.data match {
+        case FromPublicDTO(publicDTO) => publicDTO.asJson
+        case FromTombstoneDTO(tombstoneDTO) => tombstoneDTO.asJson
+        case FromExternalDoiData(externalDTO) => externalDTO.asJson
+      }
+    })
+  }
+  implicit val decoder: Decoder[DOIInformation] = Decoder.instance { cursor =>
+    for {
+      source <- cursor.get[DOIInformationSource]("source")
+      data <- source match {
+        case DOIInformationSource.Pennsieve =>
+          cursor
+            .get[com.pennsieve.discover.server.definitions.PublicDatasetDto](
+              "data"
+            )
+            .map(FromPublicDTO)
+        case DOIInformationSource.PennsieveUnpublished =>
+          cursor
+            .get[com.pennsieve.discover.server.definitions.TombstoneDto]("data")
+            .map(FromTombstoneDTO)
+        case DOIInformationSource.External =>
+          cursor
+            .get[com.pennsieve.discover.server.definitions.ExternalDoiData](
+              "data"
+            )
+            .map(FromExternalDoiData)
+      }
+    } yield DOIInformation(source, data)
+  }
 }
