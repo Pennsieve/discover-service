@@ -3529,5 +3529,205 @@ class DatasetHandlerSpec
           externalDTO.doi shouldBe externalDoi
       }
     }
+
+    "page correctly" in {
+      val (_, publishedCollectionVersion) = setupForDoiCollectionTesting()
+
+      val datasetElements: IndexedSeq[(PublicDataset, PublicDatasetVersion)] =
+        for (i <- 0 until 10) yield {
+          val publishedDoi =
+            TestUtilities.randomPennsieveDoi(ports.config.doiCollections)
+
+          createDatasetAndVersion(
+            s"published $i",
+            i * 10,
+            publishedDoi,
+            PublishSucceeded
+          )
+        }
+
+      val dois: List[String] = datasetElements.map(_._2.doi).toList
+
+      ports.db
+        .run(
+          PublicDatasetDoiCollectionDoisMapper
+            .addDOIs(
+              publishedCollectionVersion.datasetId,
+              publishedCollectionVersion.version,
+              dois
+            )
+        )
+        .awaitFinite()
+
+      val limit = 3
+
+      // page 1
+      {
+        val offset = 0
+        val response = datasetClient
+          .getDoiPage(
+            datasetId = publishedCollectionVersion.datasetId,
+            versionId = publishedCollectionVersion.version,
+            offset = Some(offset),
+            limit = Some(limit)
+          )
+          .awaitFinite()
+          .value
+          .asInstanceOf[GetDoiPageResponse.OK]
+          .value
+
+        response.limit shouldBe limit
+        response.offset shouldBe offset
+        response.totalCount shouldBe datasetElements.size
+
+        response.dois.size shouldBe 3
+
+        response.dois
+          .zip(datasetElements.slice(offset, limit + offset))
+          .foreach {
+            case (doiInfo, (publicDataset, publicVersion)) =>
+              doiInfo.source shouldBe Pennsieve
+              inside(doiInfo.data) {
+                case FromPublicDTO(publicDTO) =>
+                  publicDTO.name shouldBe publicDataset.name
+                  publicDTO.id shouldBe publicDataset.id
+                  publicDTO.version shouldBe publicVersion.version
+                  publicDTO.doi shouldBe publicVersion.doi
+              }
+          }
+      }
+
+      //page 2
+      {
+        val offset = 3
+        val response = datasetClient
+          .getDoiPage(
+            datasetId = publishedCollectionVersion.datasetId,
+            versionId = publishedCollectionVersion.version,
+            offset = Some(offset),
+            limit = Some(limit)
+          )
+          .awaitFinite()
+          .value
+          .asInstanceOf[GetDoiPageResponse.OK]
+          .value
+
+        response.limit shouldBe limit
+        response.offset shouldBe offset
+        response.totalCount shouldBe datasetElements.size
+
+        response.dois.size shouldBe 3
+
+        response.dois
+          .zip(datasetElements.slice(offset, limit + offset))
+          .foreach {
+            case (doiInfo, (publicDataset, publicVersion)) =>
+              doiInfo.source shouldBe Pennsieve
+              inside(doiInfo.data) {
+                case FromPublicDTO(publicDTO) =>
+                  publicDTO.name shouldBe publicDataset.name
+                  publicDTO.id shouldBe publicDataset.id
+                  publicDTO.version shouldBe publicVersion.version
+                  publicDTO.doi shouldBe publicVersion.doi
+              }
+          }
+      }
+
+      //page 3
+      {
+        val offset = 6
+        val response = datasetClient
+          .getDoiPage(
+            datasetId = publishedCollectionVersion.datasetId,
+            versionId = publishedCollectionVersion.version,
+            offset = Some(offset),
+            limit = Some(limit)
+          )
+          .awaitFinite()
+          .value
+          .asInstanceOf[GetDoiPageResponse.OK]
+          .value
+
+        response.limit shouldBe limit
+        response.offset shouldBe offset
+        response.totalCount shouldBe datasetElements.size
+
+        response.dois.size shouldBe 3
+
+        response.dois
+          .zip(datasetElements.slice(offset, limit + offset))
+          .foreach {
+            case (doiInfo, (publicDataset, publicVersion)) =>
+              doiInfo.source shouldBe Pennsieve
+              inside(doiInfo.data) {
+                case FromPublicDTO(publicDTO) =>
+                  publicDTO.name shouldBe publicDataset.name
+                  publicDTO.id shouldBe publicDataset.id
+                  publicDTO.version shouldBe publicVersion.version
+                  publicDTO.doi shouldBe publicVersion.doi
+              }
+          }
+      }
+
+      //page 4
+      {
+        val offset = 9
+        val response = datasetClient
+          .getDoiPage(
+            datasetId = publishedCollectionVersion.datasetId,
+            versionId = publishedCollectionVersion.version,
+            offset = Some(offset),
+            limit = Some(limit)
+          )
+          .awaitFinite()
+          .value
+          .asInstanceOf[GetDoiPageResponse.OK]
+          .value
+
+        response.limit shouldBe limit
+        response.offset shouldBe offset
+        response.totalCount shouldBe datasetElements.size
+
+        response.dois.size shouldBe 1
+
+        response.dois
+          .zip(datasetElements.slice(offset, limit + offset))
+          .foreach {
+            case (doiInfo, (publicDataset, publicVersion)) =>
+              doiInfo.source shouldBe Pennsieve
+              inside(doiInfo.data) {
+                case FromPublicDTO(publicDTO) =>
+                  publicDTO.name shouldBe publicDataset.name
+                  publicDTO.id shouldBe publicDataset.id
+                  publicDTO.version shouldBe publicVersion.version
+                  publicDTO.doi shouldBe publicVersion.doi
+              }
+          }
+      }
+
+      // page 5 (empty)
+      {
+        val offset = 12
+        val response = datasetClient
+          .getDoiPage(
+            datasetId = publishedCollectionVersion.datasetId,
+            versionId = publishedCollectionVersion.version,
+            offset = Some(offset),
+            limit = Some(limit)
+          )
+          .awaitFinite()
+          .value
+          .asInstanceOf[GetDoiPageResponse.OK]
+          .value
+
+        response.limit shouldBe limit
+        response.offset shouldBe offset
+        response.totalCount shouldBe datasetElements.size
+
+        response.dois shouldBe empty
+      }
+
+    }
+
   }
 }
