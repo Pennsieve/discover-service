@@ -168,6 +168,23 @@ object Authenticator {
       }
     }
 
+  def withServiceOrganizationAuthorization[T](
+    claim: Jwt.Claim,
+    organizationId: Int
+  )(
+    f: Unit => Future[T]
+  )(implicit
+    executionContext: ExecutionContext
+  ): Future[T] =
+    withOrganizationAccess(claim, organizationId) { _ =>
+      if (isServiceClaim(claim)) {
+        f(())
+      } else
+        Future.failed(
+          ForbiddenException(s"Only allowed for service level requests")
+        )
+    }
+
   def withServiceOwnerAuthorization[T](
     claim: Jwt.Claim,
     organizationId: Int,
