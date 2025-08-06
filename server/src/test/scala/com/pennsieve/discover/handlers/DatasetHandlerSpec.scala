@@ -42,6 +42,8 @@ import com.pennsieve.discover.clients.{
 }
 import com.pennsieve.discover.db.{
   DatasetDownloadsMapper,
+  PagedDoiResult,
+  PublicDatasetDoiCollectionDoisMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   SponsorshipsMapper
@@ -79,6 +81,16 @@ import com.pennsieve.discover.Authenticator.{
   generateServiceClaim,
   generateServiceToken,
   generateUserToken
+}
+import com.pennsieve.discover.models.DOIData.{
+  FromExternalDoiData,
+  FromPublicDTO,
+  FromTombstoneDTO
+}
+import com.pennsieve.discover.models.DOIInformationSource.{
+  External,
+  Pennsieve,
+  PennsieveUnpublished
 }
 import com.pennsieve.models.RelationshipType.{ Documents, References, Requires }
 import org.scalatest.Inside.inside
@@ -402,6 +414,12 @@ class DatasetHandlerSpec
           banners = TestUtilities.randomBannerUrls
         )
 
+      val collectionDatasetV1DoiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          collectionDatasetV1DoiCollection,
+          List(TestUtilities.randomString())
+        )
+
       val contributor = TestUtilities.createContributor(ports.db)(
         firstName = "Sally",
         lastName = "Fields",
@@ -452,7 +470,7 @@ class DatasetHandlerSpec
           )
         ),
         None,
-        Some(collectionDatasetV1DoiCollection)
+        Some(collectionDatasetV1DoiCollectionWithSize)
       )
 
       val responseWithAuth =
@@ -485,6 +503,12 @@ class DatasetHandlerSpec
           datasetId = collectionDatasetV1.datasetId,
           datasetVersion = collectionDatasetV1.version,
           banners = TestUtilities.randomBannerUrls
+        )
+
+      val collectionDatasetV1DoiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          collectionDatasetV1DoiCollection,
+          List(TestUtilities.randomString())
         )
 
       val contributor = TestUtilities.createContributor(ports.db)(
@@ -532,7 +556,7 @@ class DatasetHandlerSpec
         Some(IndexedSeq.empty),
         None,
         None,
-        Some(collectionDatasetV1DoiCollection)
+        Some(collectionDatasetV1DoiCollectionWithSize)
       )
 
       val responseNoAuth =
@@ -634,6 +658,19 @@ class DatasetHandlerSpec
         banners = TestUtilities.randomBannerUrls
       )
 
+      val doiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          doiCollection,
+          List(
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString()
+          )
+        )
+
       val response: GetDatasetByDoiResponse = datasetClient
         .getDatasetByDoi("10.12345", "abcd-efgh")
         .awaitFinite()
@@ -652,7 +689,7 @@ class DatasetHandlerSpec
               List.empty,
               None,
               None,
-              Some(doiCollection)
+              Some(doiCollectionWithSize)
             )
         )
       )
@@ -820,6 +857,12 @@ class DatasetHandlerSpec
           banners = TestUtilities.randomBannerUrls
         )
 
+      val ds5_v1_doiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          ds5_v1_doiCollection,
+          List(TestUtilities.randomString(), TestUtilities.randomString())
+        )
+
       val ds1_v1_externalPub = TestUtilities.createExternalPublication(
         ports.db
       )(ds1_v1.datasetId, ds1_v1.version, References)
@@ -954,7 +997,7 @@ class DatasetHandlerSpec
               collections = IndexedSeq.empty,
               externalPublications = IndexedSeq.empty,
               datasetPreview = None,
-              doiCollection = Some(ds5_v1_doiCollection)
+              doiCollection = Some(ds5_v1_doiCollectionWithSize)
             )
           )
       }
@@ -1208,6 +1251,20 @@ class DatasetHandlerSpec
           datasetVersion = collectionDatasetV1.version,
           banners = TestUtilities.randomBannerUrls
         )
+      val collectionDatasetV1DoiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          collectionDatasetV1DoiCollection,
+          List(
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString(),
+            TestUtilities.randomString()
+          )
+        )
 
       val dataset: PublicDataset = ports.db
         .run(
@@ -1226,7 +1283,7 @@ class DatasetHandlerSpec
         List.empty,
         None,
         None,
-        Some(collectionDatasetV1DoiCollection)
+        Some(collectionDatasetV1DoiCollectionWithSize)
       )
 
       val response =
@@ -1323,6 +1380,11 @@ class DatasetHandlerSpec
           datasetId = publicDataset4_V1.datasetId,
           datasetVersion = publicDataset4_V1.version,
           banners = TestUtilities.randomBannerUrls
+        )
+      val publicDataset4_V1_doiCollectionWithSize =
+        TestUtilities.addDoiCollectionDois(ports.db)(
+          publicDataset4_V1_doiCollection,
+          List(TestUtilities.randomString(), TestUtilities.randomString())
         )
 
       // Dataset 3 (embargoed)
@@ -1450,7 +1512,7 @@ class DatasetHandlerSpec
             Some(IndexedSeq.empty),
             None,
             None,
-            Some(publicDataset4_V1_doiCollection)
+            Some(publicDataset4_V1_doiCollectionWithSize)
           )
         ),
         toClientDefinition(
@@ -3327,5 +3389,228 @@ class DatasetHandlerSpec
 
       response.assets.length shouldEqual 5
     }
+  }
+
+  def setupForDoiCollectionTesting(): (PublicDataset, PublicDatasetVersion) = {
+    val collectionDataset = TestUtilities.createDoiCollectionDataset(
+      ports.db,
+      ports.config.doiCollections.idSpace
+    )(name = "collection dataset 1", sourceDatasetId = 1)
+
+    val collectionVersion = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = collectionDataset.id,
+      status = PublishStatus.PublishSucceeded
+    )
+
+    TestUtilities.createDatasetDoiCollection(ports.db)(
+      datasetId = collectionVersion.datasetId,
+      datasetVersion = collectionVersion.version
+    )
+
+    (collectionDataset, collectionVersion)
+  }
+
+  def createDatasetAndVersion(
+    name: String,
+    sourceDatasetId: Int,
+    doi: String,
+    status: PublishStatus
+  ): (PublicDataset, PublicDatasetVersion) = {
+    val publicDataset = TestUtilities.createDataset(ports.db)(
+      name = name,
+      sourceDatasetId = sourceDatasetId
+    )
+
+    val publicVersion = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = publicDataset.id,
+      status = status,
+      doi = doi
+    )
+
+    (publicDataset, publicVersion)
+  }
+
+  "get DOI page" should {
+    "return empty page for non-DOI collection dataset" in {
+      val dataset = TestUtilities.createDataset(ports.db)(
+        name = "research dataset 1",
+        datasetType = DatasetType.Research,
+        sourceOrganizationId = 1,
+        sourceDatasetId = 1
+      )
+
+      // create version
+      val version: PublicDatasetVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = dataset.id,
+          status = PublishStatus.PublishSucceeded
+        )
+
+      val response = datasetClient
+        .getDoiPage(version.datasetId, version.version)
+        .awaitFinite()
+        .value
+        .asInstanceOf[GetDoiPageResponse.OK]
+        .value
+
+      response.limit shouldBe DatasetHandler.defaultDoiLimit
+      response.offset shouldBe DatasetHandler.defaultDoiOffset
+      response.totalCount shouldBe 0
+      response.dois shouldBe empty
+    }
+
+    "distinguish between published, unpublished, and external" in {
+      val (dataset, version) = setupForDoiCollectionTesting()
+      val publishedDoi =
+        TestUtilities.randomPennsieveDoi(ports.config.doiCollections)
+
+      val (published, publishedVersion) = createDatasetAndVersion(
+        "published 1",
+        10,
+        publishedDoi,
+        PublishSucceeded
+      )
+
+      val unpublishedDoi =
+        TestUtilities.randomPennsieveDoi(ports.config.doiCollections)
+
+      val (unpublished, unpublishedVersion) = createDatasetAndVersion(
+        "unpublished 1",
+        20,
+        unpublishedDoi,
+        Unpublished
+      )
+      val externalDoi = TestUtilities.randomString()
+
+      ports.db
+        .run(
+          PublicDatasetDoiCollectionDoisMapper.addDOIs(
+            version.datasetId,
+            version.version,
+            List(publishedDoi, unpublishedDoi, externalDoi)
+          )
+        )
+        .awaitFinite()
+
+      val response = datasetClient
+        .getDoiPage(version.datasetId, version.version)
+        .awaitFinite()
+        .value
+        .asInstanceOf[GetDoiPageResponse.OK]
+        .value
+
+      response.limit shouldBe DatasetHandler.defaultDoiLimit
+      response.offset shouldBe DatasetHandler.defaultDoiOffset
+      response.totalCount shouldBe 3
+
+      response.dois.size shouldBe 3
+
+      response.dois(0).source shouldBe Pennsieve
+      inside(response.dois(0).data) {
+        case FromPublicDTO(publicDTO) =>
+          publicDTO.name shouldBe published.name
+          publicDTO.id shouldBe published.id
+          publicDTO.version shouldBe publishedVersion.version
+          publicDTO.doi shouldBe publishedVersion.doi
+      }
+
+      response.dois(1).source shouldBe PennsieveUnpublished
+      inside(response.dois(1).data) {
+        case FromTombstoneDTO(tombstoneDTO) =>
+          tombstoneDTO.name shouldBe unpublished.name
+          tombstoneDTO.id shouldBe unpublished.id
+          tombstoneDTO.version shouldBe unpublishedVersion.version
+          tombstoneDTO.doi shouldBe unpublishedVersion.doi
+      }
+
+      response.dois(2).source shouldBe External
+      inside(response.dois(2).data) {
+        case FromExternalDoiData(externalDTO) =>
+          externalDTO.doi shouldBe externalDoi
+      }
+    }
+
+    "page correctly" in {
+      val (_, publishedCollectionVersion) = setupForDoiCollectionTesting()
+
+      val datasetElements: IndexedSeq[(PublicDataset, PublicDatasetVersion)] =
+        for (i <- 0 until 10) yield {
+          val publishedDoi =
+            TestUtilities.randomPennsieveDoi(ports.config.doiCollections)
+
+          createDatasetAndVersion(
+            s"published $i",
+            i * 10,
+            publishedDoi,
+            PublishSucceeded
+          )
+        }
+
+      val dois: List[String] = datasetElements.map(_._2.doi).toList
+
+      ports.db
+        .run(
+          PublicDatasetDoiCollectionDoisMapper
+            .addDOIs(
+              publishedCollectionVersion.datasetId,
+              publishedCollectionVersion.version,
+              dois
+            )
+        )
+        .awaitFinite()
+
+      val limit = 3
+
+      def getAndCheckPage(offset: Int, expectedPageSize: Int): Unit = {
+        val response = datasetClient
+          .getDoiPage(
+            datasetId = publishedCollectionVersion.datasetId,
+            versionId = publishedCollectionVersion.version,
+            offset = Some(offset),
+            limit = Some(limit)
+          )
+          .awaitFinite()
+          .value
+          .asInstanceOf[GetDoiPageResponse.OK]
+          .value
+
+        response.limit shouldBe limit
+        response.offset shouldBe offset
+        response.totalCount shouldBe datasetElements.size
+
+        response.dois.size shouldBe expectedPageSize
+
+        response.dois
+          .zip(datasetElements.slice(offset, limit + offset))
+          .foreach {
+            case (doiInfo, (publicDataset, publicVersion)) =>
+              doiInfo.source shouldBe Pennsieve
+              inside(doiInfo.data) {
+                case FromPublicDTO(publicDTO) =>
+                  publicDTO.name shouldBe publicDataset.name
+                  publicDTO.id shouldBe publicDataset.id
+                  publicDTO.version shouldBe publicVersion.version
+                  publicDTO.doi shouldBe publicVersion.doi
+              }
+          }
+      }
+      var offset = 0
+      //page 1
+      getAndCheckPage(offset, limit)
+      //page 2
+      offset += limit
+      getAndCheckPage(offset, limit)
+      // page 3
+      offset += limit
+      getAndCheckPage(offset, limit)
+      // page 4
+      offset += limit
+      getAndCheckPage(offset, 1)
+      //page 5 empty
+      offset += limit
+      getAndCheckPage(offset, 0)
+
+    }
+
   }
 }

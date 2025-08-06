@@ -18,10 +18,12 @@ import com.pennsieve.discover.client.collection.CollectionClient
 import com.pennsieve.discover.client.definitions.{
   BucketConfig,
   FinalizeDoiCollectionRequest,
+  InternalContributor,
   PublishDoiCollectionRequest
 }
 import com.pennsieve.discover.clients.{ MockDoiClient, MockS3StreamClient }
 import com.pennsieve.discover.db.{
+  PublicContributorsMapper,
   PublicDatasetDoiCollectionDoisMapper,
   PublicDatasetDoiCollectionsMapper,
   PublicDatasetVersionFilesTableMapper,
@@ -36,7 +38,7 @@ import com.pennsieve.models.PublishStatus.{
   PublishInProgress,
   PublishSucceeded
 }
-import com.pennsieve.models.{ License, PublishStatus }
+import com.pennsieve.models.{ Degree, License, PublishStatus }
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -64,6 +66,15 @@ class DoiCollectionHandlerSpec
   val ownerLastName = "Digger"
   val ownerOrcid = "0000-0012-3456-7890"
 
+  val internalContributor =
+    new InternalContributor(
+      id = 3,
+      firstName = ownerFirstName,
+      lastName = ownerLastName,
+      orcid = Some(ownerOrcid),
+      userId = Some(ownerId)
+    )
+
   private val pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
   private val collectionOrgId = config.doiCollections.idSpace.id
 
@@ -84,7 +95,8 @@ class DoiCollectionHandlerSpec
       ownerFirstName = ownerFirstName,
       ownerLastName = ownerLastName,
       ownerOrcid = ownerOrcid,
-      collectionNodeId = collectionNodeId
+      collectionNodeId = collectionNodeId,
+      contributors = Vector(internalContributor)
     )
 
   private val customBucketConfig =
@@ -197,6 +209,20 @@ class DoiCollectionHandlerSpec
         .awaitFinite()
 
       doiCollectionDOIs shouldBe requestBody.dois.toList
+
+      val contributors = ports.db
+        .run(
+          PublicContributorsMapper
+            .getContributorsByDatasetAndVersion(publicDataset, publicVersion)
+        )
+        .awaitFinite()
+
+      TestUtilities.internalAndPublicContributorsMatch(
+        publicVersion.datasetId,
+        publicVersion.version,
+        requestBody.contributors.toList,
+        contributors
+      )
 
       response shouldBe com.pennsieve.discover.client.definitions
         .PublishDoiCollectionResponse(

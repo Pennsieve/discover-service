@@ -7,6 +7,7 @@ import com.pennsieve.discover.models.{
   OrderBy,
   OrderDirection,
   PublicDataset,
+  PublicDatasetDoiCollectionWithSize,
   PublicDatasetVersion,
   PublishingWorkflow,
   S3Key
@@ -882,6 +883,28 @@ class PublicDatasetVersionsMapperSpec
         banners = TestUtilities.randomBannerUrls
       )
 
+    val ds5_v1_dois =
+      List(
+        TestUtilities.randomString(),
+        TestUtilities.randomString(),
+        TestUtilities.randomString()
+      )
+
+    ports.db.run(
+      PublicDatasetDoiCollectionDoisMapper
+        .addDOIs(ds5.id, ds5_v1.version, ds5_v1_dois)
+    )
+
+    val ds5_v1_doiCollectionWithSize = PublicDatasetDoiCollectionWithSize(
+      id = ds5_v1_doiCollection.id,
+      datasetId = ds5_v1_doiCollection.datasetId,
+      datasetVersion = ds5_v1_doiCollection.datasetVersion,
+      banners = ds5_v1_doiCollection.banners,
+      size = ds5_v1_dois.size,
+      createdAt = ds5_v1_doiCollection.createdAt,
+      updatedAt = ds5_v1_doiCollection.updatedAt
+    )
+
     val result = ports.db
       .run(
         PublicDatasetVersionsMapper.getDatasetsByDoi(
@@ -971,7 +994,7 @@ class PublicDatasetVersionsMapperSpec
         collections = IndexedSeq.empty,
         externalPublications = IndexedSeq.empty,
         release = None,
-        doiCollection = Some(ds5_v1_doiCollection)
+        doiCollection = Some(ds5_v1_doiCollectionWithSize)
       )
 
     // Check Unpublished

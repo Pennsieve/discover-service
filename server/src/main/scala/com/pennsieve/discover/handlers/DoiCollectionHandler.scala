@@ -8,6 +8,7 @@ import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
 import com.pennsieve.discover.db.{
+  PublicContributorsMapper,
   PublicDatasetDoiCollectionDoisMapper,
   PublicDatasetDoiCollectionsMapper,
   PublicDatasetVersionFilesTableMapper,
@@ -143,6 +144,24 @@ class DoiCollectionHandler(
                 )
               _ = ports.log.info(
                 s"publishDoiCollection() public dataset version : $version"
+              )
+
+              contributors <- DBIO.sequence(body.contributors.map { c =>
+                PublicContributorsMapper
+                  .create(
+                    firstName = c.firstName,
+                    middleInitial = c.middleInitial,
+                    lastName = c.lastName,
+                    degree = c.degree,
+                    orcid = c.orcid,
+                    datasetId = publicDataset.id,
+                    version = version.version,
+                    sourceContributorId = c.id,
+                    sourceUserId = c.userId
+                  )
+              }.toList)
+              _ = ports.log.info(
+                s"publishDoiCollection() [stored] contributors: $contributors"
               )
 
               _ <- PublicDatasetDoiCollectionsMapper.add(

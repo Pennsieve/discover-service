@@ -42,7 +42,7 @@ trait DockerPostgresService extends DockerKit {
     TestPostgresConfiguration.freshPostgresConfiguration
 
   val postgresContainer: DockerContainer =
-    DockerContainer("postgres:9.6")
+    DockerContainer("postgres:16.8")
       .withPorts(
         (
           TestPostgresConfiguration.advertisedPort,

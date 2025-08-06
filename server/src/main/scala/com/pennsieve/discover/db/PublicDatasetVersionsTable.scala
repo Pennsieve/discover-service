@@ -163,7 +163,7 @@ object PublicDatasetVersionsMapper
     collections: IndexedSeq[PublicCollection],
     externalPublications: IndexedSeq[PublicExternalPublication],
     release: Option[PublicDatasetRelease],
-    doiCollection: Option[PublicDatasetDoiCollection]
+    doiCollection: Option[PublicDatasetDoiCollectionWithSize]
   )
 
   case class GetDatasetsByDoiResult(
@@ -214,7 +214,7 @@ object PublicDatasetVersionsMapper
 
       releasesMap <- PublicDatasetReleaseMapper.getFor(publishedVersions)
 
-      doiCollectionsMap <- PublicDatasetDoiCollectionsMapper.getFor(
+      doiCollectionsMap <- PublicDatasetDoiCollectionsMapper.getForWithSize(
         publishedVersions
       )
 
@@ -508,7 +508,7 @@ object PublicDatasetVersionsMapper
       (PublicDataset, PublicDatasetVersion, IndexedSeq[PublicContributor],
         Option[Sponsorship], Option[Revision], IndexedSeq[PublicCollection],
         IndexedSeq[PublicExternalPublication], Option[PublicDatasetRelease],
-        Option[PublicDatasetDoiCollection])
+        Option[PublicDatasetDoiCollectionWithSize])
     ]
   )
 
@@ -601,7 +601,7 @@ object PublicDatasetVersionsMapper
         }
       )
 
-      doiCollectionsMap <- PublicDatasetDoiCollectionsMapper.getFor(
+      doiCollectionsMap <- PublicDatasetDoiCollectionsMapper.getForWithSize(
         pagedDatasetsWithSponsorships.map {
           case ((dataset, version), _) => (dataset, version)
         }
