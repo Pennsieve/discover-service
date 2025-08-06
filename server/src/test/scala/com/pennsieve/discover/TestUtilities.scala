@@ -568,6 +568,7 @@ object TestUtilities extends AwaitableImplicits {
   )(
     name: String = "My Dataset",
     sourceDatasetId: Int = 1,
+    tags: List[String] = List.empty,
     ownerId: Int = 1,
     ownerFirstName: String = "Fynn",
     ownerLastName: String = "Blackwell",
@@ -587,7 +588,7 @@ object TestUtilities extends AwaitableImplicits {
           ownerLastName = ownerLastName,
           ownerOrcid = ownerOrcid,
           license = license,
-          tags = List.empty,
+          tags = tags,
           datasetType = DatasetType.Collection
         )
       )

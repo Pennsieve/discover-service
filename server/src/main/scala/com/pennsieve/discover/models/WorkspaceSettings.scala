@@ -25,6 +25,7 @@ case class WorkspaceSettings(
   publisherName: String,
   redirectUrl: String,
   redirectReleaseUrl: Option[String] = None,
+  publisherTag: Option[String] = None,
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC)
 ) {
