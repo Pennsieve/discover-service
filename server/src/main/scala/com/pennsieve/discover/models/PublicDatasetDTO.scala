@@ -30,10 +30,12 @@ object PublicDatasetDTO {
     }
 
   private def doiCollectionInfo(
-    doiCollection: Option[PublicDatasetDoiCollection]
+    doiCollection: Option[PublicDatasetDoiCollectionWithSize]
   ): Option[definitions.DoiCollectionInfo] =
     doiCollection.map(
-      c => definitions.DoiCollectionInfo(banners = c.banners.toVector)
+      c =>
+        definitions
+          .DoiCollectionInfo(banners = c.banners.toVector, size = c.size)
     )
 
   def apply(
@@ -48,7 +50,7 @@ object PublicDatasetDTO {
     ],
     datasetPreview: Option[DatasetPreview],
     release: Option[PublicDatasetRelease],
-    doiCollection: Option[PublicDatasetDoiCollection]
+    doiCollection: Option[PublicDatasetDoiCollectionWithSize]
   )(implicit
     config: Config
   ): definitions.PublicDatasetDto =
@@ -160,7 +162,7 @@ object PublicDatasetDTO {
     externalPublications: Seq[PublicExternalPublication],
     datasetPreview: Option[DatasetPreview],
     release: Option[PublicDatasetRelease] = None,
-    doiCollection: Option[PublicDatasetDoiCollection] = None
+    doiCollection: Option[PublicDatasetDoiCollectionWithSize] = None
   )(implicit
     config: Config
   ): definitions.PublicDatasetDto = {

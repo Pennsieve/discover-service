@@ -23,3 +23,13 @@ object PublicDatasetDoiCollection {
     (Int, Int, Int, List[String], OffsetDateTime, OffsetDateTime)
   ) => PublicDatasetDoiCollection = (this.apply _).tupled
 }
+
+case class PublicDatasetDoiCollectionWithSize(
+  id: Int = 0,
+  datasetId: Int,
+  datasetVersion: Int,
+  banners: List[String] = List.empty,
+  size: Int = 0,
+  createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
+  updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC)
+)
