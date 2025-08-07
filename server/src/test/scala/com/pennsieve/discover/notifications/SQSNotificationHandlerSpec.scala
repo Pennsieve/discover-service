@@ -16,6 +16,7 @@ import com.pennsieve.models.{
   License,
   PublishStatus,
   PublishedContributor,
+  ReferenceMetadataV5_0,
   ReleaseMetadataV5_0
 }
 import com.pennsieve.models.DatasetMetadata._
@@ -27,6 +28,7 @@ import com.pennsieve.discover.clients.{
   MockSearchClient
 }
 import com.pennsieve.discover.models.{
+  PublicDataset,
   PublicDatasetVersion,
   PublicFile,
   PublicFileVersion,
@@ -1390,5 +1392,75 @@ class SQSNotificationHandlerSpec
         f"code/${publicDataset.id}/version/${publicDatasetVersion.version}"
       )
     }
+
+    "provide tagged organization settings" in {
+      val organizationId = ports.config.doiCollections.idSpace.id
+      val publisherName = "SPARC Collections"
+      val organizationRedirectUrlFormat =
+        "https://sparc.science/collections/{{datasetId}}/version/{{versionId}}"
+      val publishingTag = s"${PublicDataset.publisherTagKey}:sparc"
+
+      val settings = WorkspaceSettings(
+        organizationId = organizationId,
+        publisherName = publisherName,
+        redirectUrl = organizationRedirectUrlFormat,
+        publisherTag = Some(publishingTag)
+      )
+
+      ports.db.run(WorkspaceSettingsMapper.addSettings(settings)).await
+
+      val tags = List("data", publishingTag)
+      val publicDataset =
+        TestUtilities.createDoiCollectionDataset(
+          ports.db,
+          ports.config.doiCollections.idSpace
+        )(tags = tags)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      TestUtilities.createDatasetDoiCollection(ports.db)(
+        datasetId = publicDatasetV1.datasetId,
+        datasetVersion = publicDatasetV1.version,
+        banners = List.empty
+      )
+
+      // push DOI to registry
+      processNotification(
+        PushDoiRequest(
+          jobType = SQSNotificationType.PUSH_DOI,
+          datasetId = publicDataset.id,
+          version = publicDatasetV1.version,
+          doi = publicDatasetV1.doi
+        ),
+        waitTime = 60.seconds
+      ) shouldBe an[MessageAction.Delete]
+
+      val updatedDoiOption = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .getMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      updatedDoiOption should not be empty
+      val updatedDoi = updatedDoiOption.get
+      updatedDoi.publisher shouldBe publisherName
+      val expectedUrl =
+        s"https://sparc.science/collections/${publicDataset.id}/version/${publicDatasetV1.version}"
+      updatedDoi.url.get shouldEqual (expectedUrl)
+    }
+
   }
 }

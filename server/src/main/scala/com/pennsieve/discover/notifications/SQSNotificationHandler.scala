@@ -575,7 +575,11 @@ class SQSNotificationHandler(
     for {
       workspaceSettings <- ports.db.run(
         WorkspaceSettingsMapper
-          .getSettings(organizationId = publicDataset.sourceOrganizationId)
+          .getSettings(
+            organizationId = publicDataset.sourceOrganizationId,
+            publisherTag = publicDataset.tags
+              .find(_.startsWith(s"${PublicDataset.publisherTagKey}:"))
+          )
       )
 
       redirectSettings = workspaceSettings match {

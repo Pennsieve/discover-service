@@ -3,7 +3,7 @@ services:
 
   postgres:
     hostname: postgres
-    image: postgres:9.6
+    image: postgres:16.8
     environment:
       POSTGRES_PASSWORD: password
       POSTGRES_USER: postgres

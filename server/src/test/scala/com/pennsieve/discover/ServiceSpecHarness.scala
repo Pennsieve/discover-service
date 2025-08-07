@@ -10,7 +10,8 @@ import com.pennsieve.discover.db.{
   PublicContributorsMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
-  PublicFilesMapper
+  PublicFilesMapper,
+  WorkspaceSettingsMapper
 }
 import com.pennsieve.discover.notifications.SQSNotificationHandler
 import com.pennsieve.discover.models._
@@ -33,8 +34,8 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.regions.Region
 import squants.information.InformationConversions._
-import java.net.URI
 
+import java.net.URI
 import scala.concurrent.{ Await, ExecutionContext }
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 
@@ -226,6 +227,7 @@ trait ServiceSpecHarness
         _ <- PublicDatasetsMapper.delete
         _ <- PublicDatasetVersionsMapper.delete
         _ <- PublicFilesMapper.delete
+        _ <- WorkspaceSettingsMapper.delete
       } yield ())
       .awaitFinite()
 
