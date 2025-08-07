@@ -927,7 +927,8 @@ class DatasetHandler(
     versionId: Int,
     path: Option[String],
     limit: Option[Int],
-    offset: Option[Int]
+    offset: Option[Int],
+    file: Option[String]
   ): Future[GuardrailResource.BrowseAssetsResponse] = {
     def valid(path: Option[String]): Option[String] =
       path match {
@@ -951,6 +952,7 @@ class DatasetHandler(
         .childrenOf(
           version,
           valid(path),
+          name = file,
           limit = limit.getOrElse(defaultFileLimit),
           offset = offset.getOrElse(defaultFileOffset)
         )

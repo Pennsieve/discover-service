@@ -679,6 +679,12 @@ paths:
             type: integer
             format: int32
             default: 0
+        - name: file
+          in: query
+          description: name of the file to find
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: successful operation
