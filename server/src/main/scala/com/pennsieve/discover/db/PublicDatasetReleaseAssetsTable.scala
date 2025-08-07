@@ -191,6 +191,7 @@ object PublicDatasetReleaseAssetMapper
   def childrenOf(
     version: PublicDatasetVersion,
     path: Option[String],
+    name: Option[String] = None,
     limit: Int = 100,
     offset: Int = 0
   )(implicit
@@ -209,6 +210,11 @@ object PublicDatasetReleaseAssetMapper
       case None => "*{1}"
     }
 
+    val nameSelector = name match {
+      case Some(name) => name
+      case None => "%"
+    }
+
     val datasetId = version.datasetId
     val datasetVersion = version.version
 
@@ -223,6 +229,7 @@ object PublicDatasetReleaseAssetMapper
           WHERE dataset_id = $datasetId
           AND dataset_version = $datasetVersion
           AND path ~ $leafChildSelector::lquery
+          AND name LIKE $nameSelector
         ),
         total_count as (
           select null::text AS type,

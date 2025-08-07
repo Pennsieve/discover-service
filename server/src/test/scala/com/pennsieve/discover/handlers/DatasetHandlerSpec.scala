@@ -3202,13 +3202,15 @@ class DatasetHandlerSpec
   }
 
   def setupForReleaseAssetTesting(
+    sourceOrganizationId: Int = 1,
+    sourceDatasetId: Int = 333
   ): (PublicDataset, PublicDatasetVersion, ReleaseAssetListing) = {
     // create dataset
     val dataset = TestUtilities.createDataset(ports.db)(
       name = "filtered dataset 1",
       datasetType = DatasetType.Release,
-      sourceOrganizationId = 1,
-      sourceDatasetId = 333
+      sourceOrganizationId = sourceOrganizationId,
+      sourceDatasetId = sourceDatasetId
     )
 
     // create version
@@ -3362,6 +3364,30 @@ class DatasetHandlerSpec
         .value
 
       response.assets.length shouldEqual 1
+    }
+
+    "return specific asset when requested" in {
+      val (dataset, version, listing) = setupForReleaseAssetTesting()
+
+      val assetPath = "data"
+      val assetName = "subjects.csv"
+
+      val response = datasetClient
+        .browseAssets(
+          dataset.id,
+          version.version,
+          path = Some(assetPath),
+          file = Some(assetName)
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[BrowseAssetsResponse.OK]
+        .value
+
+      response.assets.length shouldEqual 1
+
+      val asset = response.assets.head
+      asset.name shouldBe assetName
     }
 
     "return nothing when path does not exist" in {
@@ -3613,4 +3639,5 @@ class DatasetHandlerSpec
     }
 
   }
+
 }
