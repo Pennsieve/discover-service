@@ -829,8 +829,9 @@ class PublishHandler(
           )
         )
         _ <- DBIO.from(
-          deleteAssetsMulti(
-            s3Key = dataset.id.toString,
+          utils.deleteAssetsMulti(
+            ports.lambdaClient,
+            s3KeyPrefix = dataset.id.toString,
             versions.map(_.s3Bucket).toSet,
             migrated
           )
@@ -1095,40 +1096,6 @@ class PublishHandler(
     }
   }
 
-  def deleteAssets(
-    s3Key: String,
-    publishBucket: String,
-    embargoBucket: String,
-    migrated: Boolean
-  ): Future[InvokeResponse] = {
-    ports.lambdaClient.runS3Clean(
-      s3Key,
-      publishBucket,
-      embargoBucket,
-      S3CleanupStage.Unpublish,
-      migrated
-    )
-  }
-
-  private def deleteAssetsMulti(
-    s3Key: String,
-    buckets: Set[S3Bucket],
-    migrated: Boolean
-  ): Future[Iterator[InvokeResponse]] = {
-    val atMostTwoAtATime = buckets.grouped(2)
-    Future.sequence(
-      atMostTwoAtATime
-        .map(_.toList match {
-          case List(S3Bucket(b1), S3Bucket(b2)) =>
-            deleteAssets(s3Key, b1, b2, migrated)
-          case List(S3Bucket(b)) => deleteAssets(s3Key, b, b, migrated)
-          case _ =>
-            throw new AssertionError(
-              s"${atMostTwoAtATime} shouldn't produce lists with more than two elements!"
-            )
-        })
-    )
-  }
 }
 
 object PublishHandler {
