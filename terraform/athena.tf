@@ -22,4 +22,14 @@ resource "aws_athena_data_catalog" "rejoin_glue_catalog" {
     "catalog-id" = data.terraform_remote_state.platform_infrastructure.outputs.rejoin_account_id
   }
 }
+
+resource "aws_athena_data_catalog" "sparc_aod_glue_catalog" {
+  name        = var.sparc_aod_glue_catalog
+  description = "SPARC AOD's Glue based Data Catalog"
+  type        = "GLUE"
+
+  parameters = {
+    "catalog-id" = var.sparc_aod_account_number
+  }
+}
   
