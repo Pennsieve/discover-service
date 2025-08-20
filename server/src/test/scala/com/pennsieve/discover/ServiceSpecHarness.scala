@@ -115,7 +115,9 @@ trait ServiceSpecHarness
         sparcBucketAccessTable =
           "sparc_glue_catalog.dev_s3_access_logs_db.discover",
         rejoinBucketAccessTable =
-          "rejoin_glue_catalog.dev_s3_access_logs_db.discover"
+          "rejoin_glue_catalog.dev_s3_access_logs_db.discover",
+        sparcAodBucketAccessTable =
+          "sparc_aod_glue_catalog.dev_s3_access_logs_db.discover"
       ),
       runtimeSettings = RuntimeSettings(deleteReleaseIntermediateFile = false),
       doiCollections = DoiCollections(

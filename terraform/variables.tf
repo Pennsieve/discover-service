@@ -39,6 +39,10 @@ variable "rejoin_glue_catalog" {
   default = "rejoin_glue_catalog"
 }
 
+variable "sparc_aod_glue_catalog" {
+  default = "sparc_aod_glue_catalog"
+}
+
 // doi_collections_id_space_id is the id of the workspace that acts
 // as the id-space for published collections
 variable "doi_collections_id_space_id" {}
@@ -46,6 +50,10 @@ variable "doi_collections_id_space_id" {}
 // doi_collections_id_space_name is the name of the workspace that acts
 // as the id-space for published collections
 variable "doi_collections_id_space_name" {}
+
+
+// AWS Account number for SPARC AOD
+variable "sparc_aod_account_number" {}
 
 locals {
   java_opts = [
@@ -71,5 +79,7 @@ locals {
   sparc_environment_name = var.environment_name == "dev" ? "dev" : "prd"
 
   pennsieve_doi_prefix = var.environment_name == "prod" ? "10.26275" : "10.21397"
+
+  sparc_aod_glue_db_table = "${var.environment_name}_s3_access_logs_db.discover"
 
 }
