@@ -80,6 +80,14 @@ locals {
 
   pennsieve_doi_prefix = var.environment_name == "prod" ? "10.26275" : "10.21397"
 
-  sparc_aod_glue_db_table = "${var.environment_name}_s3_access_logs_db.discover"
+  // No remote Terraform state for SPARC AOD to draw from
+  // These are the names inside the AOD account relevant to Glue and Athena
+  // for S3 access logging
+  sparc_aod = {
+    glue_db = "${var.environment_name}_s3_access_logs_db"
+    glue_table = "discover"
+    s3_access_logs_bucket = "sparc-${var.environment_name}-aod-s3-access-logs"
+    s3_access_logs_prefix = "${var.environment_name}/discover-publish/"
+  }
 
 }

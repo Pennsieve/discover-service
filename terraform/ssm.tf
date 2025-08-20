@@ -343,7 +343,7 @@ resource "aws_ssm_parameter" "rejoin_bucket_access_glue_table" {
 resource "aws_ssm_parameter" "sparc_aod_bucket_access_glue_table" {
   name  = "/${var.environment_name}/${var.service_name}/sparc-aod-bucket-access-glue-table"
   type  = "String"
-  value = "${var.sparc_aod_glue_catalog}.${local.sparc_aod_glue_db_table}"
+  value = "${var.sparc_aod_glue_catalog}.${local.sparc_aod.glue_db}.${local.sparc_aod.glue_table}"
 }
 
 // SNS CONFIGURATION
