@@ -768,6 +768,8 @@ class DoiCollectionHandlerSpec
         .await
         .value
 
+      version.status shouldBe Unpublished
+
       // Note: the S3 Clean Lambda is invoked at the end of Publish to "tidy," and at Unpublish time
       ports.lambdaClient
         .asInstanceOf[MockLambdaClient]

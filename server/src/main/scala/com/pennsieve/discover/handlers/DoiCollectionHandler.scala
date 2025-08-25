@@ -529,7 +529,7 @@ class DoiCollectionHandler(
           case None => false
         }
 
-        // If the last version is embargoed, or failed to publish, remove it entirely
+        // If the last version failed to publish, remove it entirely
         _ <- PublicDatasetVersionsMapper.rollbackIfNeeded(dataset)
 
         _ <- PublicDatasetVersionsMapper.setStatus(
