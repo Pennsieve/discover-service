@@ -15,13 +15,28 @@ import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse
 import com.pennsieve.discover.client.collection.FinalizeDoiCollectionResponse
 import com.pennsieve.discover.client.collection.CollectionClient
+import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse.Created
+import com.pennsieve.discover.client.collection.UnpublishDoiCollectionResponse.{
+  Forbidden,
+  NoContent,
+  OK,
+  Unauthorized
+}
+import com.pennsieve.discover.client.definitions
 import com.pennsieve.discover.client.definitions.{
   BucketConfig,
+  DatasetPublishStatus,
   FinalizeDoiCollectionRequest,
   InternalContributor,
   PublishDoiCollectionRequest
 }
-import com.pennsieve.discover.clients.{ MockDoiClient, MockS3StreamClient }
+import com.pennsieve.discover.clients.{
+  LambdaRequest,
+  MockDoiClient,
+  MockLambdaClient,
+  MockS3StreamClient,
+  MockSearchClient
+}
 import com.pennsieve.discover.db.{
   PublicContributorsMapper,
   PublicDatasetDoiCollectionDoisMapper,
@@ -31,17 +46,29 @@ import com.pennsieve.discover.db.{
   PublicDatasetsMapper,
   PublicFileVersionsMapper
 }
-import com.pennsieve.discover.models.{ PublicDatasetDoiCollection, S3Key }
+import com.pennsieve.discover.models.{
+  PublicDatasetDoiCollection,
+  PublicDatasetVersion,
+  PublishingWorkflow,
+  S3CleanupStage,
+  S3Key
+}
 import com.pennsieve.models.DatasetType.Collection
 import com.pennsieve.models.PublishStatus.{
   PublishFailed,
   PublishInProgress,
-  PublishSucceeded
+  PublishSucceeded,
+  Unpublished
 }
 import com.pennsieve.models.{ Degree, License, PublishStatus }
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import slick.dbio.{ DBIOAction, NoStream }
+import com.pennsieve.discover.db.profile.api._
+
+import java.time.LocalDate
+import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 
 class DoiCollectionHandlerSpec
     extends AnyWordSpec
@@ -605,108 +632,9 @@ class DoiCollectionHandlerSpec
     }
 
     "handle a successful publish" in {
-      client
-        .publishDoiCollection(sourceCollectionId, requestBody, authToken)
-        .awaitFinite()
-        .value
-        .asInstanceOf[PublishDoiCollectionResponse.Created]
-        .value
 
-      val publicDataset = ports.db
-        .run(
-          PublicDatasetsMapper
-            .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
-        )
-        .awaitFinite()
-
-      val publicVersion = ports.db
-        .run(
-          PublicDatasetVersionsMapper
-            .getLatestVersion(publicDataset.id)
-        )
-        .awaitFinite()
-        .get
-
-      publicVersion.status shouldBe PublishStatus.PublishInProgress
-
-      val manifestJson =
-        s"""
-           |{
-           |  "pennsieveDatasetId": 3862,
-           |  "version": 3,
-           |  "name": "90acb367-515d-43b3-b88c-54403cbdc9b6",
-           |  "description": "c302d2ec-7ae6-457b-8a69-4715cac9c8aa",
-           |  "creator": {
-           |    "first_name": "81db83d6-ad29-43d6-97c4-500396355b38",
-           |    "last_name": "9eedf149-f13f-4c55-a3d5-a274060a58f1",
-           |    "orcid": "d54200dc-009d-4ca8-b277-ff0d5274ddd3",
-           |    "middle_initial": "0",
-           |    "degree": "M.S."
-           |  },
-           |  "contributors": [
-           |    {
-           |      "first_name": "81db83d6-ad29-43d6-97c4-500396355b38",
-           |      "last_name": "9eedf149-f13f-4c55-a3d5-a274060a58f1",
-           |      "orcid": "d54200dc-009d-4ca8-b277-ff0d5274ddd3",
-           |      "middle_initial": "0",
-           |      "degree": "M.S."
-           |    }
-           |  ],
-           |  "sourceOrganization": "",
-           |  "keywords": [
-           |    "813228ad-bd2f-42b7-acf9-70b95cb2c144",
-           |    "9d79aabf-21c2-4870-ae75-8def7d6218cf"
-           |  ],
-           |  "datePublished": "2025-07-07",
-           |  "license": "BSD 3-Clause \\"New\\" or \\"Revised\\" License",
-           |  "@id": "10.1111/05a5a504-a0b1-4023-b788-041228f01c41",
-           |  "publisher": "The University of Pennsylvania",
-           |  "@context": "http://schema.org/",
-           |  "@type": "Collection",
-           |  "schemaVersion": "http://schema.org/version/3.7/",
-           |  "files": [
-           |    {
-           |      "name": "manifest.json",
-           |      "path": "manifest.json",
-           |      "size": 1478,
-           |      "fileType": "Json"
-           |    }
-           |  ],
-           |  "references": {
-           |    "ids": [
-           |      "10.1111/31080ffa-858b-40f1-96b0-d042c4a67928",
-           |      "10.1111/116bd2df-0be3-4c80-9bd0-5cdb9210a414",
-           |      "10.1111/5d2ec43a-45d6-4d96-a841-371f7a30e10e"
-           |    ]
-           |  },
-           |  "pennsieveSchemaVersion": "5.0"
-           |}
-           |""".stripMargin
-      ports.s3StreamClient
-        .asInstanceOf[MockS3StreamClient]
-        .storeDatasetMetadata(publicVersion, manifestJson)
-
-      val expectedFileCount = 1
-      val expectedTotalSize = 1478
-      val expectedManifestKey = s"${publicDataset.id}/manifest.json"
-      val expectedManifestVersionId = TestUtilities.randomString()
-
-      val finalizeRequest = FinalizeDoiCollectionRequest(
-        publishedDatasetId = publicDataset.id,
-        publishedVersion = publicVersion.version,
-        publishSuccess = true,
-        fileCount = expectedFileCount,
-        totalSize = expectedTotalSize,
-        manifestKey = expectedManifestKey,
-        manifestVersionId = expectedManifestVersionId
-      )
-
-      val finalizeResponse = client
-        .finalizeDoiCollection(sourceCollectionId, finalizeRequest, authToken)
-        .awaitFinite()
-        .value
-        .asInstanceOf[FinalizeDoiCollectionResponse.OK]
-        .value
+      val (publishResponse, finalizeRequest, finalizeResponse) =
+        publishDoiCollection()
 
       finalizeResponse.status shouldBe PublishStatus.PublishSucceeded
 
@@ -727,8 +655,8 @@ class DoiCollectionHandlerSpec
         .get
 
       publicVersionFinal.status shouldBe PublishStatus.PublishSucceeded
-      publicVersionFinal.fileCount shouldBe expectedFileCount
-      publicVersionFinal.size shouldBe expectedTotalSize
+      publicVersionFinal.fileCount shouldBe finalizeRequest.fileCount
+      publicVersionFinal.size shouldBe finalizeRequest.totalSize
 
       val files = ports.db
         .run(PublicFileVersionsMapper.getAll(publicDatasetFinal.id))
@@ -737,8 +665,8 @@ class DoiCollectionHandlerSpec
       files.length shouldEqual 1
       val actualManifestFile = files.head
 
-      actualManifestFile.s3Key.value shouldBe expectedManifestKey
-      actualManifestFile.s3Version shouldBe expectedManifestVersionId
+      actualManifestFile.s3Key.value shouldBe finalizeRequest.manifestKey
+      actualManifestFile.s3Version shouldBe finalizeRequest.manifestVersionId
       actualManifestFile.fileType shouldBe "Json"
 
       val links = ports.db
@@ -795,4 +723,279 @@ class DoiCollectionHandlerSpec
     }
 
   }
+
+  "POST /collection/{datasetId}/unpublish" should {
+
+    "fail without a JWT" in {
+
+      val response = client
+        .unpublishDoiCollection(collectionId = sourceCollectionId)
+        .awaitFinite()
+        .value
+
+      response shouldBe Unauthorized
+    }
+
+    "fail with a user JWT" in {
+      val response = client
+        .unpublishDoiCollection(sourceCollectionId, userAuthToken)
+        .awaitFinite()
+        .value
+
+      response shouldBe Forbidden("Only allowed for service level requests")
+    }
+
+    "unpublish a dataset" in {
+
+      val (publishResponse, finalizeRequest, finalizeResponse) =
+        publishDoiCollection()
+
+      val response =
+        client
+          .unpublishDoiCollection(sourceCollectionId, authToken)
+          .awaitFinite()
+          .value
+          .asInstanceOf[OK]
+          .value
+
+      response.status shouldBe Unpublished
+
+      val version = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publishResponse.publishedDatasetId)
+        )
+        .await
+        .value
+
+      version.status shouldBe Unpublished
+
+      // Note: the S3 Clean Lambda is invoked at the end of Publish to "tidy," and at Unpublish time
+      ports.lambdaClient
+        .asInstanceOf[MockLambdaClient]
+        .requests should contain atLeastOneElementOf List(
+        LambdaRequest(
+          publishResponse.publishedDatasetId.toString,
+          version.s3Bucket.value,
+          version.s3Bucket.value,
+          S3CleanupStage.Unpublish,
+          true
+        )
+      )
+
+      ports.searchClient
+        .asInstanceOf[MockSearchClient]
+        .indexedDatasets shouldBe empty
+    }
+
+    "rollback a failed version when unpublishing" in {
+
+      val dataset = TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )(name = collectionName, sourceDatasetId = sourceCollectionId)
+
+      val version = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = dataset.id,
+        status = PublishFailed
+      )
+
+      val doiCollection = TestUtilities.createDatasetDoiCollection(ports.db)(
+        datasetId = version.datasetId,
+        datasetVersion = version.version,
+        banners = TestUtilities.randomBannerUrls
+      )
+
+      TestUtilities.addDoiCollectionDois(ports.db)(
+        doiCollection = doiCollection,
+        dois =
+          List(TestUtilities.randomPennsieveDoi(ports.config.doiCollections))
+      )
+
+      val response = client
+        .unpublishDoiCollection(sourceCollectionId, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[OK]
+        .value
+
+      response shouldBe DatasetPublishStatus(
+        collectionName,
+        collectionOrgId,
+        sourceCollectionId,
+        None,
+        0,
+        PublishStatus.NotPublished,
+        None,
+        workflowId = PublishingWorkflow.Version4
+      )
+
+      ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .filter(_.datasetId === version.datasetId)
+            .result
+        )
+        .await shouldBe empty
+
+      ports.db
+        .run(
+          PublicDatasetDoiCollectionsMapper
+            .filter(_.datasetId === version.datasetId)
+            .result
+        )
+        .await shouldBe empty
+
+      ports.db
+        .run(
+          PublicDatasetDoiCollectionDoisMapper
+            .filter(_.datasetId === version.datasetId)
+            .result
+        )
+        .await shouldBe empty
+
+      ports.lambdaClient
+        .asInstanceOf[MockLambdaClient]
+        .requests shouldBe empty
+
+    }
+
+    "fail to unpublish a dataset that is currently publishing" in {
+
+      val dataset = TestUtilities.createDoiCollectionDataset(
+        ports.db,
+        ports.config.doiCollections.idSpace
+      )(name = collectionName, sourceDatasetId = sourceCollectionId)
+
+      val version = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = dataset.id,
+        status = PublishInProgress
+      )
+
+      val response = client
+        .unpublishDoiCollection(sourceCollectionId, authToken)
+        .awaitFinite()
+        .value
+
+      response shouldBe Forbidden(
+        "Cannot unpublish a DOI Collection that is being published"
+      )
+    }
+
+    "respond with NoContent for a dataset that was never published" in {
+
+      val response =
+        client
+          .unpublishDoiCollection(sourceCollectionId, authToken)
+          .awaitFinite()
+          .value
+
+      response shouldBe NoContent
+    }
+
+  }
+
+  private def publishDoiCollection(): (
+    definitions.PublishDoiCollectionResponse,
+    FinalizeDoiCollectionRequest,
+    definitions.FinalizeDoiCollectionResponse
+  ) = {
+    val publishResponse = client
+      .publishDoiCollection(sourceCollectionId, requestBody, authToken)
+      .awaitFinite()
+      .value
+      .asInstanceOf[PublishDoiCollectionResponse.Created]
+      .value
+
+    val publicDataset = ports.db
+      .run(
+        PublicDatasetsMapper
+          .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
+      )
+      .awaitFinite()
+
+    val version: PublicDatasetVersion = ports.db
+      .run(
+        PublicDatasetVersionsMapper
+          .getLatestVersion(publicDataset.id)
+      )
+      .awaitFinite()
+      .get
+
+    val manifestJson =
+      s"""
+         |{
+         |  "pennsieveDatasetId": ${sourceCollectionId},
+         |  "version": ${version.version},
+         |  "name": "90acb367-515d-43b3-b88c-54403cbdc9b6",
+         |  "description": "c302d2ec-7ae6-457b-8a69-4715cac9c8aa",
+         |  "creator": {
+         |    "first_name": "81db83d6-ad29-43d6-97c4-500396355b38",
+         |    "last_name": "9eedf149-f13f-4c55-a3d5-a274060a58f1",
+         |    "orcid": "d54200dc-009d-4ca8-b277-ff0d5274ddd3",
+         |    "middle_initial": "0",
+         |    "degree": "M.S."
+         |  },
+         |  "contributors": [
+         |    {
+         |      "first_name": "81db83d6-ad29-43d6-97c4-500396355b38",
+         |      "last_name": "9eedf149-f13f-4c55-a3d5-a274060a58f1",
+         |      "orcid": "d54200dc-009d-4ca8-b277-ff0d5274ddd3",
+         |      "middle_initial": "0",
+         |      "degree": "M.S."
+         |    }
+         |  ],
+         |  "sourceOrganization": "Discover Collections",
+         |  "keywords": [
+         |    "813228ad-bd2f-42b7-acf9-70b95cb2c144",
+         |    "9d79aabf-21c2-4870-ae75-8def7d6218cf"
+         |  ],
+         |  "datePublished": "2025-07-07",
+         |  "license": "BSD 3-Clause \\"New\\" or \\"Revised\\" License",
+         |  "@id": "10.1111/05a5a504-a0b1-4023-b788-041228f01c41",
+         |  "publisher": "The University of Pennsylvania",
+         |  "@context": "http://schema.org/",
+         |  "@type": "Collection",
+         |  "schemaVersion": "http://schema.org/version/3.7/",
+         |  "files": [
+         |    {
+         |      "name": "manifest.json",
+         |      "path": "manifest.json",
+         |      "size": 1478,
+         |      "fileType": "Json"
+         |    }
+         |  ],
+         |  "references": {
+         |    "ids": [
+         |      "10.1111/31080ffa-858b-40f1-96b0-d042c4a67928",
+         |      "10.1111/116bd2df-0be3-4c80-9bd0-5cdb9210a414",
+         |      "10.1111/5d2ec43a-45d6-4d96-a841-371f7a30e10e"
+         |    ]
+         |  },
+         |  "pennsieveSchemaVersion": "5.0"
+         |}
+         |""".stripMargin
+    ports.s3StreamClient
+      .asInstanceOf[MockS3StreamClient]
+      .storeDatasetMetadata(version, manifestJson)
+
+    val finalizeRequest = FinalizeDoiCollectionRequest(
+      publishedDatasetId = publicDataset.id,
+      publishedVersion = version.version,
+      publishSuccess = true,
+      fileCount = 1,
+      totalSize = 1234,
+      manifestKey = s"${publicDataset.id}/manifest.json",
+      manifestVersionId = TestUtilities.randomString()
+    )
+    val finalizeResponse = client
+      .finalizeDoiCollection(sourceCollectionId, finalizeRequest, authToken)
+      .awaitFinite()
+      .value
+      .asInstanceOf[FinalizeDoiCollectionResponse.OK]
+      .value
+
+    (publishResponse, finalizeRequest, finalizeResponse)
+  }
+
 }

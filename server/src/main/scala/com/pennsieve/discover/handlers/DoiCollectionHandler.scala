@@ -3,7 +3,9 @@
 package com.pennsieve.discover.handlers
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.http.scaladsl.server.Route
+import cats.implicits._
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
@@ -28,12 +30,16 @@ import com.pennsieve.discover.models.{
   PublishingWorkflow
 }
 import com.pennsieve.discover.{
+  utils,
+  Authenticator,
   DoiCreationException,
   DoiServiceException,
   DuplicateDoiException,
   ForbiddenException,
   MissingParameterException,
+  NoDatasetForSourcesException,
   Ports,
+  PublishJobException,
   UnauthorizedException
 }
 import com.pennsieve.discover.server.collection.{
@@ -55,7 +61,11 @@ import com.pennsieve.discover.notifications.{
   SQSNotificationType
 }
 import com.pennsieve.models.DatasetType.Collection
-import com.pennsieve.models.PublishStatus.{ PublishFailed, PublishInProgress }
+import com.pennsieve.models.PublishStatus.{
+  PublishFailed,
+  PublishInProgress,
+  Unpublished
+}
 import slick.dbio.{ DBIO, DBIOAction }
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -472,6 +482,106 @@ class DoiCollectionHandler(
     )
     DBIO.from(Future.successful(PublishFailed))
   }
+
+  override def unpublishDoiCollection(
+    respond: GuardrailResource.UnpublishDoiCollectionResponse.type
+  )(
+    collectionId: Int
+  ): Future[GuardrailResource.UnpublishDoiCollectionResponse] = {
+    implicit val logContext: DiscoverLogContext = DiscoverLogContext(
+      organizationId = Some(collectionOrgId),
+      datasetId = Some(collectionId)
+    )
+    withServiceOwnerAuthorization[
+      GuardrailResource.UnpublishDoiCollectionResponse
+    ](claim, collectionOrgId, collectionId) { _ =>
+      val query = for {
+
+        dataset <- PublicDatasetsMapper.getDatasetFromSourceIds(
+          collectionOrgId,
+          collectionId
+        )
+
+        _ <- PublicDatasetVersionsMapper
+          .isPublishing(dataset)
+          .flatMap(
+            if (_)
+              DBIO.failed(
+                ForbiddenException(
+                  "Cannot unpublish a DOI Collection that is being published"
+                )
+              )
+            else
+              DBIO.successful(())
+          )
+
+        versions <- PublicDatasetVersionsMapper
+          .getSuccessfulVersions(dataset)
+          .result
+          .map(_.toList)
+
+        _ = ports.log.info(
+          s"Unpublishing DOI Collection ${dataset.id} versions ${versions.map(_.version)}"
+        )
+
+        migrated = versions.get(0) match {
+          case Some(version) => version.migrated
+          case None => false
+        }
+
+        // If the last version failed to publish, remove it entirely
+        _ <- PublicDatasetVersionsMapper.rollbackIfNeeded(dataset)
+
+        _ <- PublicDatasetVersionsMapper.setStatus(
+          dataset.id,
+          versions.filter(_.status == PublishStatus.PublishSucceeded),
+          Unpublished
+        )
+        _ <- DBIO.from(ports.searchClient.removeDataset(dataset))
+
+        token = Authenticator.generateServiceToken(
+          ports.jwt,
+          organizationId = collectionOrgId,
+          datasetId = collectionId
+        )
+        headers = List(Authorization(OAuth2BearerToken(token.value)))
+
+        _ <- DBIO.from(
+          versions.traverse(
+            version =>
+              ports.doiClient
+                .hideDoi(version.doi, headers)
+          )
+        )
+        _ <- DBIO.from(
+          utils.deleteAssetsMulti(
+            ports.lambdaClient,
+            s3KeyPrefix = dataset.id.toString,
+            versions.map(_.s3Bucket).toSet,
+            migrated
+          )
+        )
+        status <- PublicDatasetVersionsMapper.getDatasetStatus(dataset)
+      } yield status
+
+      ports.db.run(query.transactionally).map(respond.OK)
+    }.recover {
+      case NoDatasetForSourcesException(_, _) =>
+        respond.NoContent
+      case UnauthorizedException => respond.Unauthorized
+      case DecodingFailure(msg, path) =>
+        respond.InternalServerError(s"Failed to decode DOI: $msg [$path]")
+      case DoiServiceException(e) =>
+        respond.InternalServerError(
+          s"Failed to communicate with DOI service: $e"
+        )
+      case ForbiddenException(e) => respond.Forbidden(e)
+      case PublishJobException(e) => respond.InternalServerError(e.toString)
+      case NonFatal(e) => respond.InternalServerError(e.toString)
+    }
+
+  }
+
 }
 
 object DoiCollectionHandler {
