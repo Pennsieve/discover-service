@@ -554,7 +554,7 @@ class DoiCollectionHandler(
           )
         )
         _ <- DBIO.from(
-          utils.deleteAssetsMulti(
+          utils.deleteAssetsMultiForUnpublish(
             ports.lambdaClient,
             s3KeyPrefix = dataset.id.toString,
             publishedDatasetId = dataset.id,

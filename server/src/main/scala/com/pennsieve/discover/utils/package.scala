@@ -136,7 +136,7 @@ package object utils {
     } yield validDoi
   }
 
-  def deleteAssets(
+  def deleteAssetsForUnpublish(
     lambdaClient: LambdaClient,
     s3KeyPrefix: String,
     publishedDatasetId: Int,
@@ -158,7 +158,7 @@ package object utils {
     )
   }
 
-  def deleteAssetsMulti(
+  def deleteAssetsMultiForUnpublish(
     lambdaClient: LambdaClient,
     s3KeyPrefix: String,
     publishedDatasetId: Int,
@@ -173,7 +173,7 @@ package object utils {
       atMostTwoAtATime
         .map(_.toList match {
           case List(S3Bucket(b1), S3Bucket(b2)) =>
-            deleteAssets(
+            deleteAssetsForUnpublish(
               lambdaClient,
               s3KeyPrefix,
               publishedDatasetId,
@@ -182,7 +182,7 @@ package object utils {
               migrated
             )
           case List(S3Bucket(b)) =>
-            deleteAssets(
+            deleteAssetsForUnpublish(
               lambdaClient,
               s3KeyPrefix,
               publishedDatasetId,
