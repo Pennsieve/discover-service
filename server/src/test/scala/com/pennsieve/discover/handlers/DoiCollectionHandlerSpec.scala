@@ -776,6 +776,8 @@ class DoiCollectionHandlerSpec
         .requests should contain atLeastOneElementOf List(
         LambdaRequest(
           publishResponse.publishedDatasetId.toString,
+          publishResponse.publishedDatasetId,
+          None,
           version.s3Bucket.value,
           version.s3Bucket.value,
           S3CleanupStage.Unpublish,

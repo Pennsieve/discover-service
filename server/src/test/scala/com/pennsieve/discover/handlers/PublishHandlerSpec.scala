@@ -1502,6 +1502,8 @@ class PublishHandlerSpec
         .requests should contain atLeastOneElementOf List(
         LambdaRequest(
           publicDataset.id.toString,
+          publicDataset.id,
+          None,
           version.s3Bucket.value,
           version.s3Bucket.value,
           S3CleanupStage.Unpublish,
@@ -1588,6 +1590,8 @@ class PublishHandlerSpec
         .requests should contain atLeastOneElementOf List(
         LambdaRequest(
           publicDataset.id.toString,
+          publicDataset.id,
+          None,
           v1.s3Bucket.value,
           v2.s3Bucket.value,
           S3CleanupStage.Unpublish,
@@ -1711,6 +1715,8 @@ class PublishHandlerSpec
         .requests should contain atLeastOneElementOf List(
         LambdaRequest(
           publicDataset.id.toString,
+          publicDataset.id,
+          None,
           version.s3Bucket.value,
           version.s3Bucket.value,
           S3CleanupStage.Unpublish,

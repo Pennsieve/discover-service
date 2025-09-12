@@ -139,6 +139,7 @@ package object utils {
   def deleteAssets(
     lambdaClient: LambdaClient,
     s3KeyPrefix: String,
+    publishedDatasetId: Int,
     publishBucket: String,
     embargoBucket: String,
     migrated: Boolean
@@ -148,6 +149,8 @@ package object utils {
   ): Future[InvokeResponse] = {
     lambdaClient.runS3Clean(
       s3KeyPrefix,
+      publishedDatasetId,
+      None,
       publishBucket,
       embargoBucket,
       S3CleanupStage.Unpublish,
@@ -158,6 +161,7 @@ package object utils {
   def deleteAssetsMulti(
     lambdaClient: LambdaClient,
     s3KeyPrefix: String,
+    publishedDatasetId: Int,
     buckets: Set[S3Bucket],
     migrated: Boolean
   )(implicit
@@ -169,9 +173,23 @@ package object utils {
       atMostTwoAtATime
         .map(_.toList match {
           case List(S3Bucket(b1), S3Bucket(b2)) =>
-            deleteAssets(lambdaClient, s3KeyPrefix, b1, b2, migrated)
+            deleteAssets(
+              lambdaClient,
+              s3KeyPrefix,
+              publishedDatasetId,
+              b1,
+              b2,
+              migrated
+            )
           case List(S3Bucket(b)) =>
-            deleteAssets(lambdaClient, s3KeyPrefix, b, b, migrated)
+            deleteAssets(
+              lambdaClient,
+              s3KeyPrefix,
+              publishedDatasetId,
+              b,
+              b,
+              migrated
+            )
           case _ =>
             throw new AssertionError(
               s"${atMostTwoAtATime} shouldn't produce lists with more than two elements!"

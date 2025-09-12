@@ -832,6 +832,7 @@ class PublishHandler(
           utils.deleteAssetsMulti(
             ports.lambdaClient,
             s3KeyPrefix = dataset.id.toString,
+            publishedDatasetId = dataset.id,
             versions.map(_.s3Bucket).toSet,
             migrated
           )
