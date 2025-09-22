@@ -829,9 +829,10 @@ class PublishHandler(
           )
         )
         _ <- DBIO.from(
-          utils.deleteAssetsMulti(
+          utils.deleteAssetsMultiForUnpublish(
             ports.lambdaClient,
             s3KeyPrefix = dataset.id.toString,
+            publishedDatasetId = dataset.id,
             versions.map(_.s3Bucket).toSet,
             migrated
           )
