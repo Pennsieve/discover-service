@@ -30,6 +30,7 @@ import com.pennsieve.discover.notifications.{
   PublishNotification,
   SQSNotificationHandler
 }
+import com.pennsieve.doi.models.DoiState
 import com.pennsieve.models.PublishStatus.{
   PublishFailed,
   PublishInProgress,
@@ -790,10 +791,20 @@ class PublishHandlerSpec
 
     "embargo a dataset after it has been unpublished" in {
 
+      // Unpublished DOIs are set to Registered
+      val unpublishedDoi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          organizationId,
+          datasetId,
+          state = Some(DoiState.Registered)
+        )
+        .doi
       TestUtilities.createDatasetV1(ports.db)(
         sourceOrganizationId = organizationId,
         sourceDatasetId = datasetId,
-        status = Unpublished
+        status = Unpublished,
+        doi = unpublishedDoi
       )
 
       val response = client
@@ -809,6 +820,78 @@ class PublishHandlerSpec
         .value
 
       response shouldBe a[PublishResponse.Created]
+    }
+
+    "publish a dataset after it has been unpublished" in {
+      val v1Unpublished = TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = PublishStatus.Unpublished,
+        migrated = true
+      )
+
+      v1Unpublished.version shouldBe 1
+
+      // mock DOI client only needs to know the
+      // most recent DOI.
+      // Unpublished DOIs are set to Registered
+      val unpublishedDoi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          organizationId,
+          datasetId,
+          state = Some(DoiState.Registered)
+        )
+        .doi
+
+      val v2Unpublished = TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = PublishStatus.Unpublished,
+        doi = unpublishedDoi,
+        migrated = true
+      )
+
+      v2Unpublished.version shouldBe 2
+
+      val response = client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          requestBody.copy(workflowId = Some(5)),
+          authToken
+        )
+        .awaitFinite()
+        .value
+
+      response shouldBe a[PublishResponse.Created]
+
+      val republish = response.asInstanceOf[PublishResponse.Created].value
+
+      republish.publishedDatasetId.value shouldBe v2Unpublished.datasetId
+      republish.publishedVersionCount shouldBe 0
+      republish.status shouldBe PublishInProgress
+
+      val dataset =
+        run(PublicDatasetsMapper.getDataset(republish.publishedDatasetId.value))
+
+      val version = run(
+        PublicDatasetVersionsMapper
+          .getLatestVersion(republish.publishedDatasetId.value)
+      ).value
+
+      publishSuccessfully(dataset, version)
+
+      val latest = run(
+        PublicDatasetVersionsMapper
+          .getLatestVersion(republish.publishedDatasetId.value)
+      ).value
+
+      latest.version shouldBe 3
+      latest.status shouldBe PublishSucceeded
+
     }
 
     "not create a new DOI if draft DOI is only associated with a failed version" in {

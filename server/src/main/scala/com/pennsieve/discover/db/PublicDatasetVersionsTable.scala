@@ -987,7 +987,7 @@ object PublicDatasetVersionsMapper
   ): DBIOAction[Boolean, NoStream, Effect.Read] = {
     this
       .filter(_.doi === doi)
-      .filter(_.status inSet successfulStates)
+      .filter(_.status inSet visibleStates)
       .exists
       .result
   }
