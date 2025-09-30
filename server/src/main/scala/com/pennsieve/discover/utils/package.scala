@@ -2,15 +2,22 @@
 
 package com.pennsieve.discover
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
+import com.pennsieve.discover.clients.LambdaClient
 import com.pennsieve.discover.db.PublicDatasetVersionsMapper
 import com.pennsieve.discover.logging.DiscoverLogContext
 
 import java.time.temporal.ChronoUnit
-import com.pennsieve.discover.models.DatasetDownload
+import com.pennsieve.discover.models.{
+  DatasetDownload,
+  S3Bucket,
+  S3CleanupStage
+}
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.models._
 import org.apache.commons.lang3.StringUtils
+import software.amazon.awssdk.services.lambda.model.InvokeResponse
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -127,6 +134,68 @@ package object utils {
         ports.doiClient.createDraftDoi(organizationId, datasetId, headers)
       } else Future.successful(latestDoi)
     } yield validDoi
+  }
+
+  def deleteAssetsForUnpublish(
+    lambdaClient: LambdaClient,
+    s3KeyPrefix: String,
+    publishedDatasetId: Int,
+    publishBucket: String,
+    embargoBucket: String,
+    migrated: Boolean
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[InvokeResponse] = {
+    lambdaClient.runS3Clean(
+      s3KeyPrefix,
+      publishedDatasetId,
+      None,
+      publishBucket,
+      embargoBucket,
+      S3CleanupStage.Unpublish,
+      migrated
+    )
+  }
+
+  def deleteAssetsMultiForUnpublish(
+    lambdaClient: LambdaClient,
+    s3KeyPrefix: String,
+    publishedDatasetId: Int,
+    buckets: Set[S3Bucket],
+    migrated: Boolean
+  )(implicit
+    system: ActorSystem,
+    ec: ExecutionContext
+  ): Future[Iterator[InvokeResponse]] = {
+    val atMostTwoAtATime = buckets.grouped(2)
+    Future.sequence(
+      atMostTwoAtATime
+        .map(_.toList match {
+          case List(S3Bucket(b1), S3Bucket(b2)) =>
+            deleteAssetsForUnpublish(
+              lambdaClient,
+              s3KeyPrefix,
+              publishedDatasetId,
+              b1,
+              b2,
+              migrated
+            )
+          case List(S3Bucket(b)) =>
+            deleteAssetsForUnpublish(
+              lambdaClient,
+              s3KeyPrefix,
+              publishedDatasetId,
+              b,
+              b,
+              migrated
+            )
+          case _ =>
+            throw new AssertionError(
+              s"${atMostTwoAtATime} shouldn't produce lists with more than two elements!"
+            )
+        })
+    )
   }
 
 }

@@ -415,6 +415,8 @@ class SQSNotificationHandler(
       _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
       _ <- ports.lambdaClient.runS3Clean(
         updatedVersion.s3Key.value,
+        updatedVersion.datasetId,
+        Some(updatedVersion.version),
         updatedVersion.s3Bucket.value,
         updatedVersion.s3Bucket.value,
         S3CleanupStage.Tidy,
@@ -575,7 +577,11 @@ class SQSNotificationHandler(
     for {
       workspaceSettings <- ports.db.run(
         WorkspaceSettingsMapper
-          .getSettings(organizationId = publicDataset.sourceOrganizationId)
+          .getSettings(
+            organizationId = publicDataset.sourceOrganizationId,
+            publisherTag = publicDataset.tags
+              .find(_.startsWith(s"${PublicDataset.publisherTagKey}:"))
+          )
       )
 
       redirectSettings = workspaceSettings match {

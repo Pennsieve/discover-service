@@ -16,6 +16,7 @@ final class WorkspaceSettingsTable(tag: Tag)
   def publisherName = column[String]("publisher_name")
   def redirectUrl = column[String]("redirect_url")
   def redirectReleaseUrl = column[Option[String]]("redirect_release_url")
+  def publisherTag = column[Option[String]]("publisher_tag")
   def createdAt = column[OffsetDateTime]("created_at")
   def updatedAt = column[OffsetDateTime]("updated_at")
 
@@ -26,6 +27,7 @@ final class WorkspaceSettingsTable(tag: Tag)
       publisherName,
       redirectUrl,
       redirectReleaseUrl,
+      publisherTag,
       createdAt,
       updatedAt
     ).mapTo[WorkspaceSettings]
@@ -46,12 +48,19 @@ object WorkspaceSettingsMapper
     (this returning this) += settings
 
   def getSettings(
-    organizationId: Int
+    organizationId: Int,
+    publisherTag: Option[String] = None
   )(implicit
     executionContext: ExecutionContext
-  ): DBIOAction[Option[WorkspaceSettings], NoStream, Effect.Read with Effect] =
+  ): DBIOAction[Option[WorkspaceSettings], NoStream, Effect.Read with Effect] = {
     this
       .filter(_.organizationId === organizationId)
+      .filter { ws =>
+        publisherTag.fold(ws.publisherTag.isEmpty.?) { requestedTag =>
+          ws.publisherTag === requestedTag
+        }
+      }
       .result
       .headOption
+  }
 }

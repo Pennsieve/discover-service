@@ -7,6 +7,7 @@ import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
   PublicDataset,
   PublicDatasetDoiCollection,
+  PublicDatasetDoiCollectionWithSize,
   PublicDatasetVersion
 }
 import slick.dbio.{ DBIOAction, Effect }
@@ -76,6 +77,43 @@ object PublicDatasetDoiCollectionsMapper
       .result
       .headOption
 
+  def getWithSize(
+    datasetId: Int,
+    datasetVersion: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Option[PublicDatasetDoiCollectionWithSize], NoStream, Effect.Read with Effect] =
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === datasetVersion)
+      .joinLeft(PublicDatasetDoiCollectionDoisMapper)
+      .on {
+        case (doiCollection, doi) =>
+          doiCollection.datasetId === doi.datasetId && doiCollection.datasetVersion === doi.datasetVersion
+      }
+      .groupBy {
+        case (doiCollection, _) => doiCollection
+      }
+      .map {
+        case (doiCollection, dois) => (doiCollection, dois.length)
+      }
+      .result
+      .headOption
+      .map { maybeResult =>
+        maybeResult.map {
+          case (doiCollection, doiCount) =>
+            PublicDatasetDoiCollectionWithSize(
+              id = doiCollection.id,
+              datasetId = doiCollection.datasetId,
+              datasetVersion = doiCollection.datasetVersion,
+              banners = doiCollection.banners,
+              size = doiCount,
+              createdAt = doiCollection.createdAt,
+              updatedAt = doiCollection.updatedAt
+            )
+        }
+      }
+
   def getFor(
     targetDatasets: Seq[(PublicDataset, PublicDatasetVersion)]
   )(implicit
@@ -98,4 +136,53 @@ object PublicDatasetDoiCollectionsMapper
         _.toMap
       }
   }
+
+  def getForWithSize(
+    targetDatasets: Seq[(PublicDataset, PublicDatasetVersion)]
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Map[
+    (PublicDataset, PublicDatasetVersion),
+    PublicDatasetDoiCollectionWithSize
+  ], NoStream, Effect.Read] = {
+    val baseQuery = PublicDatasetsMapper
+      .join(PublicDatasetVersionsMapper.getMany(targetDatasets.map(_._2)))
+      .on(_.id === _.datasetId)
+      .join(PublicDatasetDoiCollectionsMapper)
+      .on {
+        case ((dataset, version), doiCollection) =>
+          dataset.id === doiCollection.datasetId && version.version === doiCollection.datasetVersion
+      }
+
+    baseQuery
+      .joinLeft(PublicDatasetDoiCollectionDoisMapper)
+      .on {
+        case (((dataset, version), _), doiCollectionDois) =>
+          dataset.id === doiCollectionDois.datasetId && version.version === doiCollectionDois.datasetVersion
+      }
+      .groupBy {
+        case (base, _) =>
+          base // Group by the original result: ((Dataset, Version), DoiCollection)
+      }
+      .map {
+        case (key, group) =>
+          (key, group.length) // For each group, get the key and the COUNT
+      }
+      .result
+      .map { results =>
+        results.map {
+          case (((dataset, version), doiCollection), count) =>
+            (dataset, version) -> PublicDatasetDoiCollectionWithSize(
+              id = doiCollection.id,
+              datasetId = dataset.id,
+              datasetVersion = version.version,
+              banners = doiCollection.banners,
+              size = count,
+              createdAt = doiCollection.createdAt,
+              updatedAt = doiCollection.updatedAt
+            )
+        }.toMap
+      }
+  }
+
 }

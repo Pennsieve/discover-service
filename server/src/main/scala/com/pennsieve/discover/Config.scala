@@ -126,7 +126,8 @@ case class ExternalPublishBucketConfiguration(bucket: S3Bucket, roleArn: Arn)
 case class AthenaConfig(
   pennsieveBucketAccessTable: String,
   sparcBucketAccessTable: String,
-  rejoinBucketAccessTable: String
+  rejoinBucketAccessTable: String,
+  sparcAodBucketAccessTable: String
 )
 
 case class RuntimeSettings(deleteReleaseIntermediateFile: Boolean)

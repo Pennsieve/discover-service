@@ -61,4 +61,65 @@ object PublicDatasetDoiCollectionDoisMapper
       .map(_.doi)
       .result
       .map(_.toList)
+
+  def getDOICount(
+    datasetId: Int,
+    datasetVersion: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[Int, NoStream, Effect.Read] =
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === datasetVersion)
+      .length
+      .result
+
+  def getDOIPage(
+    datasetId: Int,
+    datasetVersion: Int,
+    limit: Int,
+    offset: Int
+  )(implicit
+    executionContext: ExecutionContext
+  ): DBIOAction[PagedDoiResult, NoStream, Effect.Read] = {
+    // leaving off the () after over because slick adds a pair, I guess because it
+    // thinks of it as a function?
+    val countOver = SimpleFunction.nullary[Long]("count(*) over ")
+    this
+      .filter(_.datasetId === datasetId)
+      .filter(_.datasetVersion === datasetVersion)
+      .sortBy(_.position.asc)
+      .map(d => (d, countOver))
+      .drop(offset)
+      .take(limit)
+      .result
+      .map { r =>
+        val dois = r.map(_._1.doi).toList
+        val totalCount = r.headOption.map(_._2).getOrElse(0L)
+        PagedDoiResult(limit, offset, totalCount, dois)
+      } // return correct totalCount even if limit/offset means no rows are returned.
+      .flatMap {
+        case PagedDoiResult(_, _, _, List()) =>
+          this
+            .getDOICount(datasetId, datasetVersion)
+            .map(
+              totalCount =>
+                PagedDoiResult(
+                  limit = limit,
+                  offset = offset,
+                  totalCount = totalCount,
+                  dois = List.empty
+                )
+            )
+        case p => DBIOAction.successful(p)
+      }
+
+  }
 }
+
+case class PagedDoiResult(
+  limit: Int,
+  offset: Int,
+  totalCount: Long,
+  dois: List[String]
+)

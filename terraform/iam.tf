@@ -249,12 +249,18 @@ data "aws_iam_policy_document" "iam_policy_document" {
     effect = "Allow"
     actions = ["glue:*"]
     resources = [
+      // SPARC
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:catalog",
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:database/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_db}",
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.sparc_account_id}:table/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_db}/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_glue_table}",
+      // REJOIN and Precision
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_account_id}:catalog",
       "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_account_id}:database/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}",
-      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_account_id}:table/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_table}"
+      "arn:aws:glue:${data.aws_region.current_region.name}:${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_account_id}:table/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_db}/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_glue_table}",
+      // SPARC AOD
+      "arn:aws:glue:${data.aws_region.current_region.name}:${var.sparc_aod_account_number}:catalog",
+      "arn:aws:glue:${data.aws_region.current_region.name}:${var.sparc_aod_account_number}:database/${local.sparc_aod.glue_db}",
+      "arn:aws:glue:${data.aws_region.current_region.name}:${var.sparc_aod_account_number}:table/${local.sparc_aod.glue_db}/${local.sparc_aod.glue_table}"
     ]
   }
 
@@ -263,10 +269,15 @@ data "aws_iam_policy_document" "iam_policy_document" {
     effect = "Allow"
     actions = ["s3:*"]
     resources = [
+      // SPARC
       "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_bucket}",
       "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_bucket}/${data.terraform_remote_state.platform_infrastructure.outputs.sparc_s3_access_logs_prefix}*",
+      // REJOIN and Precision
       "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_bucket}",
-      "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_bucket}/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_prefix}*"
+      "arn:aws:s3:::${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_bucket}/${data.terraform_remote_state.platform_infrastructure.outputs.rejoin_s3_access_logs_prefix}*",
+      // SPARC AOD
+      "arn:aws:s3:::${local.sparc_aod.s3_access_logs_bucket}",
+      "arn:aws:s3:::${local.sparc_aod.s3_access_logs_bucket}/${local.sparc_aod.s3_access_logs_prefix}*"
     ]
   }
 
@@ -276,7 +287,8 @@ data "aws_iam_policy_document" "iam_policy_document" {
     actions = ["athena:GetDataCatalog"]
     resources = [
       "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:datacatalog/${aws_athena_data_catalog.sparc_glue_catalog.name}",
-      "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:datacatalog/${aws_athena_data_catalog.rejoin_glue_catalog.name}"
+      "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:datacatalog/${aws_athena_data_catalog.rejoin_glue_catalog.name}",
+      "arn:aws:athena:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:datacatalog/${aws_athena_data_catalog.sparc_aod_glue_catalog.name}"
     ]
   }
 

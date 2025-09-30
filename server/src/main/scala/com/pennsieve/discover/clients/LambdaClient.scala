@@ -22,8 +22,21 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 trait LambdaClient {
 
+  /*
+   * Starts the S3Clean Lambda.
+   * If migrated is False, then s3KeyPrefix is used, otherwise
+   * publishedDatasetId is used. With publishedDatasetVersion being used
+   * if cleanupStage is FAILURE and migrated is True.
+   *
+   * There is no harm in including all known values regardless of migrated or cleanupStage values.
+   *
+   * The migrated and s3KeyPrefix parameters can be removed once all datasets
+   * are migrated.
+   */
   def runS3Clean(
     s3KeyPrefix: String,
+    publishedDatasetId: Int,
+    publishedDatasetVersion: Option[Int],
     publishBucket: String,
     embargoBucket: String,
     cleanupStage: String,
@@ -51,6 +64,8 @@ class AlpakkaLambdaClient(
 
   def runS3Clean(
     s3KeyPrefix: String,
+    publishedDatasetId: Int,
+    publishedDatasetVersion: Option[Int],
     publishBucket: String,
     embargoBucket: String,
     cleanupStage: String,
@@ -71,6 +86,10 @@ class AlpakkaLambdaClient(
           .fromUtf8String(
             Map(
               "s3_key_prefix" -> s3KeyPrefix,
+              "published_dataset_id" -> publishedDatasetId.toString,
+              "published_dataset_version" -> publishedDatasetVersion
+                .getOrElse(-1)
+                .toString,
               "publish_bucket" -> publishBucket,
               "embargo_bucket" -> embargoBucket,
               "workflow_id" -> workflowId,

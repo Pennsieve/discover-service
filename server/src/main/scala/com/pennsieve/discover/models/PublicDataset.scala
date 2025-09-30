@@ -27,6 +27,8 @@ object PublicDataset {
   implicit val encoder: Encoder[PublicDataset] = deriveEncoder[PublicDataset]
   implicit val decoder: Decoder[PublicDataset] = deriveDecoder[PublicDataset]
 
+  val publisherTagKey = "publisher"
+
   /*
    * This is required by slick when using a companion object on a case
    * class that defines a database table

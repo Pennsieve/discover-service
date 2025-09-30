@@ -21,7 +21,8 @@ trait AthenaClient {
 class AthenaClientImpl(
   val pennsieveTable: String,
   val sparcTable: String,
-  val rejoinTable: String
+  val rejoinTable: String,
+  val sparcAodTable: String
 ) extends AthenaClient {
 
   def getDatasetDownloadsForRange(
@@ -38,6 +39,8 @@ class AthenaClientImpl(
             | ${tableQuery(sparcTable, startDate, endDate)}
             | UNION
             | ${tableQuery(rejoinTable, startDate, endDate)}
+            | UNION
+            | ${tableQuery(sparcAodTable, startDate, endDate)}
             | ORDER BY  dataset_id, version, dl_date;""".stripMargin
         .map(
           rs =>

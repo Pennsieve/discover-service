@@ -341,6 +341,8 @@ class ReleaseHandler(
         _ <- DBIOAction.from(
           ports.lambdaClient.runS3Clean(
             updatedVersion.s3Key.value,
+            updatedVersion.datasetId,
+            Some(updatedVersion.version),
             updatedVersion.s3Bucket.value,
             updatedVersion.s3Bucket.value,
             cleanupStage,
