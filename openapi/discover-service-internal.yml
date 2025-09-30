@@ -948,8 +948,6 @@ components:
         - repoUrl
         - ownerNodeId
         - ownerFirstName
-        - ownerLastName
-        - ownerOrcid
         - organizationNodeId
         - organizationName
         - datasetNodeId
@@ -973,7 +971,7 @@ components:
         contributors:
           type: array
           items:
-            $ref: "#/components/schemas/InternalContributor"
+            $ref: "#/components/schemas/InternalReleaseContributor"
         collections:
           type: array
           items:
@@ -1293,6 +1291,30 @@ components:
         - id
         - firstName
         - lastName
+      properties:
+        id:
+          type: integer
+          format: int32
+        firstName:
+          type: string
+        lastName:
+          type: string
+        orcid:
+          type: string
+        middleInitial:
+          type: string
+        degree:
+          type: string
+          x-scala-type: com.pennsieve.models.Degree
+        userId:
+          type: integer
+          format: int32
+
+    InternalReleaseContributor:
+      type: object
+      required:
+        - id
+        - firstName
       properties:
         id:
           type: integer

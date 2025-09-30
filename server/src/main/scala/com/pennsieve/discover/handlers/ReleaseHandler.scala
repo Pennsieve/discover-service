@@ -124,8 +124,8 @@ class ReleaseHandler(
                   sourceDatasetId = datasetId,
                   ownerId = body.ownerId,
                   ownerFirstName = body.ownerFirstName,
-                  ownerLastName = body.ownerLastName,
-                  ownerOrcid = body.ownerOrcid,
+                  ownerLastName = body.ownerLastName.getOrElse(""),
+                  ownerOrcid = body.ownerOrcid.getOrElse(""),
                   license = body.license,
                   tags = body.tags.toList,
                   datasetType = DatasetType.Release
@@ -181,7 +181,7 @@ class ReleaseHandler(
                   .create(
                     firstName = c.firstName,
                     middleInitial = c.middleInitial,
-                    lastName = c.lastName,
+                    lastName = c.lastName.getOrElse(""),
                     degree = c.degree,
                     orcid = c.orcid,
                     datasetId = publicDataset.id,
