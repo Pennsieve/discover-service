@@ -9,7 +9,7 @@ import akka.stream.scaladsl.{ Sink, Source }
 import com.pennsieve.auth.middleware.AkkaDirective.authenticateJwt
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.utils.getOrCreateDoi
-import com.pennsieve.discover.Authenticator.withServiceOwnerAuthorization
+import com.pennsieve.discover.Authenticator.withServiceOrganizationAuthorization
 import com.pennsieve.discover.db.{
   PublicCollectionsMapper,
   PublicContributorsMapper,
@@ -109,161 +109,158 @@ class ReleaseHandler(
         Some(PublishingWorkflow.Version5)
       )
 
-    withServiceOwnerAuthorization[PublishResponse](
-      claim,
-      organizationId,
-      datasetId
-    ) { _ =>
-      getOrCreateDoi(ports, organizationId, datasetId)
-        .flatMap { doi =>
-          ports.log.info(s"publishRelease() DOI: ${doi}")
+    withServiceOrganizationAuthorization[PublishResponse](claim, organizationId) {
+      _ =>
+        getOrCreateDoi(ports, organizationId, datasetId)
+          .flatMap { doi =>
+            ports.log.info(s"publishRelease() DOI: ${doi}")
 
-          val query = for {
-            publicDataset <- PublicDatasetsMapper
-              .createOrUpdate(
-                name = body.name,
-                sourceOrganizationId = organizationId,
-                sourceOrganizationName = body.organizationName,
-                sourceDatasetId = datasetId,
-                ownerId = body.ownerId,
-                ownerFirstName = body.ownerFirstName,
-                ownerLastName = body.ownerLastName,
-                ownerOrcid = body.ownerOrcid,
-                license = body.license,
-                tags = body.tags.toList,
-                datasetType = DatasetType.Release
-              )
-            _ = ports.log.info(s"publishRelease() dataset: ${publicDataset}")
-
-            (release, version) <- PublicDatasetVersionsMapper
-              .getVersionAndRelease(publicDataset, body.label, body.marker)
-              .flatMap {
-                case Some((release, version))
-                    if version.status == PublishSucceeded =>
-                  val message =
-                    s"release already published [dataset:${version.datasetId}, version${version.version}] ${release.repoUrl} ${release.label} ${release.marker}"
-                  ports.log.error(message)
-                  DBIO.failed(ForbiddenException(message))
-                case Some((release, version)) =>
-                  // resume an in progress or failed publication
-                  ports.log.info(
-                    s"publishRelease() resuming publication of version: ${version} and release: ${release}"
-                  )
-                  PublicDatasetVersionsMapper
-                    .resumeReleasePublishing(version, release)
-                case None =>
-                  // create version and release
-                  ports.log.info(
-                    s"publishRelease() creating new version and release"
-                  )
-                  PublicDatasetVersionsMapper.createNewVersionAndRelease(
-                    publicDataset,
-                    doi.doi,
-                    body.description,
-                    body.fileCount,
-                    body.size,
-                    targetS3Bucket,
-                    body.origin,
-                    body.repoUrl,
-                    body.label,
-                    body.marker,
-                    body.labelUrl,
-                    body.markerUrl,
-                    body.releaseStatus
-                  )
-              }
-
-            _ = ports.log.info(s"publishRelease() version: ${version}")
-            _ = ports.log.info(s"publishRelease() release: ${release}")
-
-            _ = ports.log.info(
-              s"publishRelease() [request] contributors: ${body.contributors}"
-            )
-            contributors <- DBIO.sequence(body.contributors.map { c =>
-              PublicContributorsMapper
-                .create(
-                  firstName = c.firstName,
-                  middleInitial = c.middleInitial,
-                  lastName = c.lastName,
-                  degree = c.degree,
-                  orcid = c.orcid,
-                  datasetId = publicDataset.id,
-                  version = version.version,
-                  sourceContributorId = c.id,
-                  sourceUserId = c.userId
+            val query = for {
+              publicDataset <- PublicDatasetsMapper
+                .createOrUpdate(
+                  name = body.name,
+                  sourceOrganizationId = organizationId,
+                  sourceOrganizationName = body.organizationName,
+                  sourceDatasetId = datasetId,
+                  ownerId = body.ownerId,
+                  ownerFirstName = body.ownerFirstName,
+                  ownerLastName = body.ownerLastName.getOrElse(""),
+                  ownerOrcid = body.ownerOrcid.getOrElse(""),
+                  license = body.license,
+                  tags = body.tags.toList,
+                  datasetType = DatasetType.Release
                 )
-            }.toList)
-            _ = ports.log.info(
-              s"publishRelease() [stored] contributors: $contributors"
-            )
+              _ = ports.log.info(s"publishRelease() dataset: ${publicDataset}")
 
-            _ = ports.log.info(
-              s"publishRelease() [request] collections: ${body.collections}"
-            )
-            collections <- DBIO.sequence(
-              body.collections
-                .getOrElse(IndexedSeq())
-                .map { c =>
-                  PublicCollectionsMapper
-                    .create(
-                      name = c.name,
-                      datasetId = publicDataset.id,
-                      version = version.version,
-                      sourceCollectionId = c.id
+              (release, version) <- PublicDatasetVersionsMapper
+                .getVersionAndRelease(publicDataset, body.label, body.marker)
+                .flatMap {
+                  case Some((release, version))
+                      if version.status == PublishSucceeded =>
+                    val message =
+                      s"release already published [dataset:${version.datasetId}, version${version.version}] ${release.repoUrl} ${release.label} ${release.marker}"
+                    ports.log.error(message)
+                    DBIO.failed(ForbiddenException(message))
+                  case Some((release, version)) =>
+                    // resume an in progress or failed publication
+                    ports.log.info(
+                      s"publishRelease() resuming publication of version: ${version} and release: ${release}"
+                    )
+                    PublicDatasetVersionsMapper
+                      .resumeReleasePublishing(version, release)
+                  case None =>
+                    // create version and release
+                    ports.log.info(
+                      s"publishRelease() creating new version and release"
+                    )
+                    PublicDatasetVersionsMapper.createNewVersionAndRelease(
+                      publicDataset,
+                      doi.doi,
+                      body.description,
+                      body.fileCount,
+                      body.size,
+                      targetS3Bucket,
+                      body.origin,
+                      body.repoUrl,
+                      body.label,
+                      body.marker,
+                      body.labelUrl,
+                      body.markerUrl,
+                      body.releaseStatus
                     )
                 }
-                .toList
-            )
-            _ = ports.log.info(
-              s"publishRelease() [stored] collections: $collections"
-            )
 
-            _ = ports.log.info(
-              s"publishRelease() [request] externalPublications: ${body.externalPublications}"
-            )
-            externalPublications <- DBIO.sequence(
-              body.externalPublications
-                .getOrElse(IndexedSeq.empty)
-                .map { p =>
-                  PublicExternalPublicationsMapper.create(
-                    doi = p.doi,
-                    relationshipType =
-                      p.relationshipType.getOrElse(RelationshipType.References),
+              _ = ports.log.info(s"publishRelease() version: ${version}")
+              _ = ports.log.info(s"publishRelease() release: ${release}")
+
+              _ = ports.log.info(
+                s"publishRelease() [request] contributors: ${body.contributors}"
+              )
+              contributors <- DBIO.sequence(body.contributors.map { c =>
+                PublicContributorsMapper
+                  .create(
+                    firstName = c.firstName,
+                    middleInitial = c.middleInitial,
+                    lastName = c.lastName.getOrElse(""),
+                    degree = c.degree,
+                    orcid = c.orcid,
                     datasetId = publicDataset.id,
-                    version = version.version
+                    version = version.version,
+                    sourceContributorId = c.id,
+                    sourceUserId = c.userId
                   )
-                }
-                .toList
-            )
-            _ = ports.log.info(
-              s"publishRelease() [stored] externalPublications:: $externalPublications"
-            )
+              }.toList)
+              _ = ports.log.info(
+                s"publishRelease() [stored] contributors: $contributors"
+              )
 
-            response = definitions.ReleasePublishingResponse(
-              name = publicDataset.name,
-              sourceOrganizationName = publicDataset.sourceOrganizationName,
-              sourceOrganizationId = publicDataset.sourceOrganizationId,
-              sourceDatasetId = publicDataset.sourceDatasetId,
-              publishedDatasetId = version.datasetId,
-              publishedVersionCount = version.version,
-              status = version.status,
-              lastPublishedDate = Some(version.createdAt),
-              sponsorship = None,
-              publicId = version.doi
-            )
+              _ = ports.log.info(
+                s"publishRelease() [request] collections: ${body.collections}"
+              )
+              collections <- DBIO.sequence(
+                body.collections
+                  .getOrElse(IndexedSeq())
+                  .map { c =>
+                    PublicCollectionsMapper
+                      .create(
+                        name = c.name,
+                        datasetId = publicDataset.id,
+                        version = version.version,
+                        sourceCollectionId = c.id
+                      )
+                  }
+                  .toList
+              )
+              _ = ports.log.info(
+                s"publishRelease() [stored] collections: $collections"
+              )
 
-            _ = ports.log.info(
-              s"publishRelease() finished response: ${response}"
-            )
+              _ = ports.log.info(
+                s"publishRelease() [request] externalPublications: ${body.externalPublications}"
+              )
+              externalPublications <- DBIO.sequence(
+                body.externalPublications
+                  .getOrElse(IndexedSeq.empty)
+                  .map { p =>
+                    PublicExternalPublicationsMapper.create(
+                      doi = p.doi,
+                      relationshipType = p.relationshipType
+                        .getOrElse(RelationshipType.References),
+                      datasetId = publicDataset.id,
+                      version = version.version
+                    )
+                  }
+                  .toList
+              )
+              _ = ports.log.info(
+                s"publishRelease() [stored] externalPublications:: $externalPublications"
+              )
 
-          } yield respond.Created(response)
+              response = definitions.ReleasePublishingResponse(
+                name = publicDataset.name,
+                sourceOrganizationName = publicDataset.sourceOrganizationName,
+                sourceOrganizationId = publicDataset.sourceOrganizationId,
+                sourceDatasetId = publicDataset.sourceDatasetId,
+                publishedDatasetId = version.datasetId,
+                publishedVersionCount = version.version,
+                status = version.status,
+                lastPublishedDate = Some(version.createdAt),
+                sponsorship = None,
+                publicId = version.doi
+              )
 
-          ports.db
-            .run(
-              query.transactionally
-                .withTransactionIsolation(TransactionIsolation.Serializable)
-            )
-        }
+              _ = ports.log.info(
+                s"publishRelease() finished response: ${response}"
+              )
+
+            } yield respond.Created(response)
+
+            ports.db
+              .run(
+                query.transactionally
+                  .withTransactionIsolation(TransactionIsolation.Serializable)
+              )
+          }
 
     }.recover {
       case UnauthorizedException => respond.Unauthorized
@@ -300,10 +297,9 @@ class ReleaseHandler(
     )
     ports.log.info(s"finalizeRelease() starting request: ${body}")
 
-    withServiceOwnerAuthorization[FinalizeResponse](
+    withServiceOrganizationAuthorization[FinalizeResponse](
       claim,
-      sourceOrganizationId,
-      sourceDatasetId
+      sourceOrganizationId
     ) { _ =>
       val query = for {
         publicDataset <- PublicDatasetsMapper
