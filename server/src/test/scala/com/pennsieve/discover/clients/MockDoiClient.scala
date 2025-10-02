@@ -35,7 +35,11 @@ class MockDoiClient(
 
   val dois: Map[String, DoiDTO] = Map.empty[String, DoiDTO]
 
-  def createMockDoi(organizationId: Int, datasetId: Int): DoiDTO = {
+  def createMockDoi(
+    organizationId: Int,
+    datasetId: Int,
+    state: Option[DoiState] = Some(DoiState.Draft)
+  ): DoiDTO = {
     val doi = s"bfPrefix/${randomString()}"
     val dto = DoiDTO(
       organizationId = organizationId,
@@ -45,7 +49,7 @@ class MockDoiClient(
       url = None,
       createdAt = Some("4/18/2019"),
       publicationYear = None,
-      state = Some(DoiState.Draft)
+      state = state
     )
     dois += doi -> dto
     dto
