@@ -11,7 +11,7 @@ import com.pennsieve.discover.ServiceSpecHarness
 import com.pennsieve.discover.client.definitions
 import com.pennsieve.discover.client.definitions.{
   DatasetPublishStatus,
-  InternalContributor,
+  InternalReleaseContributor,
   ReleasePublishingResponse
 }
 import com.pennsieve.discover.client.publish.{ PublishClient, PublishResponse }
@@ -78,10 +78,10 @@ class ReleaseHandlerSpec
   val marker = "4b6083761af527c197ee1549c77b30857dec9542"
 
   val internalContributor =
-    new InternalContributor(
+    new InternalReleaseContributor(
       1,
       "Sally",
-      "Field",
+      Some("Field"),
       middleInitial = Some("M"),
       degree = Some(Degree.BS)
     )
@@ -123,8 +123,8 @@ class ReleaseHandlerSpec
       tags = Vector[String]("tag1", "tag2"),
       ownerNodeId = ownerNodeId,
       ownerFirstName = ownerFirstName,
-      ownerLastName = ownerLastName,
-      ownerOrcid = ownerOrcid,
+      ownerLastName = Some(ownerLastName),
+      ownerOrcid = Some(ownerOrcid),
       organizationNodeId = organizationNodeId,
       organizationName = organizationName,
       datasetNodeId = datasetNodeId,
@@ -529,10 +529,10 @@ class ReleaseHandlerSpec
           size = 0,
           license = License.`Apache License 2.0`,
           contributors = Vector(
-            InternalContributor(
+            InternalReleaseContributor(
               id = 1,
               firstName = "Michael",
-              lastName = "Uftring",
+              lastName = Some("Uftring"),
               orcid = Some("0000-0001-7054-4685"),
               middleInitial = None,
               degree = None,
@@ -544,8 +544,8 @@ class ReleaseHandlerSpec
           tags = Vector.empty,
           ownerNodeId = "N:user:61e7c1cf-a836-421b-b919-a2309402c9d6",
           ownerFirstName = "Michael",
-          ownerLastName = "Uftring",
-          ownerOrcid = "0000-0001-7054-4685",
+          ownerLastName = Some("Uftring"),
+          ownerOrcid = Some("0000-0001-7054-4685"),
           organizationNodeId =
             "N:organization:7c2de0a6-5972-4138-99ad-cc0aff0fb67f",
           organizationName = "Publishing 5.0 Workspace",
