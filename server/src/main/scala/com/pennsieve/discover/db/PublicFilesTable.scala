@@ -2,7 +2,7 @@
 
 package com.pennsieve.discover.db
 
-import java.time.OffsetDateTime
+import java.time.{ OffsetDateTime, ZoneId, ZoneOffset }
 import akka.Done
 import cats.implicits._
 import cats.syntax._
@@ -335,13 +335,13 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
     val result = sql"""
      WITH
        files AS (
-         SELECT name, file_type, s3_key, size, f.source_package_id
+         SELECT name, file_type, s3_key, size, f.source_package_id, f.created_at
          FROM public_files AS f
          WHERE f.path ~ $leafChildSelector::lquery
        ),
 
        directories AS (
-         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id
+         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id, null::timestamp without time zone as created_at
          FROM (
            SELECT
              split_part(f.s3_key, '/', nlevel($parent::ltree) + 1) AS name,
@@ -364,7 +364,8 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
            null::text AS file_type,
            null::text AS s3_key,
            (SELECT COALESCE(COUNT(*), 0) FROM files) + (SELECT COALESCE(COUNT(*), 0) FROM directories) AS size,
-           null::text AS source_package_id
+           null::text AS source_package_id,
+           null::timestamp without time zone as created_at
        )
      (
        SELECT 'count', * FROM total_count
@@ -419,7 +420,21 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
                 s3Key = S3Key.File(r.nextString()),
                 s3Bucket = bucket,
                 size = r.nextLong(),
-                sourcePackageId = r.nextStringOption()
+                sourcePackageId = r.nextStringOption(),
+                createdAt = r
+                  .nextTimestampOption()
+                  .map(ts => {
+                    println("ts in mapper", ts)
+                    val dt =
+                      OffsetDateTime.ofInstant(ts.toInstant, ZoneOffset.UTC)
+                    println("dt in mapper", dt)
+
+                    println(
+                      "instances are equal?",
+                      ts.toInstant == dt.toInstant
+                    )
+                    dt
+                  })
               )
           )
         case "directory" =>
