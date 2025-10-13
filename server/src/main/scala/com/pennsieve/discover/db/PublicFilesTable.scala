@@ -423,18 +423,9 @@ object PublicFilesMapper extends TableQuery(new PublicFilesTable(_)) {
                 sourcePackageId = r.nextStringOption(),
                 createdAt = r
                   .nextTimestampOption()
-                  .map(ts => {
-                    println("ts in mapper", ts)
-                    val dt =
-                      OffsetDateTime.ofInstant(ts.toInstant, ZoneOffset.UTC)
-                    println("dt in mapper", dt)
-
-                    println(
-                      "instances are equal?",
-                      ts.toInstant == dt.toInstant
-                    )
-                    dt
-                  })
+                  .map(
+                    ts => OffsetDateTime.ofInstant(ts.toInstant, ZoneOffset.UTC)
+                  )
               )
           )
         case "directory" =>

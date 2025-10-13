@@ -50,15 +50,6 @@ class PublicFilesMapperSpec
           )
       )
 
-      val f1Actual =
-        run(PublicFilesMapper.filter(_.s3Key === f1.s3Key).result.head)
-
-      println("f1", f1.createdAt)
-      println("f1Actual", f1Actual.createdAt)
-      println("f1 as UTC", f1.createdAt.withOffsetSameInstant(ZoneOffset.UTC))
-
-      f1Actual.createdAt shouldBe (f1.createdAt)
-
       val f2 = run(
         PublicFilesMapper
           .create(
@@ -115,43 +106,36 @@ class PublicFilesMapperSpec
 
       // Can specify subpaths of the version
       // Directories should be returned first
-      val (count, childrenOfA) =
-        run(PublicFilesMapper.childrenOf(version, Some("A")))
-      count shouldBe TotalCount(4)
-
-      val file2 = childrenOfA(2)
-
-      file2
-        .asInstanceOf[FileTreeNode.File]
-        .createdAt
-        .get
-        .toInstant shouldBe f2.createdAt.toInstant
-
-      childrenOfA shouldBe Seq(
-        FileTreeNode.Directory("Y", "A/Y", 100),
-        FileTreeNode.Directory("Z", "A/Z", 100),
-        FileTreeNode
-          .File(
-            "file2.txt",
-            "A/file2.txt",
-            FileType.Text,
-            f2.s3Key,
-            publishBucket,
-            100,
-            Some("N:package:1"),
-            Some(f2.createdAt)
-          ),
-        FileTreeNode
-          .File(
-            "zfile1.zip",
-            "A/zfile1.zip",
-            FileType.ZIP,
-            f1.s3Key,
-            publishBucket,
-            100,
-            Some("N:package:1"),
-            Some(f1.createdAt)
+      run(PublicFilesMapper.childrenOf(version, Some("A"))) shouldBe (
+        (
+          TotalCount(4),
+          Seq(
+            FileTreeNode.Directory("Y", "A/Y", 100),
+            FileTreeNode.Directory("Z", "A/Z", 100),
+            FileTreeNode
+              .File(
+                "file2.txt",
+                "A/file2.txt",
+                FileType.Text,
+                f2.s3Key,
+                publishBucket,
+                100,
+                Some("N:package:1"),
+                Some(f2.createdAt)
+              ),
+            FileTreeNode
+              .File(
+                "zfile1.zip",
+                "A/zfile1.zip",
+                FileType.ZIP,
+                f1.s3Key,
+                publishBucket,
+                100,
+                Some("N:package:1"),
+                Some(f1.createdAt)
+              )
           )
+        )
       )
 
       // Limit/offset work
@@ -361,7 +345,7 @@ class PublicFilesMapperSpec
         "files/Jacobians/µa_0.035_mm-1___µs_15_mm-1_/0mmSD.mat"
       val expectedS3Key = version.s3Key / expectedPath
       val expectedPackageId = Some("N:package:3")
-      run(
+      val expectedFile = run(
         PublicFilesMapper.create(
           version,
           expectedName,
@@ -417,7 +401,8 @@ class PublicFilesMapperSpec
               expectedS3Key,
               publishBucket,
               expectedSize,
-              expectedPackageId
+              expectedPackageId,
+              Some(expectedFile.createdAt)
             )
           )
         )
