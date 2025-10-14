@@ -3,7 +3,6 @@
 package com.pennsieve.discover.db
 
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.db.TotalCount
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.models.{
   FileDownloadDTO,
@@ -16,7 +15,6 @@ import com.pennsieve.test.AwaitableImplicits
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.time.ZoneOffset
 import scala.concurrent.duration._
 
 class PublicFilesMapperSpec

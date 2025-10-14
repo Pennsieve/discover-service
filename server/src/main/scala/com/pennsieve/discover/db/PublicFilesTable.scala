@@ -2,7 +2,7 @@
 
 package com.pennsieve.discover.db
 
-import java.time.{ OffsetDateTime, ZoneId, ZoneOffset }
+import java.time.{ OffsetDateTime, ZoneOffset }
 import akka.Done
 import cats.implicits._
 import cats.syntax._
