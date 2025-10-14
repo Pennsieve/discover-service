@@ -31,7 +31,7 @@ import slick.dbio.{ DBIOAction, Effect }
 import slick.jdbc.{ GetResult, ResultSetConcurrency, ResultSetType }
 
 import java.nio.charset.StandardCharsets
-import java.time.OffsetDateTime
+import java.time.{ OffsetDateTime, ZoneOffset }
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success }
 
@@ -576,7 +576,7 @@ object PublicFileVersionsMapper
     val result = sql"""
      WITH
        files AS (
-         SELECT name, file_type, s3_key, size, f.source_package_id, s3_version, sha256
+         SELECT name, file_type, s3_key, size, f.source_package_id, s3_version, sha256, v.created_at
          FROM public_file_versions AS f
          JOIN public_dataset_version_files v ON v.file_id = f.id
          WHERE f.path ~ $leafChildSelector::lquery
@@ -585,7 +585,7 @@ object PublicFileVersionsMapper
        ),
 
        directories AS (
-         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id, q.s3_version, q.sha256
+         SELECT q.name, q.file_type, q.s3_key, sum(q.size) as size, q.source_package_id, q.s3_version, q.sha256, null::timestamp without time zone as created_at
          FROM (
            SELECT
              split_part(f.s3_key, '/', nlevel($parent::ltree) + 1) AS name,
@@ -615,7 +615,8 @@ object PublicFileVersionsMapper
            (SELECT COALESCE(COUNT(*), 0) FROM files) + (SELECT COALESCE(COUNT(*), 0) FROM directories) AS size,
            null::text AS source_package_id,
            null::text AS s3_version,
-           null::text AS sha256
+           null::text AS sha256,
+           null::timestamp without time zone as created_at
        )
      (
        SELECT 'count', * FROM total_count
@@ -672,7 +673,12 @@ object PublicFileVersionsMapper
                 size = r.nextLong(),
                 sourcePackageId = r.nextStringOption(),
                 s3Version = r.nextStringOption(),
-                sha256 = r.nextStringOption()
+                sha256 = r.nextStringOption(),
+                createdAt = r
+                  .nextTimestampOption()
+                  .map(
+                    ts => OffsetDateTime.ofInstant(ts.toInstant, ZoneOffset.UTC)
+                  )
               )
           )
         case "directory" =>

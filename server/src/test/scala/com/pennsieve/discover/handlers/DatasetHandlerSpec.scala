@@ -42,8 +42,8 @@ import com.pennsieve.discover.clients.{
 }
 import com.pennsieve.discover.db.{
   DatasetDownloadsMapper,
-  PagedDoiResult,
   PublicDatasetDoiCollectionDoisMapper,
+  PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   SponsorshipsMapper
@@ -98,6 +98,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration._
+
+import com.pennsieve.discover.db.profile.api._
 
 class DatasetHandlerSpec
     extends AnyWordSpec
@@ -2283,6 +2285,9 @@ class DatasetHandlerSpec
         s3Version = Some(defaultS3VersionId)
       )
 
+      val f3DatasetVersionFile =
+        TestUtilities.getDatasetVersionFile(ports.db)(f3)
+
       val response =
         datasetClient.browseFiles(v1.datasetId, v1.version).awaitFinite().value
 
@@ -2303,7 +2308,8 @@ class DatasetHandlerSpec
                 PackageType.Text,
                 Icon.Text,
                 Some("N:package:2"),
-                s3Version = Some(defaultS3VersionId)
+                s3Version = Some(defaultS3VersionId),
+                createdAt = Some(f3DatasetVersionFile.createdAt)
               )
           )
         )
@@ -2338,6 +2344,11 @@ class DatasetHandlerSpec
         s3Version = Some(defaultS3VersionId)
       )
 
+      val f1DatasetVersionFile =
+        TestUtilities.getDatasetVersionFile(ports.db)(f1)
+      val f2DatasetVersionFile =
+        TestUtilities.getDatasetVersionFile(ports.db)(f2)
+
       val response =
         datasetClient
           .browseFiles(v1.datasetId, v1.version, Some("A"))
@@ -2360,7 +2371,8 @@ class DatasetHandlerSpec
                 PackageType.Text,
                 Icon.Text,
                 Some("N:package:1"),
-                s3Version = Some(defaultS3VersionId)
+                s3Version = Some(defaultS3VersionId),
+                createdAt = Some(f1DatasetVersionFile.createdAt)
               ),
             client.definitions
               .File(
@@ -2372,7 +2384,8 @@ class DatasetHandlerSpec
                 PackageType.Text,
                 Icon.Text,
                 Some("N:package:1"),
-                s3Version = Some(defaultS3VersionId)
+                s3Version = Some(defaultS3VersionId),
+                createdAt = Some(f2DatasetVersionFile.createdAt)
               )
           )
         )
