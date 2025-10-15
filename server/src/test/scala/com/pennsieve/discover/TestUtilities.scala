@@ -448,6 +448,21 @@ object TestUtilities extends AwaitableImplicits {
       )
       .awaitFinite()
 
+  def getDatasetVersionFile(
+    db: Database
+  )(
+    fileVersion: PublicFileVersion
+  )(implicit
+    executionContext: ExecutionContext
+  ): PublicDatasetVersionFile =
+    db.run(
+        PublicDatasetVersionFilesTableMapper
+          .filter(_.fileId === fileVersion.id)
+          .result
+          .head
+      )
+      .awaitFinite()
+
   def createSponsorship(
     db: Database
   )(

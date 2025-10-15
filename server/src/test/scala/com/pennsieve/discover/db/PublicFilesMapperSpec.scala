@@ -3,7 +3,6 @@
 package com.pennsieve.discover.db
 
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.db.TotalCount
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.models.{
   FileDownloadDTO,
@@ -48,6 +47,7 @@ class PublicFilesMapperSpec
             Some("N:package:1")
           )
       )
+
       val f2 = run(
         PublicFilesMapper
           .create(
@@ -118,7 +118,8 @@ class PublicFilesMapperSpec
                 f2.s3Key,
                 publishBucket,
                 100,
-                Some("N:package:1")
+                Some("N:package:1"),
+                Some(f2.createdAt)
               ),
             FileTreeNode
               .File(
@@ -128,7 +129,8 @@ class PublicFilesMapperSpec
                 f1.s3Key,
                 publishBucket,
                 100,
-                Some("N:package:1")
+                Some("N:package:1"),
+                Some(f1.createdAt)
               )
           )
         )
@@ -149,7 +151,8 @@ class PublicFilesMapperSpec
               f2.s3Key,
               publishBucket,
               100,
-              Some("N:package:1")
+              Some("N:package:1"),
+              Some(f2.createdAt)
             )
           )
         )
@@ -167,7 +170,8 @@ class PublicFilesMapperSpec
                 f3.s3Key,
                 publishBucket,
                 100,
-                Some("N:package:2")
+                Some("N:package:2"),
+                Some(f3.createdAt)
               )
           )
         )
@@ -186,7 +190,8 @@ class PublicFilesMapperSpec
                 f3.s3Key,
                 publishBucket,
                 100,
-                Some("N:package:2")
+                Some("N:package:2"),
+                Some(f3.createdAt)
               )
           )
         )
@@ -205,7 +210,8 @@ class PublicFilesMapperSpec
                 f3.s3Key,
                 publishBucket,
                 100,
-                Some("N:package:2")
+                Some("N:package:2"),
+                Some(f3.createdAt)
               )
           )
         )
@@ -337,7 +343,7 @@ class PublicFilesMapperSpec
         "files/Jacobians/µa_0.035_mm-1___µs_15_mm-1_/0mmSD.mat"
       val expectedS3Key = version.s3Key / expectedPath
       val expectedPackageId = Some("N:package:3")
-      run(
+      val expectedFile = run(
         PublicFilesMapper.create(
           version,
           expectedName,
@@ -393,7 +399,8 @@ class PublicFilesMapperSpec
               expectedS3Key,
               publishBucket,
               expectedSize,
-              expectedPackageId
+              expectedPackageId,
+              Some(expectedFile.createdAt)
             )
           )
         )

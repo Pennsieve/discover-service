@@ -36,6 +36,7 @@ import software.amazon.awssdk.regions.Region
 import squants.information.InformationConversions._
 
 import java.net.URI
+import java.util.TimeZone
 import scala.concurrent.{ Await, ExecutionContext }
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 
@@ -178,6 +179,15 @@ trait ServiceSpecHarness
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+
+    // Setting the timezone for tests that compare times deserialized from the DB.
+    // This is really only to help when running tests locally, because the JVM timezone
+    // is already UTC on the servers and in Jenkins.
+    // The underlying issue is that the Postgres type of our datetime columns is timestamp,
+    // so no timezone info, but the Java type is OffsetDateTime which does include timezone info.
+    // And we have no slick mapper configured to make sure all serialization/deserialization between
+    // Postgres and Scala uses UTC, so things can go wrong when running the tests locally in a non-UTC timezone.
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 
     val setup = isContainerReady(postgresContainer).map { _ =>
       DatabaseMigrator.run(config.postgres)
