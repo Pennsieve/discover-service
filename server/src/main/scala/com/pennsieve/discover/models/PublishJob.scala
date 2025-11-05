@@ -21,7 +21,7 @@ import io.circe.parser.decode
   * @param embargoBucket this is either the owning organization's custom embargo bucket or
   *                      the default embargo bucket if the organization does not have a custom
   *                      bucket.
-
+  * @param expectPrevious true if the publish job can expect a previous version of the dataset to exist in S3, otherwise false.
   */
 case class PublishJob(
   organizationId: Int,
@@ -45,6 +45,7 @@ case class PublishJob(
   externalPublications: List[PublicExternalPublication],
   publishBucket: S3Bucket,
   embargoBucket: S3Bucket,
+  expectPrevious: Boolean,
   workflowId: Long
 )
 
@@ -60,6 +61,7 @@ object PublishJob {
     externalPublications: List[PublicExternalPublication],
     publishBucket: S3Bucket,
     embargoBucket: S3Bucket,
+    expectPrevious: Boolean,
     workflowId: Long = PublishingWorkflow.Version4
   ): PublishJob = {
     PublishJob(
@@ -84,6 +86,7 @@ object PublishJob {
       externalPublications = externalPublications,
       publishBucket = publishBucket,
       embargoBucket = embargoBucket,
+      expectPrevious = expectPrevious,
       workflowId = workflowId
     )
   }
@@ -119,56 +122,32 @@ object PublishJob {
     * PublishJob needs a custom encoder because Fargate task definitions expect
     * environment variables to be passed as strings, not integers, and there is no
     * way to transform JSON types in Step Function input/output/result parameters.
-    * Contributors are therefore encoded as a string rather than a collection fo objects
+    * Contributors are therefore encoded as a string rather than a collection of objects
     */
-  implicit val encoder: Encoder[PublishJob] = Encoder.forProduct22(
-    "organization_id",
-    "organization_node_id",
-    "organization_name",
-    "dataset_id",
-    "dataset_node_id",
-    "published_dataset_id",
-    "user_id",
-    "user_node_id",
-    "user_first_name",
-    "user_last_name",
-    "user_orcid",
-    "s3_bucket",
-    "s3_pgdump_key",
-    "s3_publish_key",
-    "version",
-    "doi",
-    "contributors",
-    "collections",
-    "external_publications",
-    "publish_bucket",
-    "embargo_bucket",
-    "workflow_id"
-  )(
-    j =>
-      (
-        j.organizationId.toString,
-        j.organizationNodeId,
-        j.organizationName,
-        j.datasetId.toString,
-        j.datasetNodeId,
-        j.publishedDatasetId.toString,
-        j.userId.toString,
-        j.userNodeId,
-        j.userFirstName,
-        j.userLastName,
-        j.userOrcid,
-        j.s3Bucket.value,
-        j.s3PgdumpKey.value,
-        j.s3PublishKey.value,
-        j.version.toString,
-        j.doi,
-        j.contributors.asJson.noSpaces,
-        j.collections.asJson.noSpaces,
-        j.externalPublications.asJson.noSpaces,
-        j.publishBucket.value,
-        j.embargoBucket.value,
-        j.workflowId.toString
-      )
-  )
+  implicit val encoder: Encoder[PublishJob] = (j: PublishJob) =>
+    Json.obj(
+      "organization_id" -> j.organizationId.toString.asJson,
+      "organization_node_id" -> j.organizationNodeId.asJson,
+      "organization_name" -> j.organizationName.asJson,
+      "dataset_id" -> j.datasetId.toString.asJson,
+      "dataset_node_id" -> j.datasetNodeId.asJson,
+      "published_dataset_id" -> j.publishedDatasetId.toString.asJson,
+      "user_id" -> j.userId.toString.asJson,
+      "user_node_id" -> j.userNodeId.asJson,
+      "user_first_name" -> j.userFirstName.asJson,
+      "user_last_name" -> j.userLastName.asJson,
+      "user_orcid" -> j.userOrcid.asJson,
+      "s3_bucket" -> j.s3Bucket.value.asJson,
+      "s3_pgdump_key" -> j.s3PgdumpKey.value.asJson,
+      "s3_publish_key" -> j.s3PublishKey.value.asJson,
+      "version" -> j.version.toString.asJson,
+      "doi" -> j.doi.asJson,
+      "contributors" -> j.contributors.asJson.noSpaces.asJson,
+      "collections" -> j.collections.asJson.noSpaces.asJson,
+      "external_publications" -> j.externalPublications.asJson.noSpaces.asJson,
+      "publish_bucket" -> j.publishBucket.value.asJson,
+      "embargo_bucket" -> j.embargoBucket.value.asJson,
+      "expect_previous" -> j.expectPrevious.toString.asJson,
+      "workflow_id" -> j.workflowId.toString.asJson
+    )
 }

@@ -416,6 +416,7 @@ class PublishHandlerSpec
           )
           job.version shouldBe publicVersion.version
           job.doi shouldBe doiDto.doi
+          job.expectPrevious shouldBe false
 
       }
     }
@@ -459,6 +460,7 @@ class PublishHandlerSpec
 
       publishedJobs should have length 1
       publishedJobs.head.s3Bucket.value shouldBe customBucketConfig.publish
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "publish to an embargo bucket" in {
@@ -537,6 +539,7 @@ class PublishHandlerSpec
 
       publishedJobs.length shouldBe 1
       publishedJobs.head.s3Bucket shouldBe config.s3.embargoBucket
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "correctly use custom embargo bucket" in {
@@ -579,6 +582,7 @@ class PublishHandlerSpec
 
       publishedJobs.length shouldBe 1
       publishedJobs.head.s3Bucket.value shouldBe customBucketConfig.embargo
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "return the publishing status of the dataset" in {
@@ -2258,6 +2262,7 @@ class PublishHandlerSpec
 
       publishedJobs.length shouldBe 1
       publishedJobs.head.s3Bucket shouldBe config.s3.publishBucket
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "not Embargo with release date of today" in {
@@ -2336,6 +2341,7 @@ class PublishHandlerSpec
 
       publishedJobs.length shouldBe 1
       publishedJobs.head.s3Bucket shouldBe config.s3.publishBucket
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "check Release Dates are after today" in {
