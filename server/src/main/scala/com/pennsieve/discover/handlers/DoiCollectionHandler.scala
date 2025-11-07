@@ -16,6 +16,7 @@ import com.pennsieve.discover.db.{
   PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
+  PublicExternalPublicationsMapper,
   PublicFileVersionsMapper
 }
 import com.pennsieve.discover.logging.{
@@ -51,7 +52,7 @@ import com.pennsieve.discover.server.definitions.{
   PublishDoiCollectionRequest
 }
 import com.pennsieve.discover.utils.{ getOrCreateDoi, BucketResolver }
-import com.pennsieve.models.PublishStatus
+import com.pennsieve.models.{ PublishStatus, RelationshipType }
 import io.circe.DecodingFailure
 import slick.jdbc.TransactionIsolation
 import com.pennsieve.discover.db.profile.api._
@@ -173,6 +174,15 @@ class DoiCollectionHandler(
               _ = ports.log.info(
                 s"publishDoiCollection() [stored] contributors: $contributors"
               )
+
+              _ <- DBIO.sequence(body.dois.map { doi =>
+                PublicExternalPublicationsMapper.create(
+                  doi = doi,
+                  relationshipType = RelationshipType.References,
+                  datasetId = publicDataset.id,
+                  version = version.version
+                )
+              }.toList)
 
               _ <- PublicDatasetDoiCollectionsMapper.add(
                 PublicDatasetDoiCollection(

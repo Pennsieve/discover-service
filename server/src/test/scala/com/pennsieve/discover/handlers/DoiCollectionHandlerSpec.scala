@@ -44,6 +44,7 @@ import com.pennsieve.discover.db.{
   PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
+  PublicExternalPublicationsMapper,
   PublicFileVersionsMapper
 }
 import com.pennsieve.discover.models.{
@@ -66,6 +67,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import slick.dbio.{ DBIOAction, NoStream }
 import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.models.RelationshipType.References
+import org.scalatest.Inspectors.forAll
 
 import java.time.LocalDate
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
@@ -250,6 +253,24 @@ class DoiCollectionHandlerSpec
         requestBody.contributors.toList,
         contributors
       )
+
+      val externalPubs = ports.db
+        .run(
+          PublicExternalPublicationsMapper
+            .getByDatasetAndVersion(publicDataset, publicVersion)
+        )
+        .awaitFinite()
+
+      externalPubs should have length requestBody.dois.length
+      val externalPubsByDoi = externalPubs.map(p => p.doi -> p).toMap
+      forAll(requestBody.dois) { doi =>
+        externalPubsByDoi should contain key doi
+        val externalPub = externalPubsByDoi(doi)
+
+        externalPub.relationshipType shouldBe References
+        externalPub.datasetId shouldBe publicDataset.id
+        externalPub.version shouldBe publicVersion.version
+      }
 
       response shouldBe com.pennsieve.discover.client.definitions
         .PublishDoiCollectionResponse(
