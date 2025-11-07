@@ -5,17 +5,17 @@ package com.pennsieve.discover.handlers
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import io.circe.parser.decode
 import com.pennsieve.test.EitherValue._
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.{
   generateServiceToken,
   generateUserToken
 }
-import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.{ Ports, ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse
 import com.pennsieve.discover.client.collection.FinalizeDoiCollectionResponse
 import com.pennsieve.discover.client.collection.CollectionClient
-import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse.Created
 import com.pennsieve.discover.client.collection.UnpublishDoiCollectionResponse.{
   Forbidden,
   NoContent,
@@ -35,7 +35,8 @@ import com.pennsieve.discover.clients.{
   MockDoiClient,
   MockLambdaClient,
   MockS3StreamClient,
-  MockSearchClient
+  MockSearchClient,
+  MockSqsAsyncClient
 }
 import com.pennsieve.discover.db.{
   PublicContributorsMapper,
@@ -48,7 +49,6 @@ import com.pennsieve.discover.db.{
   PublicFileVersionsMapper
 }
 import com.pennsieve.discover.models.{
-  PublicDatasetDoiCollection,
   PublicDatasetVersion,
   PublishingWorkflow,
   S3CleanupStage,
@@ -61,17 +61,15 @@ import com.pennsieve.models.PublishStatus.{
   PublishSucceeded,
   Unpublished
 }
-import com.pennsieve.models.{ Degree, License, PublishStatus }
+import com.pennsieve.models.{ License, PublishStatus }
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import slick.dbio.{ DBIOAction, NoStream }
 import com.pennsieve.discover.db.profile.api._
+import com.pennsieve.discover.notifications.PushDoiRequest
+import com.pennsieve.discover.notifications.SQSNotificationType.PUSH_DOI
 import com.pennsieve.models.RelationshipType.References
 import org.scalatest.Inspectors.forAll
-
-import java.time.LocalDate
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 
 class DoiCollectionHandlerSpec
     extends AnyWordSpec
@@ -79,6 +77,10 @@ class DoiCollectionHandlerSpec
     with Inside
     with ScalatestRouteTest
     with ServiceSpecHarness {
+
+  override lazy implicit val ports: Ports =
+    getPorts(config).copy(sqsClient = new MockSqsAsyncClient())
+
   def createRoutes(): Route =
     Route.seal(DoiCollectionHandler.routes(ports))
 
@@ -150,6 +152,12 @@ class DoiCollectionHandlerSpec
   private val userAuthToken = List(
     Authorization(OAuth2BearerToken(userToken.value))
   )
+
+  override def afterEach(): Unit = {
+    super.afterEach()
+
+    ports.sqsClient.asInstanceOf[MockSqsAsyncClient].sendMessageCalls.clear()
+  }
 
   "POST /collection/{collectionId}/publish" should {
     "fail without a JWT" in {
@@ -658,6 +666,21 @@ class DoiCollectionHandlerSpec
         publishDoiCollection()
 
       finalizeResponse.status shouldBe PublishStatus.PublishSucceeded
+
+      val sqsMessages = ports.sqsClient
+        .asInstanceOf[MockSqsAsyncClient]
+        .sendMessageCalls
+
+      sqsMessages should have size 1
+
+      val message = decode[PushDoiRequest](sqsMessages.head.messageBody())
+
+      message.value shouldBe PushDoiRequest(
+        jobType = PUSH_DOI,
+        datasetId = publishResponse.publishedDatasetId,
+        version = publishResponse.publishedVersion,
+        doi = publishResponse.publicId
+      )
 
       // check: dataset, version, files
       val publicDatasetFinal = ports.db
