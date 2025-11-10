@@ -1342,6 +1342,82 @@ class PublishHandlerSpec
 
       response shouldBe a[ReviseResponse.Forbidden]
     }
+
+    "allow revisions with an external publication listed multiple times with different relationships" in {
+
+      client
+        .publish(organizationId, datasetId, None, None, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicDataset = run(
+        PublicDatasetsMapper
+          .getDatasetFromSourceIds(organizationId, datasetId)
+      )
+
+      val version = run(
+        PublicDatasetVersionsMapper
+          .getLatestVersion(publicDataset.id)
+      ).get
+
+      // Should have no revisions
+      run(RevisionsMapper.getLatestRevision(version)) shouldBe None
+
+      // "Complete" the publish job
+      publishSuccessfully(publicDataset, version)
+
+      val internalExternalPubAgainWithDifferentType =
+        internalExternalPublication.copy(relationshipType = Some(IsCitedBy))
+
+      val internalExternalPubAgainWithDefaultType =
+        internalExternalPublication.copy(relationshipType = None)
+
+      val internalExternalPubs = Vector(
+        internalExternalPublication,
+        internalExternalPubAgainWithDifferentType,
+        internalExternalPubAgainWithDefaultType
+      )
+
+      val testReviseRequest =
+        reviseRequest.copy(externalPublications = Some(internalExternalPubs))
+
+      client
+        .revise(organizationId, datasetId, testReviseRequest, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[ReviseResponse.Created]
+        .value
+
+      val externalPublications = run(
+        PublicExternalPublicationsMapper
+          .getByDatasetAndVersion(publicDataset, version)
+      )
+
+      externalPublications should have length internalExternalPubs.length
+
+      val externalPubData =
+        externalPublications.map(p => (p.doi, p.relationshipType))
+
+      val internalExternalPubData = internalExternalPubs.map(
+        p => (p.doi, p.relationshipType.getOrElse(References))
+      )
+
+      externalPubData should contain theSameElementsAs internalExternalPubData
+
+      val doiExternalPubData = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .reviseRequests
+        .get(version.doi)
+        .value
+        .externalPublications
+        .map(p => (p.doi, p.relationshipType))
+
+      doiExternalPubData should contain theSameElementsAs internalExternalPubData
+
+    }
+
   }
 
   "POST /organizations/{organizationId}/datasets/{datasetId}/release" should {
