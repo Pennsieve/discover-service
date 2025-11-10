@@ -37,6 +37,7 @@ import com.pennsieve.models.PublishStatus.{
   PublishSucceeded,
   Unpublished
 }
+import com.pennsieve.models.RelationshipType.{ IsCitedBy, References }
 import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
 import com.pennsieve.test.EitherValue._
 import io.circe.syntax._
@@ -927,6 +928,94 @@ class PublishHandlerSpec
         .get
 
       latestVersion.doi shouldBe draftDoi
+
+    }
+
+    "allow an external publication to be listed multiple times with different relationships" in {
+
+      val internalExternalPubAgainWithDifferentType =
+        internalExternalPublication.copy(relationshipType = Some(IsCitedBy))
+
+      val internalExternalPubAgainWithDefaultType =
+        internalExternalPublication.copy(relationshipType = None)
+
+      val internalExternalPubs = Vector(
+        internalExternalPublication,
+        internalExternalPubAgainWithDifferentType,
+        internalExternalPubAgainWithDefaultType
+      )
+
+      val testRequestBody =
+        requestBody.copy(externalPublications = Some(internalExternalPubs))
+
+      val response = client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          testRequestBody,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      response shouldBe DatasetPublishStatus(
+        datasetName,
+        organizationId,
+        datasetId,
+        None,
+        0,
+        PublishInProgress,
+        None,
+        workflowId = PublishingWorkflow.Version4
+      )
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      val externalPublications = run(
+        PublicExternalPublicationsMapper
+          .getByDatasetAndVersion(publicDataset, publicVersion)
+      )
+
+      externalPublications should have length internalExternalPubs.length
+
+      val externalPubData =
+        externalPublications.map(p => (p.doi, p.relationshipType))
+
+      val internalExternalPubData = internalExternalPubs.map(
+        p => (p.doi, p.relationshipType.getOrElse(References))
+      )
+
+      externalPubData should contain theSameElementsAs internalExternalPubData
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs should have length 1
+
+      publishedJobs.head.externalPublications should have length internalExternalPubs.length
+
+      val jobExternalPubData = publishedJobs.head.externalPublications
+        .map(p => (p.doi, p.relationshipType))
+
+      jobExternalPubData should contain theSameElementsAs internalExternalPubData
 
     }
 
