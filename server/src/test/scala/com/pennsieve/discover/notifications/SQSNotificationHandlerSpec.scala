@@ -11,11 +11,13 @@ import com.pennsieve.models.{
   DatasetMetadataV5_0,
   DatasetType,
   Degree,
+  Doi,
   FileManifest,
   FileType,
   License,
   PublishStatus,
   PublishedContributor,
+  PublishedExternalPublication,
   ReferenceMetadataV5_0,
   ReleaseMetadataV5_0
 }
@@ -50,6 +52,7 @@ import com.pennsieve.discover.server.definitions.DatasetPublishStatus
 import com.pennsieve.discover.TestUtilities
 import com.pennsieve.discover.notifications.SQSNotificationType.INDEX
 import com.pennsieve.doi.client.definitions._
+import com.pennsieve.models.RelationshipType.{ IsCitedBy, References }
 import com.sksamuel.elastic4s.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
@@ -724,6 +727,131 @@ class SQSNotificationHandlerSpec
       // check S3 Version Id and SHA256
       publicFileVersionReleased.s3Version shouldBe ("x2")
       publicFileVersionReleased.sha256.get shouldBe ("y2")
+    }
+
+    "handle multiple external publications with the same DOI and different relationships" in {
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)()
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      val externalDoi = TestUtilities.randomString()
+
+      val externalPublications = List(
+        new PublishedExternalPublication(
+          doi = Doi(externalDoi),
+          relationshipType = Some(References)
+        ),
+        new PublishedExternalPublication(
+          doi = Doi(externalDoi),
+          relationshipType = Some(IsCitedBy)
+        )
+      )
+
+      for (externalPublication <- externalPublications) {
+        TestUtilities.createExternalPublication(ports.db)(
+          datasetId = publicDataset.id,
+          version = publicDatasetV1.version,
+          relationshipType = externalPublication.relationshipType.value,
+          doi = externalPublication.doi.toString()
+        )
+      }
+
+      // Successful publish jobs create an outputs.json file
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      val datasetContributor = PublishedContributor(
+        first_name = "dataset",
+        last_name = "owner",
+        orcid = Some("0000-0001-0023-9087"),
+        middle_initial = None,
+        degree = Some(Degree.PhD)
+      )
+
+      // generate dataset V1 metadata (manifest.json)
+      val metadataV1 = DatasetMetadataV4_0(
+        pennsieveDatasetId = publicDataset.id,
+        version = publicDatasetV1.version,
+        revision = None,
+        name = publicDataset.name,
+        description = publicDatasetV1.description,
+        creator = datasetContributor,
+        contributors = List(datasetContributor),
+        sourceOrganization = "1",
+        keywords = List("data"),
+        datePublished = LocalDate.now(),
+        license = Some(License.`Community Data License Agreement – Permissive`),
+        `@id` = doi.doi,
+        publisher = "Pennsieve",
+        `@context` = "public data",
+        `@type` = "dataset",
+        schemaVersion = "n/a",
+        collections = None,
+        relatedPublications = Some(externalPublications),
+        files = TestUtilities.assetFiles(),
+        pennsieveSchemaVersion = "4.0"
+      )
+
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishMetadata(publicDatasetV1.s3Key, metadataV1)
+
+      // finalize publishing
+      processNotification(
+        PublishNotification(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId,
+          PublishStatus.PublishSucceeded,
+          publicDatasetV1.version
+        ),
+        waitTime = 60.seconds
+      ) shouldBe an[MessageAction.Delete]
+
+      // push DOI to registry
+      processNotification(
+        PushDoiRequest(
+          jobType = SQSNotificationType.PUSH_DOI,
+          datasetId = publicDataset.id,
+          version = publicDatasetV1.version,
+          doi = publicDatasetV1.doi
+        ),
+        waitTime = 60.seconds
+      ) shouldBe an[MessageAction.Delete]
+
+      val publishRequest = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .publishRequests
+        .get(publicDatasetV1.doi)
+        .value
+
+      publishRequest.externalPublications.map(p => (p.doi, p.relationshipType)) should contain theSameElementsAs
+        externalPublications
+          .map(
+            p => (p.doi.toString(), p.relationshipType.getOrElse(References))
+          )
     }
   }
 

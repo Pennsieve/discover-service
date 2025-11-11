@@ -28,6 +28,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Random
 
+// RequestCapture holds request arguments passed to publishDoi and reviseDoi.
+// Only externalPublications are captured now, but others may be added as needed.
 case class RequestCapture(
   doi: String,
   externalPublications: List[PublicExternalPublication]
@@ -40,6 +42,10 @@ class MockDoiClient(
 ) extends DoiClient("https://mock-doi-service-host")(httpClient, ec, system) {
 
   val dois: mutable.Map[String, DoiDTO] = mutable.Map.empty[String, DoiDTO]
+
+  val publishRequests: mutable.Map[String, RequestCapture] =
+    mutable.Map.empty[String, RequestCapture]
+
   val reviseRequests: mutable.Map[String, RequestCapture] =
     mutable.Map.empty[String, RequestCapture]
 
@@ -74,6 +80,7 @@ class MockDoiClient(
 
   def clear(): Unit = {
     dois.clear()
+    publishRequests.clear()
     reviseRequests.clear()
   }
 
@@ -118,6 +125,7 @@ class MockDoiClient(
           url = Some(url),
           publisher = publisher.getOrElse(dto.publisher)
         )
+        publishRequests += doi -> RequestCapture(doi, externalPublications)
         dois += doi -> published
         Future.successful(published)
       }
