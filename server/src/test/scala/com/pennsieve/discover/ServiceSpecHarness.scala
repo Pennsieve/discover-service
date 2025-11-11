@@ -212,7 +212,6 @@ trait ServiceSpecHarness
 
     ports.doiClient
       .asInstanceOf[MockDoiClient]
-      .dois
       .clear()
 
     ports.searchClient
