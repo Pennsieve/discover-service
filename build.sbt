@@ -62,6 +62,7 @@ lazy val doiServiceClientVersion = "12-756107b"
 lazy val slickVersion = "3.3.3"
 lazy val slickPgVersion = "0.20.3"
 lazy val dockerItVersion = "0.9.9"
+lazy val testContainersVersion = "0.40.1"
 lazy val logbackVersion = "1.2.3"
 lazy val awsSdkVersion = "2.10.56"
 lazy val pureConfigVersion = "0.17.1"
@@ -84,8 +85,9 @@ lazy val server = project
     scalafmtOnCompile := true,
     assembly / test := {},
     Test / fork := true,
-    Test / testForkedParallel := true,
-    // Only run integration tests with the `integration:test` command
+    Test / testForkedParallel := false,
+    Test / parallelExecution := false,
+      // Only run integration tests with the `integration:test` command
     inConfig(Integration)(Defaults.testTasks),
     Test / testOptions := Seq(
       Tests.Filter(!_.toLowerCase.contains("integration"))
@@ -177,7 +179,9 @@ lazy val server = project
       "org.apache.httpcomponents" % "httpclient" % "4.5.8" % Test,
       "software.amazon.awssdk" % "s3" % awsSdkVersion % Test,
       "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test,
-      "org.mock-server" % "mockserver-client-java-no-dependencies" % "5.14.0" % Test
+      "org.mock-server" % "mockserver-client-java-no-dependencies" % "5.14.0" % Test,
+      "com.dimafeng" %% "testcontainers-scala" % testContainersVersion % Test,
+      "com.pennsieve" %% "pennsieve-core" % coreVersion % Test classifier "tests",
     ),
     Compile / guardrailTasks := List(
       ScalaServer(
