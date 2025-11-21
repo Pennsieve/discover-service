@@ -11,4 +11,10 @@ package com.pennsieve.discover.testcontainers
 object DockerContainers {
   val postgresContainer: PostgresDockerContainerImpl =
     new PostgresDockerContainerImpl
+
+  lazy val elasticSearchDockerContainerImpl: ElasticSearchDockerContainerImpl =
+    new ElasticSearchDockerContainerImpl
+
+  lazy val s3DockerContainerImpl: S3DockerContainerImpl =
+    new S3DockerContainerImpl
 }

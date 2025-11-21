@@ -9,20 +9,16 @@ import akka.stream.scaladsl._
 import akka.stream.testkit.scaladsl.TestSink
 import akka.util.ByteString
 import com.pennsieve.discover.{
-  DockerS3Service,
   ExternalPublishBucketConfiguration,
   S3Exception,
   TestUtilities
 }
 import com.pennsieve.discover.models._
+import com.pennsieve.discover.testcontainers.S3DockerContainer
 import com.pennsieve.models._
-import com.pennsieve.test.AwaitableImplicits
-import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
+import com.pennsieve.test.{ AwaitableImplicits, PersistantTestContainers }
 import com.whisk.docker.scalatest.DockerTestKit
 import com.whisk.docker.DockerFactory
-import com.whisk.docker.impl.spotify.SpotifyDockerFactory
-import com.spotify.docker.client.exceptions.DockerException
-import com.spotify.docker.client.DefaultDockerClient
 import io.circe.syntax._
 import io.circe._
 import io.circe.parser._
@@ -65,72 +61,57 @@ class S3StreamClientSpec
     with Matchers
     with AwaitableImplicits
     with ScalaFutures
-    with DockerS3Service
+    with PersistantTestContainers
+    with S3DockerContainer
     with DockerTestKit {
 
-  // alpakka-s3 v1.0 can only be configured via Typesafe config passed to the
-  // actor system, or as S3Settings that are attached to every graph
-  lazy val config = ConfigFactory
-    .load()
-    .withValue(
-      "alpakka.s3.endpoint-url",
-      ConfigValueFactory.fromAnyRef(s3Endpoint)
-    )
-    .withValue(
-      "alpakka.s3.aws.credentials.provider",
-      ConfigValueFactory.fromAnyRef("static")
-    )
-    .withValue(
-      "alpakka.s3.aws.credentials.access-key-id",
-      ConfigValueFactory.fromAnyRef(accessKey)
-    )
-    .withValue(
-      "alpakka.s3.aws.credentials.secret-access-key",
-      ConfigValueFactory.fromAnyRef(secretKey)
-    )
-    .withValue("alpakka.s3.access-style", ConfigValueFactory.fromAnyRef("path"))
+  implicit private var system: ActorSystem = _
+  implicit private var executionContext: ExecutionContext = _
 
-  implicit lazy private val system: ActorSystem =
-    ActorSystem("discover-service", config)
-  implicit lazy private val executionContext: ExecutionContext =
-    system.dispatcher
+  var s3Client: S3Client = _
+  var s3Presigner: S3Presigner = _
+  var stsClient: StsClient = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    system = ActorSystem("discover-service", s3Container.config)
+    executionContext = system.dispatcher
+
+    s3Presigner = S3Presigner
+      .builder()
+      .region(Region.US_EAST_1)
+      .credentialsProvider(
+        StaticCredentialsProvider
+          .create(
+            AwsBasicCredentials
+              .create(S3DockerContainer.accessKey, S3DockerContainer.secretKey)
+          )
+      )
+      .endpointOverride(new URI(s3Container.s3Endpoint))
+      .build()
+
+    val sharedHttpClient = UrlConnectionHttpClient.builder().build()
+
+    s3Client = s3Container.s3Client(sharedHttpClient)
+
+    stsClient = StsClient
+      .builder()
+      .region(Region.US_EAST_1)
+      .credentialsProvider(
+        StaticCredentialsProvider
+          .create(
+            AwsBasicCredentials
+              .create(S3DockerContainer.accessKey, S3DockerContainer.secretKey)
+          )
+      )
+      .endpointOverride(new URI(s3Container.s3Endpoint))
+      .httpClient(sharedHttpClient)
+      .build()
+
+  }
 
   override implicit val dockerFactory: DockerFactory =
     TestUtilities.dockerFactoryApiVersion141
-
-  lazy val s3Presigner: S3Presigner = S3Presigner
-    .builder()
-    .region(Region.US_EAST_1)
-    .credentialsProvider(
-      StaticCredentialsProvider
-        .create(AwsBasicCredentials.create(accessKey, secretKey))
-    )
-    .endpointOverride(new URI(s3Endpoint))
-    .build()
-
-  lazy val sharedHttpClient = UrlConnectionHttpClient.builder().build()
-
-  lazy val s3Client: S3Client = S3Client
-    .builder()
-    .region(Region.US_EAST_1)
-    .credentialsProvider(
-      StaticCredentialsProvider
-        .create(AwsBasicCredentials.create(accessKey, secretKey))
-    )
-    .httpClient(sharedHttpClient)
-    .endpointOverride(new URI(s3Endpoint))
-    .build()
-
-  lazy val stsClient: StsClient = StsClient
-    .builder()
-    .region(Region.US_EAST_1)
-    .credentialsProvider(
-      StaticCredentialsProvider
-        .create(AwsBasicCredentials.create(accessKey, secretKey))
-    )
-    .endpointOverride(new URI(s3Endpoint))
-    .httpClient(sharedHttpClient)
-    .build()
 
   /**
     * Create a streaming client for testing, and the required S3 buckets.

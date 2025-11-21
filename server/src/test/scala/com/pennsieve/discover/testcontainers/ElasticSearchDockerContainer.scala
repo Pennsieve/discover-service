@@ -2,12 +2,22 @@
 
 package com.pennsieve.discover.testcontainers
 
-import com.pennsieve.test.DockerContainer
+import com.dimafeng.testcontainers.Container
+import com.pennsieve.discover.ElasticSearchConfiguration
+import com.pennsieve.test.{ DockerContainer, StackedDockerContainer }
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy
 
 object ElasticSearchDockerContainer {
   val elasticSearchVersion = "7.10.1"
   val port: Int = 9200
+}
+
+trait ElasticSearchDockerContainer extends StackedDockerContainer {
+  lazy val elasticSearchContainer: ElasticSearchDockerContainerImpl =
+    DockerContainers.elasticSearchDockerContainerImpl
+  override def stackedContainers: List[Container] =
+    elasticSearchContainer :: super.stackedContainers
+
 }
 
 final class ElasticSearchDockerContainerImpl
@@ -21,4 +31,7 @@ final class ElasticSearchDockerContainerImpl
 
   override def mappedPort(): Int =
     super.mappedPort(ElasticSearchDockerContainer.port)
+
+  def elasticSearchConfiguration: ElasticSearchConfiguration =
+    ElasticSearchConfiguration(host = "http://localhost", port = mappedPort())
 }
