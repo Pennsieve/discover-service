@@ -115,8 +115,8 @@ class DatasetHandlerSpec
   var authToken: List[Authorization] = _
   var datasetClient: DatasetClient = _
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
+  override def afterStart(): Unit = {
+    super.afterStart()
 
     token = generateUserToken(
       ports.jwt,

@@ -7,6 +7,7 @@ import akka.stream.ActorMaterializer
 import com.pennsieve.discover.clients._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.db.{
+  DatasetDownloadsMapper,
   PublicContributorsMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
@@ -246,6 +247,7 @@ trait ServiceSpecHarness
         _ <- PublicDatasetVersionsMapper.delete
         _ <- PublicFilesMapper.delete
         _ <- WorkspaceSettingsMapper.delete
+        _ <- DatasetDownloadsMapper.delete
       } yield ())
       .awaitFinite()
 

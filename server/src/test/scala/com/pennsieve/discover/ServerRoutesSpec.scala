@@ -24,7 +24,12 @@ class ServerRoutesSpec
   override implicit val executor: ExecutionContextExecutor =
     super[ScalatestRouteTest].executor
 
-  val serverRoutes = Route.seal(Server.createRoutes(ports))
+  var serverRoutes: Route = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    serverRoutes = Route.seal(Server.createRoutes(ports))
+  }
 
   "GET /packages/packageId/files" should {
 

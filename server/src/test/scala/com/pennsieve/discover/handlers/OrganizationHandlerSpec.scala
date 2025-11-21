@@ -35,25 +35,35 @@ class OrganizationHandlerSpec
   def createClient(routes: Route): OrganizationClient =
     OrganizationClient.httpClient(Route.toFunction(routes))
 
-  val organizationClient: OrganizationClient = createClient(createRoutes())
+  var organizationClient: OrganizationClient = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    organizationClient = createClient(createRoutes())
+  }
 
   "GET /organizations/{organizationId}/datasets/metrics" should {
 
     "return dataset metrics for a given organization" in {
-      val datasets = (1 to 3).map { i =>
+      val sourceIdDatasetVersions = (1 to 3).map { i =>
         {
-          TestUtilities.createDatasetV1(ports.db)(
+          val dataset = TestUtilities.createDatasetV1(ports.db)(
             sourceOrganizationId = organizationId,
             sourceDatasetId = i,
             name = s"Dataset ${i}",
             status = PublishStatus.PublishSucceeded
           )
+          (i, dataset)
         }
       }
 
-      datasets.foldLeft(1) {
+      val datasetIdMap = sourceIdDatasetVersions.map {
+        case (sourceId, version) => sourceId -> version.datasetId
+      }.toMap
+
+      sourceIdDatasetVersions.foreach {
         case (i, dataset) => {
-          (1 to 3).map { j =>
+          (1 to 3).foreach { j =>
             {
               TestUtilities.createNewDatasetVersion(ports.db)(
                 id = dataset.datasetId,
@@ -62,7 +72,6 @@ class OrganizationHandlerSpec
               )
             }
           }
-          i + 1
         }
       }
 
@@ -73,9 +82,9 @@ class OrganizationHandlerSpec
           .value
 
       val expected = Vector(
-        DatasetMetrics(3, "Dataset 3", 9000),
-        DatasetMetrics(2, "Dataset 2", 6000),
-        DatasetMetrics(1, "Dataset 1", 3000)
+        DatasetMetrics(datasetIdMap(3), "Dataset 3", 9000),
+        DatasetMetrics(datasetIdMap(2), "Dataset 2", 6000),
+        DatasetMetrics(datasetIdMap(1), "Dataset 1", 3000)
       )
 
       response shouldBe GetOrganizationDatasetMetricsResponse.OK(

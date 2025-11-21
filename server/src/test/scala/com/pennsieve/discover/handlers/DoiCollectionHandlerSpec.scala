@@ -99,8 +99,6 @@ class DoiCollectionHandlerSpec
   private val customBucketConfig =
     BucketConfig("org-publish-bucket", "org-embargo-bucket")
 
-  // we're overriding ServiceSpecHarness ports with a mock SQS client
-  implicit var localPorts: Ports = _
   private var client: CollectionClient = _
   private var pennsieveDoiPrefix: String = _
   private var collectionOrgId: Int = _
@@ -112,15 +110,16 @@ class DoiCollectionHandlerSpec
   private var userAuthToken: List[Authorization] = _
 
   def createRoutes(): Route =
-    Route.seal(DoiCollectionHandler.routes(localPorts))
+    Route.seal(DoiCollectionHandler.routes(ports))
 
   def createClient(routes: Route): CollectionClient =
     CollectionClient.httpClient(Route.toFunction(routes))
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
+  override def afterStart(): Unit = {
+    super.afterStart()
 
-    localPorts = getPorts(config).copy(sqsClient = new MockSqsAsyncClient())
+    // we're overriding ServiceSpecHarness ports with a mock SQS client
+    ports = ports.copy(sqsClient = new MockSqsAsyncClient())
     client = createClient(createRoutes())
 
     pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
@@ -150,19 +149,15 @@ class DoiCollectionHandlerSpec
       requestBody.copy(bucketConfig = Some(customBucketConfig))
 
     token = generateServiceToken(
-      localPorts.jwt,
+      ports.jwt,
       organizationId = collectionOrgId,
       datasetId = sourceCollectionId
     )
 
     authToken = List(Authorization(OAuth2BearerToken(token.value)))
 
-    userToken = generateUserToken(
-      localPorts.jwt,
-      1,
-      collectionOrgId,
-      Some(sourceCollectionId)
-    )
+    userToken =
+      generateUserToken(ports.jwt, 1, collectionOrgId, Some(sourceCollectionId))
 
     userAuthToken = List(Authorization(OAuth2BearerToken(userToken.value)))
   }
@@ -170,7 +165,7 @@ class DoiCollectionHandlerSpec
   override def afterEach(): Unit = {
     super.afterEach()
 
-    localPorts.sqsClient
+    ports.sqsClient
       .asInstanceOf[MockSqsAsyncClient]
       .sendMessageCalls
       .clear()
@@ -207,7 +202,7 @@ class DoiCollectionHandlerSpec
         .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
-      val publicDataset = localPorts.db
+      val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
             .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
@@ -223,7 +218,7 @@ class DoiCollectionHandlerSpec
       publicDataset.ownerOrcid shouldBe requestBody.ownerOrcid
       publicDataset.datasetType shouldBe Collection
 
-      val publicVersion = localPorts.db
+      val publicVersion = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDataset.id)
@@ -231,7 +226,7 @@ class DoiCollectionHandlerSpec
         .awaitFinite()
         .get
 
-      val doiDto = localPorts.doiClient
+      val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .getMockDoi(collectionOrgId, sourceCollectionId)
         .get
@@ -247,7 +242,7 @@ class DoiCollectionHandlerSpec
       publicVersion.s3Key shouldBe S3Key.Version(s"${publicDataset.id}/")
       publicVersion.doi shouldBe doiDto.doi
 
-      val doiCollection = localPorts.db
+      val doiCollection = ports.db
         .run(
           PublicDatasetDoiCollectionsMapper
             .getVersion(publicVersion.datasetId, publicVersion.version)
@@ -256,7 +251,7 @@ class DoiCollectionHandlerSpec
 
       doiCollection.banners shouldBe requestBody.banners.toList
 
-      val doiCollectionDOIs = localPorts.db
+      val doiCollectionDOIs = ports.db
         .run(
           PublicDatasetDoiCollectionDoisMapper
             .getDOIs(publicVersion.datasetId, publicVersion.version)
@@ -265,7 +260,7 @@ class DoiCollectionHandlerSpec
 
       doiCollectionDOIs shouldBe requestBody.dois.toList
 
-      val contributors = localPorts.db
+      val contributors = ports.db
         .run(
           PublicContributorsMapper
             .getContributorsByDatasetAndVersion(publicDataset, publicVersion)
@@ -279,7 +274,7 @@ class DoiCollectionHandlerSpec
         contributors
       )
 
-      val externalPubs = localPorts.db
+      val externalPubs = ports.db
         .run(
           PublicExternalPublicationsMapper
             .getByDatasetAndVersion(publicDataset, publicVersion)
@@ -324,14 +319,14 @@ class DoiCollectionHandlerSpec
         .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
-      val publicDataset = localPorts.db
+      val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
             .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
         )
         .awaitFinite()
 
-      val publicVersion = localPorts.db
+      val publicVersion = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDataset.id)
@@ -346,11 +341,11 @@ class DoiCollectionHandlerSpec
     "return the publishing status of the dataset" in {
 
       val publicDataset = TestUtilities.createDoiCollectionDataset(
-        localPorts.db,
-        localPorts.config.doiCollections.idSpace
+        ports.db,
+        ports.config.doiCollections.idSpace
       )(sourceDatasetId = sourceCollectionId)
 
-      TestUtilities.createNewDatasetVersion(localPorts.db)(
+      TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
         status = PublishSucceeded
       )
@@ -362,7 +357,7 @@ class DoiCollectionHandlerSpec
         .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
-      val publicVersion = localPorts.db
+      val publicVersion = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDataset.id)
@@ -382,7 +377,7 @@ class DoiCollectionHandlerSpec
           publicId = publicVersion.doi
         )
 
-      val doiDto = localPorts.doiClient
+      val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .getMockDoi(collectionOrgId, sourceCollectionId)
         .get
@@ -402,10 +397,10 @@ class DoiCollectionHandlerSpec
     "delete a previously failed version before creating a new one" in {
 
       val publicDataset = TestUtilities.createDoiCollectionDataset(
-        localPorts.db,
-        localPorts.config.doiCollections.idSpace
+        ports.db,
+        ports.config.doiCollections.idSpace
       )(sourceDatasetId = sourceCollectionId)
-      TestUtilities.createNewDatasetVersion(localPorts.db)(
+      TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
         status = PublishFailed
       )
@@ -417,7 +412,7 @@ class DoiCollectionHandlerSpec
         .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
-      val latestVersion = localPorts.db
+      val latestVersion = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDataset.id)
@@ -437,7 +432,7 @@ class DoiCollectionHandlerSpec
           publicId = latestVersion.doi
         )
 
-      val doiDto = localPorts.doiClient
+      val doiDto = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .getMockDoi(collectionOrgId, sourceCollectionId)
         .get
@@ -457,15 +452,15 @@ class DoiCollectionHandlerSpec
     "not create a new DOI if draft DOI is only associated with a failed version" in {
 
       val publicDataset = TestUtilities.createDoiCollectionDataset(
-        localPorts.db,
-        localPorts.config.doiCollections.idSpace
+        ports.db,
+        ports.config.doiCollections.idSpace
       )(sourceDatasetId = sourceCollectionId)
-      val draftDoi = localPorts.doiClient
+      val draftDoi = ports.doiClient
         .asInstanceOf[MockDoiClient]
         .createMockDoi(collectionOrgId, sourceCollectionId)
         .doi
 
-      TestUtilities.createNewDatasetVersion(localPorts.db)(
+      TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
         status = PublishFailed,
         doi = draftDoi
@@ -478,7 +473,7 @@ class DoiCollectionHandlerSpec
         .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
-      val latestVersion = localPorts.db
+      val latestVersion = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDataset.id)
@@ -527,13 +522,13 @@ class DoiCollectionHandlerSpec
       // this DOI.
       val publishedDoi = s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
 
-      val unpublishedDataset = TestUtilities.createDataset(localPorts.db)()
+      val unpublishedDataset = TestUtilities.createDataset(ports.db)()
 
       val unpublishedDoi =
         s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
 
       val unpublishedVersion =
-        TestUtilities.createNewDatasetVersion(localPorts.db)(
+        TestUtilities.createNewDatasetVersion(ports.db)(
           id = unpublishedDataset.id,
           status = PublishStatus.Unpublished,
           doi = unpublishedDoi
@@ -555,14 +550,14 @@ class DoiCollectionHandlerSpec
       val publishedDoi = s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
 
       val doiCollectionDataset = TestUtilities.createDoiCollectionDataset(
-        localPorts.db,
-        localPorts.config.doiCollections.idSpace
+        ports.db,
+        ports.config.doiCollections.idSpace
       )(sourceDatasetId = sourceCollectionId)
 
       val doiCollectionDoi =
         s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
 
-      TestUtilities.createNewDatasetVersion(localPorts.db)(
+      TestUtilities.createNewDatasetVersion(ports.db)(
         id = doiCollectionDataset.id,
         status = PublishStatus.PublishSucceeded,
         doi = doiCollectionDoi
@@ -631,14 +626,14 @@ class DoiCollectionHandlerSpec
         .asInstanceOf[PublishDoiCollectionResponse.Created]
         .value
 
-      val publicDataset = localPorts.db
+      val publicDataset = ports.db
         .run(
           PublicDatasetsMapper
             .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
         )
         .awaitFinite()
 
-      val publicVersion = localPorts.db
+      val publicVersion = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDataset.id)
@@ -667,7 +662,7 @@ class DoiCollectionHandlerSpec
 
       finalizeResponse.status shouldBe PublishStatus.PublishFailed
 
-      val updatedVersion = localPorts.db
+      val updatedVersion = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDataset.id)
@@ -685,7 +680,7 @@ class DoiCollectionHandlerSpec
 
       finalizeResponse.status shouldBe PublishStatus.PublishSucceeded
 
-      val sqsMessages = localPorts.sqsClient
+      val sqsMessages = ports.sqsClient
         .asInstanceOf[MockSqsAsyncClient]
         .sendMessageCalls
 
@@ -701,14 +696,14 @@ class DoiCollectionHandlerSpec
       )
 
       // check: dataset, version, files
-      val publicDatasetFinal = localPorts.db
+      val publicDatasetFinal = ports.db
         .run(
           PublicDatasetsMapper
             .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
         )
         .awaitFinite()
 
-      val publicVersionFinal = localPorts.db
+      val publicVersionFinal = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDatasetFinal.id)
@@ -720,7 +715,7 @@ class DoiCollectionHandlerSpec
       publicVersionFinal.fileCount shouldBe finalizeRequest.fileCount
       publicVersionFinal.size shouldBe finalizeRequest.totalSize
 
-      val files = localPorts.db
+      val files = ports.db
         .run(PublicFileVersionsMapper.getAll(publicDatasetFinal.id))
         .awaitFinite()
 
@@ -731,7 +726,7 @@ class DoiCollectionHandlerSpec
       actualManifestFile.s3Version shouldBe finalizeRequest.manifestVersionId
       actualManifestFile.fileType shouldBe "Json"
 
-      val links = localPorts.db
+      val links = ports.db
         .run(
           PublicDatasetVersionFilesTableMapper
             .getLinks(publicDatasetFinal.id, publicVersionFinal.version)
@@ -745,10 +740,10 @@ class DoiCollectionHandlerSpec
     "fail if called on a version that is in a failed state" in {
 
       val publicDataset = TestUtilities.createDoiCollectionDataset(
-        localPorts.db,
-        localPorts.config.doiCollections.idSpace
+        ports.db,
+        ports.config.doiCollections.idSpace
       )(sourceDatasetId = sourceCollectionId)
-      val beforeVersion = TestUtilities.createNewDatasetVersion(localPorts.db)(
+      val beforeVersion = TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
         status = PublishFailed
       )
@@ -772,7 +767,7 @@ class DoiCollectionHandlerSpec
 
       finalizeResponse shouldBe s"no DOICollection publish in progress; status is ${beforeVersion.status}"
 
-      val afterVersion = localPorts.db
+      val afterVersion = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publicDataset.id)
@@ -822,7 +817,7 @@ class DoiCollectionHandlerSpec
 
       response.status shouldBe Unpublished
 
-      val version = localPorts.db
+      val version = ports.db
         .run(
           PublicDatasetVersionsMapper
             .getLatestVersion(publishResponse.publishedDatasetId)
@@ -833,7 +828,7 @@ class DoiCollectionHandlerSpec
       version.status shouldBe Unpublished
 
       // Note: the S3 Clean Lambda is invoked at the end of Publish to "tidy," and at Unpublish time
-      localPorts.lambdaClient
+      ports.lambdaClient
         .asInstanceOf[MockLambdaClient]
         .requests should contain atLeastOneElementOf List(
         LambdaRequest(
@@ -847,7 +842,7 @@ class DoiCollectionHandlerSpec
         )
       )
 
-      localPorts.searchClient
+      ports.searchClient
         .asInstanceOf[MockSearchClient]
         .indexedDatasets shouldBe empty
     }
@@ -855,27 +850,26 @@ class DoiCollectionHandlerSpec
     "rollback a failed version when unpublishing" in {
 
       val dataset = TestUtilities.createDoiCollectionDataset(
-        localPorts.db,
-        localPorts.config.doiCollections.idSpace
+        ports.db,
+        ports.config.doiCollections.idSpace
       )(name = collectionName, sourceDatasetId = sourceCollectionId)
 
-      val version = TestUtilities.createNewDatasetVersion(localPorts.db)(
+      val version = TestUtilities.createNewDatasetVersion(ports.db)(
         id = dataset.id,
         status = PublishFailed
       )
 
       val doiCollection =
-        TestUtilities.createDatasetDoiCollection(localPorts.db)(
+        TestUtilities.createDatasetDoiCollection(ports.db)(
           datasetId = version.datasetId,
           datasetVersion = version.version,
           banners = TestUtilities.randomBannerUrls
         )
 
-      TestUtilities.addDoiCollectionDois(localPorts.db)(
+      TestUtilities.addDoiCollectionDois(ports.db)(
         doiCollection = doiCollection,
-        dois = List(
-          TestUtilities.randomPennsieveDoi(localPorts.config.doiCollections)
-        )
+        dois =
+          List(TestUtilities.randomPennsieveDoi(ports.config.doiCollections))
       )
 
       val response = client
@@ -896,7 +890,7 @@ class DoiCollectionHandlerSpec
         workflowId = PublishingWorkflow.Version4
       )
 
-      localPorts.db
+      ports.db
         .run(
           PublicDatasetVersionsMapper
             .filter(_.datasetId === version.datasetId)
@@ -904,7 +898,7 @@ class DoiCollectionHandlerSpec
         )
         .await shouldBe empty
 
-      localPorts.db
+      ports.db
         .run(
           PublicDatasetDoiCollectionsMapper
             .filter(_.datasetId === version.datasetId)
@@ -912,7 +906,7 @@ class DoiCollectionHandlerSpec
         )
         .await shouldBe empty
 
-      localPorts.db
+      ports.db
         .run(
           PublicDatasetDoiCollectionDoisMapper
             .filter(_.datasetId === version.datasetId)
@@ -920,7 +914,7 @@ class DoiCollectionHandlerSpec
         )
         .await shouldBe empty
 
-      localPorts.lambdaClient
+      ports.lambdaClient
         .asInstanceOf[MockLambdaClient]
         .requests shouldBe empty
 
@@ -929,11 +923,11 @@ class DoiCollectionHandlerSpec
     "fail to unpublish a dataset that is currently publishing" in {
 
       val dataset = TestUtilities.createDoiCollectionDataset(
-        localPorts.db,
-        localPorts.config.doiCollections.idSpace
+        ports.db,
+        ports.config.doiCollections.idSpace
       )(name = collectionName, sourceDatasetId = sourceCollectionId)
 
-      val version = TestUtilities.createNewDatasetVersion(localPorts.db)(
+      val version = TestUtilities.createNewDatasetVersion(ports.db)(
         id = dataset.id,
         status = PublishInProgress
       )
@@ -973,14 +967,14 @@ class DoiCollectionHandlerSpec
       .asInstanceOf[PublishDoiCollectionResponse.Created]
       .value
 
-    val publicDataset = localPorts.db
+    val publicDataset = ports.db
       .run(
         PublicDatasetsMapper
           .getDatasetFromSourceIds(collectionOrgId, sourceCollectionId)
       )
       .awaitFinite()
 
-    val version: PublicDatasetVersion = localPorts.db
+    val version: PublicDatasetVersion = ports.db
       .run(
         PublicDatasetVersionsMapper
           .getLatestVersion(publicDataset.id)
@@ -1041,7 +1035,7 @@ class DoiCollectionHandlerSpec
          |  "pennsieveSchemaVersion": "5.0"
          |}
          |""".stripMargin
-    localPorts.s3StreamClient
+    ports.s3StreamClient
       .asInstanceOf[MockS3StreamClient]
       .storeDatasetMetadata(version, manifestJson)
 
