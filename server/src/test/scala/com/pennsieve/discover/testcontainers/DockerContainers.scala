@@ -17,4 +17,7 @@ object DockerContainers {
 
   lazy val s3DockerContainerImpl: DiscoverServiceS3DockerContainerImpl =
     new DiscoverServiceS3DockerContainerImpl
+
+  lazy val mockServerContainer: MockServerDockerContainerImpl =
+    new MockServerDockerContainerImpl
 }
