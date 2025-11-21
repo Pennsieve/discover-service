@@ -15,6 +15,6 @@ object DockerContainers {
   lazy val elasticSearchDockerContainerImpl: ElasticSearchDockerContainerImpl =
     new ElasticSearchDockerContainerImpl
 
-  lazy val s3DockerContainerImpl: S3DockerContainerImpl =
-    new S3DockerContainerImpl
+  lazy val s3DockerContainerImpl: DiscoverServiceS3DockerContainerImpl =
+    new DiscoverServiceS3DockerContainerImpl
 }

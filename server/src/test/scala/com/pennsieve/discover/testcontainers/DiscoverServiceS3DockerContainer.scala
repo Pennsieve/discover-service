@@ -3,7 +3,7 @@
 package com.pennsieve.discover.testcontainers
 
 import com.dimafeng.testcontainers.{ Container, GenericContainer }
-import com.pennsieve.discover.testcontainers.S3DockerContainer.{
+import com.pennsieve.discover.testcontainers.DiscoverServiceS3DockerContainer.{
   accessKey,
   secretKey
 }
@@ -20,33 +20,36 @@ import software.amazon.awssdk.services.s3.S3Client
 
 import java.net.URI
 
-object S3DockerContainer {
+// named to avoid accidental conflict with com.pennsieve.test.S3DockerContainer which uses
+// an older version of minio.
+object DiscoverServiceS3DockerContainer {
   val minioTag = "RELEASE.2022-10-20T00-55-09Z"
   val accessKey: String = "access_key"
   val secretKey: String = "access_secret"
   val port: Int = 9000
 }
 
-trait S3DockerContainer extends StackedDockerContainer {
-  lazy val s3Container: S3DockerContainerImpl =
+trait DiscoverServiceS3DockerContainer extends StackedDockerContainer {
+  lazy val s3Container: DiscoverServiceS3DockerContainerImpl =
     DockerContainers.s3DockerContainerImpl
   override def stackedContainers: List[Container] =
     s3Container :: super.stackedContainers
 }
 
-final class S3DockerContainerImpl
+final class DiscoverServiceS3DockerContainerImpl
     extends DockerContainer(
-      dockerImage = s"minio/minio:${S3DockerContainer.minioTag}",
-      exposedPorts = Seq(S3DockerContainer.port),
+      dockerImage = s"minio/minio:${DiscoverServiceS3DockerContainer.minioTag}",
+      exposedPorts = Seq(DiscoverServiceS3DockerContainer.port),
       env = Map(
-        "MINIO_ROOT_USER" -> S3DockerContainer.accessKey,
-        "MINIO_ROOT_PASSWORD" -> S3DockerContainer.secretKey
+        "MINIO_ROOT_USER" -> DiscoverServiceS3DockerContainer.accessKey,
+        "MINIO_ROOT_PASSWORD" -> DiscoverServiceS3DockerContainer.secretKey
       ),
       waitStrategy = Some(new HttpWaitStrategy().forPath("/minio/health/live")),
       command = Seq("server", "/tmp")
     ) {
 
-  override def mappedPort(): Int = super.mappedPort(S3DockerContainer.port)
+  override def mappedPort(): Int =
+    super.mappedPort(DiscoverServiceS3DockerContainer.port)
 
   def s3Endpoint: String = s"http://localhost:${mappedPort()}"
 

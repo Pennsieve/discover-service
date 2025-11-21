@@ -14,7 +14,7 @@ import com.pennsieve.discover.{
   TestUtilities
 }
 import com.pennsieve.discover.models._
-import com.pennsieve.discover.testcontainers.S3DockerContainer
+import com.pennsieve.discover.testcontainers.DiscoverServiceS3DockerContainer
 import com.pennsieve.models._
 import com.pennsieve.test.{ AwaitableImplicits, PersistantTestContainers }
 import com.whisk.docker.scalatest.DockerTestKit
@@ -62,7 +62,7 @@ class S3StreamClientSpec
     with AwaitableImplicits
     with ScalaFutures
     with PersistantTestContainers
-    with S3DockerContainer
+    with DiscoverServiceS3DockerContainer
     with DockerTestKit {
 
   implicit private var system: ActorSystem = _
@@ -84,7 +84,10 @@ class S3StreamClientSpec
         StaticCredentialsProvider
           .create(
             AwsBasicCredentials
-              .create(S3DockerContainer.accessKey, S3DockerContainer.secretKey)
+              .create(
+                DiscoverServiceS3DockerContainer.accessKey,
+                DiscoverServiceS3DockerContainer.secretKey
+              )
           )
       )
       .endpointOverride(new URI(s3Container.s3Endpoint))
@@ -101,7 +104,10 @@ class S3StreamClientSpec
         StaticCredentialsProvider
           .create(
             AwsBasicCredentials
-              .create(S3DockerContainer.accessKey, S3DockerContainer.secretKey)
+              .create(
+                DiscoverServiceS3DockerContainer.accessKey,
+                DiscoverServiceS3DockerContainer.secretKey
+              )
           )
       )
       .endpointOverride(new URI(s3Container.s3Endpoint))
