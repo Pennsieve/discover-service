@@ -3,7 +3,6 @@
 package com.pennsieve.discover
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.pennsieve.discover.clients._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.db.{
@@ -14,19 +13,12 @@ import com.pennsieve.discover.db.{
   PublicFilesMapper,
   WorkspaceSettingsMapper
 }
-import com.pennsieve.discover.notifications.SQSNotificationHandler
 import com.pennsieve.discover.models._
 import com.pennsieve.discover.testcontainers.DockerContainers.postgresContainer.postgresConfiguration
 import com.pennsieve.discover.testcontainers.PostgresDockerContainer
 import com.pennsieve.service.utilities.SingleHttpResponder
 import com.pennsieve.test.{ AwaitableImplicits, PersistantTestContainers }
-import com.spotify.docker.client.DefaultDockerClient
-import com.spotify.docker.client.exceptions.DockerException
 import com.typesafe.scalalogging.StrictLogging
-import com.whisk.docker.DockerFactory
-import com.whisk.docker.impl.spotify.SpotifyDockerFactory
-import com.whisk.docker.scalatest.DockerTestKit
-import org.scalatest.time.{ Second, Seconds, Span }
 import org.scalatest.{
   BeforeAndAfterAll,
   BeforeAndAfterEach,
@@ -49,25 +41,20 @@ trait ServiceSpecHarness
     with BeforeAndAfterEach
     with PersistantTestContainers
     with PostgresDockerContainer
-    with DockerTestKit
     with AwaitableImplicits
     with OptionValues
     with StrictLogging { suite: Suite =>
 
-  implicit private val system: ActorSystem = ActorSystem("discover-service")
-  implicit private val executionContext: ExecutionContext = system.dispatcher
+  // system is deliberately left uninitialized here to avoid conflicts with
+  // other commonly used traits that provide an ActorSystem. i.e., ScalatestRouteTest.
+  // If a class extends both this trait and ScalatestRouteTest, then
+  // they do not need to do anything. The system will be supplied by ScalatestRouteTest.
+  // But tests that do not extend ScalatestRouteTest or another trait that provides an implicit
+  // ActorSystem, should override this value by initializing it themselves. See PublicDatasetVersionsMapperSpec
+  // for example.
+  implicit def system: ActorSystem
+  implicit def executionContext: ExecutionContext = system.dispatcher
 
-  override val PullImagesTimeout: FiniteDuration = 5.minutes
-  override val StartContainersTimeout: FiniteDuration = 120.seconds
-  override val StopContainersTimeout: FiniteDuration = 120.seconds
-
-  // increase default patience to allow containers to come up
-  implicit val patience: PatienceConfig =
-    PatienceConfig(Span(60, Seconds), Span(1, Second))
-
-  // provide a dockerFactory
-  override implicit val dockerFactory: DockerFactory =
-    TestUtilities.dockerFactoryApiVersion141
   implicit var config: Config = _
 
   def getPorts(config: Config): Ports = {

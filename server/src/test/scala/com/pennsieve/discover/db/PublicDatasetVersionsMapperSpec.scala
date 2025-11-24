@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.db
 
+import akka.actor.ActorSystem
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
   OrderBy,
@@ -32,6 +33,7 @@ import com.pennsieve.models.PublishStatus.{
 import com.pennsieve.models.RelationshipType.{ Documents, References, Requires }
 import com.pennsieve.test.AwaitableImplicits
 import org.postgresql.util.PSQLException
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -39,7 +41,15 @@ class PublicDatasetVersionsMapperSpec
     extends AnyWordSpec
     with ServiceSpecHarness
     with AwaitableImplicits
-    with Matchers {
+    with Matchers
+    with ScalaFutures {
+
+  override implicit val system: ActorSystem = ActorSystem("discover-service")
+
+  override def afterAll(): Unit = {
+    system.terminate()
+    super.afterAll()
+  }
 
   "PublicDatasetVersionsMapper" should {
 

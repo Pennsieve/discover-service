@@ -10,15 +10,12 @@ import akka.stream.testkit.scaladsl.TestSink
 import akka.util.ByteString
 import com.pennsieve.discover.{
   ExternalPublishBucketConfiguration,
-  S3Exception,
-  TestUtilities
+  S3Exception
 }
 import com.pennsieve.discover.models._
 import com.pennsieve.discover.testcontainers.DiscoverServiceS3DockerContainer
 import com.pennsieve.models._
 import com.pennsieve.test.{ AwaitableImplicits, PersistantTestContainers }
-import com.whisk.docker.scalatest.DockerTestKit
-import com.whisk.docker.DockerFactory
 import io.circe.syntax._
 import io.circe._
 import io.circe.parser._
@@ -62,8 +59,7 @@ class S3StreamClientSpec
     with AwaitableImplicits
     with ScalaFutures
     with PersistantTestContainers
-    with DiscoverServiceS3DockerContainer
-    with DockerTestKit {
+    with DiscoverServiceS3DockerContainer {
 
   implicit private var system: ActorSystem = _
   implicit private var executionContext: ExecutionContext = _
@@ -115,9 +111,6 @@ class S3StreamClientSpec
       .build()
 
   }
-
-  override implicit val dockerFactory: DockerFactory =
-    TestUtilities.dockerFactoryApiVersion141
 
   /**
     * Create a streaming client for testing, and the required S3 buckets.

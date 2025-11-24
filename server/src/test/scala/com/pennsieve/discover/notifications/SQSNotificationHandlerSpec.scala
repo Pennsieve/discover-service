@@ -75,8 +75,12 @@ class SQSNotificationHandlerSpec
     with Inside
     with ServiceSpecHarness {
 
-  implicit private val system: ActorSystem = ActorSystem("discover-service")
-  implicit private val executionContext: ExecutionContext = system.dispatcher
+  override implicit val system: ActorSystem = ActorSystem("discover-service")
+
+  override def afterAll(): Unit = {
+    system.terminate()
+    super.afterAll()
+  }
 
   lazy val notificationHandler = new SQSNotificationHandler(
     ports,

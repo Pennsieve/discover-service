@@ -30,10 +30,12 @@ class ElasticSearchSpec
     with ServiceSpecHarness
     with ElasticSearchDockerContainer {
 
-  implicit lazy private val system: ActorSystem =
-    ActorSystem("discover-service")
-  implicit lazy private val executionContext: ExecutionContext =
-    system.dispatcher
+  override implicit val system: ActorSystem = ActorSystem("discover-service")
+
+  override def afterAll(): Unit = {
+    system.terminate()
+    super.afterAll()
+  }
 
   var searchClient: AwsElasticSearchClient = _
   var searchPorts: Ports = _

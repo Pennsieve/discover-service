@@ -61,7 +61,6 @@ lazy val utilitiesVersion = "4-55953e4"
 lazy val doiServiceClientVersion = "12-756107b"
 lazy val slickVersion = "3.3.3"
 lazy val slickPgVersion = "0.20.3"
-lazy val dockerItVersion = "0.9.9"
 lazy val testContainersVersion = "0.40.1"
 lazy val logbackVersion = "1.2.3"
 lazy val awsSdkVersion = "2.10.56"
@@ -169,8 +168,6 @@ lazy val server = project
       "com.zaneli" %% "scalikejdbc-athena" % "0.2.4",
       // Test dependencies
       "org.scalatest" %% "scalatest" % "3.2.12" % Test,
-      "com.whisk" %% "docker-testkit-scalatest" % dockerItVersion % Test,
-      "com.whisk" %% "docker-testkit-impl-spotify" % dockerItVersion % Test,
       "com.pennsieve" %% "utilities" % utilitiesVersion % "test" classifier "tests",
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion % "test" classifier "tests",
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion.value % Test,

@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.db
 
+import akka.actor.ActorSystem
 import com.github.tminglei.slickpg.LTree
 import com.pennsieve.discover.models.{ FileTreeNode, PublicFileVersion, S3Key }
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
@@ -19,6 +20,13 @@ class PublicFileVersionsSpec
     with ServiceSpecHarness
     with AwaitableImplicits
     with Matchers {
+
+  override implicit val system: ActorSystem = ActorSystem("discover-service")
+
+  override def afterAll(): Unit = {
+    system.terminate()
+    super.afterAll()
+  }
 
   def run[A](
     dbio: DBIOAction[A, NoStream, Nothing],
