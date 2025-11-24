@@ -12,17 +12,12 @@ import org.scalatest.Inspectors
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import scala.concurrent.ExecutionContextExecutor
-
 class ServerRoutesSpec
     extends AnyWordSpec
     with Matchers
     with Inspectors
     with ScalatestRouteTest
     with ServiceSpecHarness {
-
-  override implicit val executor: ExecutionContextExecutor =
-    super[ScalatestRouteTest].executor
 
   var serverRoutes: Route = _
 
