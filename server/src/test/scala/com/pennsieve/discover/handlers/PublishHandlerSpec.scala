@@ -187,6 +187,8 @@ class PublishHandlerSpec
     workflowId = Some(4)
   )
 
+  val requestBodyV5: PublishRequest = requestBody.copy(workflowId = Some(5))
+
   val customBucketRequestBody: PublishRequest =
     requestBody.copy(bucketConfig = Some(customBucketConfig))
 
