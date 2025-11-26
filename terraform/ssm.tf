@@ -289,6 +289,20 @@ resource "aws_ssm_parameter" "awsod_sparc_bucket_role_arn" {
   value = data.terraform_remote_state.platform_infrastructure.outputs.awsod_sparc_bucket_role_arn
 }
 
+resource "aws_ssm_parameter" "awsod_edots_publish_50_bucket" {
+  name  = "/${var.environment_name}/${var.service_name}/awsod-edots-publish-50-bucket"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.awsod_edots_publish50_bucket_id
+}
+
+// Note: we use the "SPARC" Role here as the buckets are in the same AWS Open Data account
+// Technically this parameter is probably not needed, but it is here in case this needs to change.
+resource "aws_ssm_parameter" "awsod_edots_bucket_role_arn" {
+  name  = "/${var.environment_name}/${var.service_name}/awsod-edots-bucket-role-arn"
+  type  = "String"
+  value = data.terraform_remote_state.platform_infrastructure.outputs.awsod_sparc_bucket_role_arn
+}
+
 //    RE-JOIN
 resource "aws_ssm_parameter" "rejoin_publish_50_bucket" {
   name  = "/${var.environment_name}/${var.service_name}/rejoin-publish-50-bucket"
