@@ -5,19 +5,12 @@ package com.pennsieve.discover.clients
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.Uri
 import com.pennsieve.discover.models._
-import com.pennsieve.discover.{
-  DockerMockServerService,
-  ExternalPublishBucketConfiguration,
-  TestUtilities
-}
+import com.pennsieve.discover.testcontainers.MockServerDockerContainer
+import com.pennsieve.discover.ExternalPublishBucketConfiguration
+
 import com.pennsieve.models._
-import com.pennsieve.test.AwaitableImplicits
-import com.spotify.docker.client.DefaultDockerClient
-import com.spotify.docker.client.exceptions.DockerException
-import com.typesafe.config.{ ConfigFactory, ConfigValueFactory }
-import com.whisk.docker.DockerFactory
-import com.whisk.docker.impl.spotify.SpotifyDockerFactory
-import com.whisk.docker.scalatest.DockerTestKit
+import com.pennsieve.test.{ AwaitableImplicits, PersistantTestContainers }
+import org.mockserver.client.MockServerClient
 import org.mockserver.model.{ HttpRequest, MediaType, RequestDefinition }
 import org.mockserver.model.HttpRequest.request
 import org.mockserver.model.HttpResponse.response
@@ -48,72 +41,60 @@ class MockServerS3StreamClientSpec
     with Matchers
     with AwaitableImplicits
     with ScalaFutures
-    with DockerMockServerService
-    with DockerTestKit {
+    with PersistantTestContainers
+    with MockServerDockerContainer {
 
-  // alpakka-s3 v1.0 can only be configured via Typesafe config passed to the
-  // actor system, or as S3Settings that are attached to every graph
-  lazy val config = ConfigFactory
-    .load()
-    .withValue(
-      "alpakka.s3.endpoint-url",
-      ConfigValueFactory.fromAnyRef(mockServerEndpoint)
-    )
-    .withValue(
-      "alpakka.s3.aws.credentials.provider",
-      ConfigValueFactory.fromAnyRef("static")
-    )
-    .withValue(
-      "alpakka.s3.aws.credentials.access-key-id",
-      ConfigValueFactory.fromAnyRef(accessKey)
-    )
-    .withValue(
-      "alpakka.s3.aws.credentials.secret-access-key",
-      ConfigValueFactory.fromAnyRef(secretKey)
-    )
-    .withValue("alpakka.s3.access-style", ConfigValueFactory.fromAnyRef("path"))
+  implicit private var system: ActorSystem = _
+  implicit private var executionContext: ExecutionContext = _
+  var s3Presigner: S3Presigner = _
+  var s3Client: S3Client = _
+  var stsClient: StsClient = _
+  var mockServerEndpoint: String = _
+  var mockServerClient: MockServerClient = _
 
-  implicit lazy private val system: ActorSystem =
-    ActorSystem("discover-service", config)
-  implicit lazy private val executionContext: ExecutionContext =
-    system.dispatcher
+  override def afterStart(): Unit = {
+    super.afterStart()
 
-  override implicit val dockerFactory: DockerFactory =
-    TestUtilities.dockerFactoryApiVersion141
+    system = ActorSystem("discover-service", mockServerContainer.config)
+    executionContext = system.dispatcher
 
-  lazy val s3Presigner: S3Presigner = S3Presigner
-    .builder()
-    .region(Region.US_EAST_1)
-    .credentialsProvider(
-      StaticCredentialsProvider
-        .create(AwsBasicCredentials.create(accessKey, secretKey))
-    )
-    .endpointOverride(new URI(mockServerEndpoint))
-    .build()
+    s3Presigner = S3Presigner
+      .builder()
+      .region(Region.US_EAST_1)
+      .credentialsProvider(
+        StaticCredentialsProvider
+          .create(AwsBasicCredentials.create(accessKey, secretKey))
+      )
+      .endpointOverride(new URI(mockServerContainer.mockServerEndpoint))
+      .build()
 
-  lazy val sharedHttpClient = UrlConnectionHttpClient.builder().build()
+    val sharedHttpClient = UrlConnectionHttpClient.builder().build()
 
-  lazy val s3Client: S3Client = S3Client
-    .builder()
-    .region(Region.US_EAST_1)
-    .credentialsProvider(
-      StaticCredentialsProvider
-        .create(AwsBasicCredentials.create(accessKey, secretKey))
-    )
-    .httpClient(sharedHttpClient)
-    .endpointOverride(new URI(mockServerEndpoint))
-    .build()
+    s3Client = S3Client
+      .builder()
+      .region(Region.US_EAST_1)
+      .credentialsProvider(
+        StaticCredentialsProvider
+          .create(AwsBasicCredentials.create(accessKey, secretKey))
+      )
+      .httpClient(sharedHttpClient)
+      .endpointOverride(new URI(mockServerContainer.mockServerEndpoint))
+      .build()
 
-  lazy val stsClient: StsClient = StsClient
-    .builder()
-    .region(Region.US_EAST_1)
-    .credentialsProvider(
-      StaticCredentialsProvider
-        .create(AwsBasicCredentials.create(accessKey, secretKey))
-    )
-    .endpointOverride(new URI(mockServerEndpoint))
-    .httpClient(sharedHttpClient)
-    .build()
+    stsClient = StsClient
+      .builder()
+      .region(Region.US_EAST_1)
+      .credentialsProvider(
+        StaticCredentialsProvider
+          .create(AwsBasicCredentials.create(accessKey, secretKey))
+      )
+      .endpointOverride(new URI(mockServerContainer.mockServerEndpoint))
+      .httpClient(sharedHttpClient)
+      .build()
+
+    mockServerEndpoint = mockServerContainer.mockServerEndpoint
+    mockServerClient = mockServerContainer.mockServerClient
+  }
 
   /**
     * Create a streaming client for testing, and the required S3 buckets.

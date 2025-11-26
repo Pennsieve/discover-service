@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.db
 
+import akka.actor.ActorSystem
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
 import com.pennsieve.test.AwaitableImplicits
 import org.scalatest.matchers.should.Matchers
@@ -12,6 +13,13 @@ class PublicDatasetDoiCollectionDoisMapperSpec
     with ServiceSpecHarness
     with AwaitableImplicits
     with Matchers {
+
+  override implicit val system: ActorSystem = ActorSystem("discover-service")
+
+  override def afterAll(): Unit = {
+    system.terminate()
+    super.afterAll()
+  }
 
   "PublicDatasetDoiCollectionDoisMapper" should {
 

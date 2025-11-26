@@ -78,17 +78,6 @@ class DoiCollectionHandlerSpec
     with ScalatestRouteTest
     with ServiceSpecHarness {
 
-  override lazy implicit val ports: Ports =
-    getPorts(config).copy(sqsClient = new MockSqsAsyncClient())
-
-  def createRoutes(): Route =
-    Route.seal(DoiCollectionHandler.routes(ports))
-
-  def createClient(routes: Route): CollectionClient =
-    CollectionClient.httpClient(Route.toFunction(routes))
-
-  private val client = createClient(createRoutes())
-
   val collectionName = "Dataset"
   val sourceCollectionId = 34
   val collectionNodeId = "abc123-xyz-456"
@@ -107,11 +96,36 @@ class DoiCollectionHandlerSpec
       userId = Some(ownerId)
     )
 
-  private val pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
-  private val collectionOrgId = config.doiCollections.idSpace.id
+  private val customBucketConfig =
+    BucketConfig("org-publish-bucket", "org-embargo-bucket")
 
-  private val requestBody: PublishDoiCollectionRequest =
-    PublishDoiCollectionRequest(
+  private var client: CollectionClient = _
+  private var pennsieveDoiPrefix: String = _
+  private var collectionOrgId: Int = _
+  private var requestBody: PublishDoiCollectionRequest = _
+  private var customBucketRequestBody: PublishDoiCollectionRequest = _
+  private var token: Jwt.Token = _
+  private var authToken: List[Authorization] = _
+  private var userToken: Jwt.Token = _
+  private var userAuthToken: List[Authorization] = _
+
+  def createRoutes(): Route =
+    Route.seal(DoiCollectionHandler.routes(ports))
+
+  def createClient(routes: Route): CollectionClient =
+    CollectionClient.httpClient(Route.toFunction(routes))
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+
+    // we're overriding ServiceSpecHarness ports with a mock SQS client
+    ports = ports.copy(sqsClient = new MockSqsAsyncClient())
+    client = createClient(createRoutes())
+
+    pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
+    collectionOrgId = config.doiCollections.idSpace.id
+
+    requestBody = PublishDoiCollectionRequest(
       name = collectionName,
       description = "This is a test collection for publishing",
       banners = Vector(
@@ -131,32 +145,30 @@ class DoiCollectionHandlerSpec
       contributors = Vector(internalContributor)
     )
 
-  private val customBucketConfig =
-    BucketConfig("org-publish-bucket", "org-embargo-bucket")
+    customBucketRequestBody =
+      requestBody.copy(bucketConfig = Some(customBucketConfig))
 
-  private val customBucketRequestBody =
-    requestBody.copy(bucketConfig = Some(customBucketConfig))
-
-  val token: Jwt.Token =
-    generateServiceToken(
+    token = generateServiceToken(
       ports.jwt,
       organizationId = collectionOrgId,
       datasetId = sourceCollectionId
     )
 
-  private val authToken = List(Authorization(OAuth2BearerToken(token.value)))
+    authToken = List(Authorization(OAuth2BearerToken(token.value)))
 
-  val userToken: Jwt.Token =
-    generateUserToken(ports.jwt, 1, collectionOrgId, Some(sourceCollectionId))
+    userToken =
+      generateUserToken(ports.jwt, 1, collectionOrgId, Some(sourceCollectionId))
 
-  private val userAuthToken = List(
-    Authorization(OAuth2BearerToken(userToken.value))
-  )
+    userAuthToken = List(Authorization(OAuth2BearerToken(userToken.value)))
+  }
 
   override def afterEach(): Unit = {
     super.afterEach()
 
-    ports.sqsClient.asInstanceOf[MockSqsAsyncClient].sendMessageCalls.clear()
+    ports.sqsClient
+      .asInstanceOf[MockSqsAsyncClient]
+      .sendMessageCalls
+      .clear()
   }
 
   "POST /collection/{collectionId}/publish" should {
@@ -515,11 +527,12 @@ class DoiCollectionHandlerSpec
       val unpublishedDoi =
         s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
 
-      val unpublishedVersion = TestUtilities.createNewDatasetVersion(ports.db)(
-        id = unpublishedDataset.id,
-        status = PublishStatus.Unpublished,
-        doi = unpublishedDoi
-      )
+      val unpublishedVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = unpublishedDataset.id,
+          status = PublishStatus.Unpublished,
+          doi = unpublishedDoi
+        )
 
       val unpublishedBody =
         requestBody.copy(dois = Vector(unpublishedDoi, publishedDoi))
@@ -846,11 +859,12 @@ class DoiCollectionHandlerSpec
         status = PublishFailed
       )
 
-      val doiCollection = TestUtilities.createDatasetDoiCollection(ports.db)(
-        datasetId = version.datasetId,
-        datasetVersion = version.version,
-        banners = TestUtilities.randomBannerUrls
-      )
+      val doiCollection =
+        TestUtilities.createDatasetDoiCollection(ports.db)(
+          datasetId = version.datasetId,
+          datasetVersion = version.version,
+          banners = TestUtilities.randomBannerUrls
+        )
 
       TestUtilities.addDoiCollectionDois(ports.db)(
         doiCollection = doiCollection,
