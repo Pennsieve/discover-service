@@ -98,7 +98,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration._
-
 import com.pennsieve.discover.db.profile.api._
 
 class DatasetHandlerSpec
@@ -112,15 +111,24 @@ class DatasetHandlerSpec
   val datasetId = 2
   val userId = 1
 
-  val token: Jwt.Token =
-    generateUserToken(
+  var token: Jwt.Token = _
+  var authToken: List[Authorization] = _
+  var datasetClient: DatasetClient = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+
+    token = generateUserToken(
       ports.jwt,
       userId = userId,
       organizationId = organizationId,
       datasetId = Some(datasetId)
     )
 
-  val authToken = List(Authorization(OAuth2BearerToken(token.value)))
+    authToken = List(Authorization(OAuth2BearerToken(token.value)))
+
+    datasetClient = createClient(createRoutes())
+  }
 
   def createRoutes(): Route =
     Route.seal(DatasetHandler.routes(ports))
@@ -134,8 +142,6 @@ class DatasetHandlerSpec
     dto
       .into[client.definitions.PublicDatasetDto]
       .transform
-
-  val datasetClient: DatasetClient = createClient(createRoutes())
 
   /**
     * Reusible collection of tests cases to validate that endpoints which can

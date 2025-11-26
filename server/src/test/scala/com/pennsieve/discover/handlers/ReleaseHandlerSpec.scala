@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.handlers
 
+import akka.http.scaladsl.model.HttpHeader
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -92,15 +93,20 @@ class ReleaseHandlerSpec
       relationshipType = Some(RelationshipType.Describes)
     )
 
-  val client = createClient(createRoutes())
-  val token: Jwt.Token =
-    generateServiceToken(
+  var client: ReleaseClient = _
+  var token: Jwt.Token = _
+  var authToken: List[HttpHeader] = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    client = createClient(createRoutes())
+    token = generateServiceToken(
       ports.jwt,
       organizationId = organizationId,
       datasetId = datasetId
     )
-
-  val authToken = List(Authorization(OAuth2BearerToken(token.value)))
+    authToken = List(Authorization(OAuth2BearerToken(token.value)))
+  }
 
   def releaseRequest(
     origin: String,

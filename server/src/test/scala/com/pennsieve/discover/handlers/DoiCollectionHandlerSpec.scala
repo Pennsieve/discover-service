@@ -5,17 +5,17 @@ package com.pennsieve.discover.handlers
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import io.circe.parser.decode
 import com.pennsieve.test.EitherValue._
 import com.pennsieve.auth.middleware.Jwt
 import com.pennsieve.discover.Authenticator.{
   generateServiceToken,
   generateUserToken
 }
-import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.{ Ports, ServiceSpecHarness, TestUtilities }
 import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse
 import com.pennsieve.discover.client.collection.FinalizeDoiCollectionResponse
 import com.pennsieve.discover.client.collection.CollectionClient
-import com.pennsieve.discover.client.collection.PublishDoiCollectionResponse.Created
 import com.pennsieve.discover.client.collection.UnpublishDoiCollectionResponse.{
   Forbidden,
   NoContent,
@@ -35,7 +35,8 @@ import com.pennsieve.discover.clients.{
   MockDoiClient,
   MockLambdaClient,
   MockS3StreamClient,
-  MockSearchClient
+  MockSearchClient,
+  MockSqsAsyncClient
 }
 import com.pennsieve.discover.db.{
   PublicContributorsMapper,
@@ -44,10 +45,10 @@ import com.pennsieve.discover.db.{
   PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
+  PublicExternalPublicationsMapper,
   PublicFileVersionsMapper
 }
 import com.pennsieve.discover.models.{
-  PublicDatasetDoiCollection,
   PublicDatasetVersion,
   PublishingWorkflow,
   S3CleanupStage,
@@ -60,15 +61,15 @@ import com.pennsieve.models.PublishStatus.{
   PublishSucceeded,
   Unpublished
 }
-import com.pennsieve.models.{ Degree, License, PublishStatus }
+import com.pennsieve.models.{ License, PublishStatus }
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import slick.dbio.{ DBIOAction, NoStream }
 import com.pennsieve.discover.db.profile.api._
-
-import java.time.LocalDate
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import com.pennsieve.discover.notifications.PushDoiRequest
+import com.pennsieve.discover.notifications.SQSNotificationType.PUSH_DOI
+import com.pennsieve.models.RelationshipType.References
+import org.scalatest.Inspectors.forAll
 
 class DoiCollectionHandlerSpec
     extends AnyWordSpec
@@ -76,13 +77,6 @@ class DoiCollectionHandlerSpec
     with Inside
     with ScalatestRouteTest
     with ServiceSpecHarness {
-  def createRoutes(): Route =
-    Route.seal(DoiCollectionHandler.routes(ports))
-
-  def createClient(routes: Route): CollectionClient =
-    CollectionClient.httpClient(Route.toFunction(routes))
-
-  private val client = createClient(createRoutes())
 
   val collectionName = "Dataset"
   val sourceCollectionId = 34
@@ -102,11 +96,36 @@ class DoiCollectionHandlerSpec
       userId = Some(ownerId)
     )
 
-  private val pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
-  private val collectionOrgId = config.doiCollections.idSpace.id
+  private val customBucketConfig =
+    BucketConfig("org-publish-bucket", "org-embargo-bucket")
 
-  private val requestBody: PublishDoiCollectionRequest =
-    PublishDoiCollectionRequest(
+  private var client: CollectionClient = _
+  private var pennsieveDoiPrefix: String = _
+  private var collectionOrgId: Int = _
+  private var requestBody: PublishDoiCollectionRequest = _
+  private var customBucketRequestBody: PublishDoiCollectionRequest = _
+  private var token: Jwt.Token = _
+  private var authToken: List[Authorization] = _
+  private var userToken: Jwt.Token = _
+  private var userAuthToken: List[Authorization] = _
+
+  def createRoutes(): Route =
+    Route.seal(DoiCollectionHandler.routes(ports))
+
+  def createClient(routes: Route): CollectionClient =
+    CollectionClient.httpClient(Route.toFunction(routes))
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+
+    // we're overriding ServiceSpecHarness ports with a mock SQS client
+    ports = ports.copy(sqsClient = new MockSqsAsyncClient())
+    client = createClient(createRoutes())
+
+    pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
+    collectionOrgId = config.doiCollections.idSpace.id
+
+    requestBody = PublishDoiCollectionRequest(
       name = collectionName,
       description = "This is a test collection for publishing",
       banners = Vector(
@@ -126,27 +145,31 @@ class DoiCollectionHandlerSpec
       contributors = Vector(internalContributor)
     )
 
-  private val customBucketConfig =
-    BucketConfig("org-publish-bucket", "org-embargo-bucket")
+    customBucketRequestBody =
+      requestBody.copy(bucketConfig = Some(customBucketConfig))
 
-  private val customBucketRequestBody =
-    requestBody.copy(bucketConfig = Some(customBucketConfig))
-
-  val token: Jwt.Token =
-    generateServiceToken(
+    token = generateServiceToken(
       ports.jwt,
       organizationId = collectionOrgId,
       datasetId = sourceCollectionId
     )
 
-  private val authToken = List(Authorization(OAuth2BearerToken(token.value)))
+    authToken = List(Authorization(OAuth2BearerToken(token.value)))
 
-  val userToken: Jwt.Token =
-    generateUserToken(ports.jwt, 1, collectionOrgId, Some(sourceCollectionId))
+    userToken =
+      generateUserToken(ports.jwt, 1, collectionOrgId, Some(sourceCollectionId))
 
-  private val userAuthToken = List(
-    Authorization(OAuth2BearerToken(userToken.value))
-  )
+    userAuthToken = List(Authorization(OAuth2BearerToken(userToken.value)))
+  }
+
+  override def afterEach(): Unit = {
+    super.afterEach()
+
+    ports.sqsClient
+      .asInstanceOf[MockSqsAsyncClient]
+      .sendMessageCalls
+      .clear()
+  }
 
   "POST /collection/{collectionId}/publish" should {
     "fail without a JWT" in {
@@ -250,6 +273,24 @@ class DoiCollectionHandlerSpec
         requestBody.contributors.toList,
         contributors
       )
+
+      val externalPubs = ports.db
+        .run(
+          PublicExternalPublicationsMapper
+            .getByDatasetAndVersion(publicDataset, publicVersion)
+        )
+        .awaitFinite()
+
+      externalPubs should have length requestBody.dois.length
+      val externalPubsByDoi = externalPubs.map(p => p.doi -> p).toMap
+      forAll(requestBody.dois) { doi =>
+        externalPubsByDoi should contain key doi
+        val externalPub = externalPubsByDoi(doi)
+
+        externalPub.relationshipType shouldBe References
+        externalPub.datasetId shouldBe publicDataset.id
+        externalPub.version shouldBe publicVersion.version
+      }
 
       response shouldBe com.pennsieve.discover.client.definitions
         .PublishDoiCollectionResponse(
@@ -486,11 +527,12 @@ class DoiCollectionHandlerSpec
       val unpublishedDoi =
         s"$pennsieveDoiPrefix/${TestUtilities.randomString()}"
 
-      val unpublishedVersion = TestUtilities.createNewDatasetVersion(ports.db)(
-        id = unpublishedDataset.id,
-        status = PublishStatus.Unpublished,
-        doi = unpublishedDoi
-      )
+      val unpublishedVersion =
+        TestUtilities.createNewDatasetVersion(ports.db)(
+          id = unpublishedDataset.id,
+          status = PublishStatus.Unpublished,
+          doi = unpublishedDoi
+        )
 
       val unpublishedBody =
         requestBody.copy(dois = Vector(unpublishedDoi, publishedDoi))
@@ -637,6 +679,21 @@ class DoiCollectionHandlerSpec
         publishDoiCollection()
 
       finalizeResponse.status shouldBe PublishStatus.PublishSucceeded
+
+      val sqsMessages = ports.sqsClient
+        .asInstanceOf[MockSqsAsyncClient]
+        .sendMessageCalls
+
+      sqsMessages should have size 1
+
+      val message = decode[PushDoiRequest](sqsMessages.head.messageBody())
+
+      message.value shouldBe PushDoiRequest(
+        jobType = PUSH_DOI,
+        datasetId = publishResponse.publishedDatasetId,
+        version = publishResponse.publishedVersion,
+        doi = publishResponse.publicId
+      )
 
       // check: dataset, version, files
       val publicDatasetFinal = ports.db
@@ -802,11 +859,12 @@ class DoiCollectionHandlerSpec
         status = PublishFailed
       )
 
-      val doiCollection = TestUtilities.createDatasetDoiCollection(ports.db)(
-        datasetId = version.datasetId,
-        datasetVersion = version.version,
-        banners = TestUtilities.randomBannerUrls
-      )
+      val doiCollection =
+        TestUtilities.createDatasetDoiCollection(ports.db)(
+          datasetId = version.datasetId,
+          datasetVersion = version.version,
+          banners = TestUtilities.randomBannerUrls
+        )
 
       TestUtilities.addDoiCollectionDois(ports.db)(
         doiCollection = doiCollection,

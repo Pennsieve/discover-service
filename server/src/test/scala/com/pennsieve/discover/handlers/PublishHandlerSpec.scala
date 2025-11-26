@@ -15,9 +15,13 @@ import com.pennsieve.discover.Authenticator.{
 import com.pennsieve.discover._
 import com.pennsieve.discover.client.definitions
 import com.pennsieve.discover.client.definitions.{
+  BucketConfig,
   DatasetPublishStatus,
   InternalCollection,
   InternalContributor,
+  PublishRequest,
+  ReleaseRequest,
+  ReviseRequest,
   SponsorshipRequest,
   SponsorshipResponse
 }
@@ -38,6 +42,7 @@ import com.pennsieve.models.PublishStatus.{
   PublishSucceeded,
   Unpublished
 }
+import com.pennsieve.models.RelationshipType.{ IsCitedBy, References }
 import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
 import com.pennsieve.test.EitherValue._
 import io.circe.syntax._
@@ -74,16 +79,6 @@ class PublishHandlerSpec
   val ownerLastName = "Digger"
   val ownerOrcid = "0000-0012-3456-7890"
 
-  val token: Jwt.Token =
-    generateServiceToken(
-      ports.jwt,
-      organizationId = organizationId,
-      datasetId = datasetId
-    )
-
-  val userToken: Jwt.Token =
-    generateUserToken(ports.jwt, 1, organizationId, Some(datasetId))
-
   val internalContributor =
     new InternalContributor(
       1,
@@ -112,11 +107,8 @@ class PublishHandlerSpec
       relationshipType = Some(RelationshipType.Describes)
     )
 
-  val customBucketConfig =
+  val customBucketConfig: BucketConfig =
     definitions.BucketConfig("org-publish-bucket", "org-embargo-bucket")
-
-  def customBucketReleaseBody(customBucketConfig: definitions.BucketConfig) =
-    definitions.ReleaseRequest(Some(customBucketConfig))
 
   val defaultBucketReleaseBody: definitions.ReleaseRequest =
     definitions.ReleaseRequest()
@@ -124,34 +116,7 @@ class PublishHandlerSpec
   val defaultBucketUnpublishBody: definitions.UnpublishRequest =
     definitions.UnpublishRequest()
 
-  val requestBody: definitions.PublishRequest = definitions.PublishRequest(
-    name = datasetName,
-    description = "A very very long description...",
-    ownerId = 1,
-    modelCount = Vector(definitions.ModelCount("myConcept", 100L)),
-    recordCount = 100L,
-    fileCount = 100L,
-    size = 5555555L,
-    license = License.`Apache 2.0`,
-    contributors = Vector(internalContributor),
-    externalPublications = Some(Vector(internalExternalPublication)),
-    tags = Vector[String]("tag1", "tag2"),
-    ownerNodeId = ownerNodeId,
-    ownerFirstName = ownerFirstName,
-    ownerLastName = ownerLastName,
-    ownerOrcid = ownerOrcid,
-    organizationNodeId = organizationNodeId,
-    organizationName = organizationName,
-    datasetNodeId = datasetNodeId,
-    workflowId = Some(4)
-  )
-
-  val requestBodyV5 = requestBody.copy(workflowId = Some(5))
-
-  val customBucketRequestBody: definitions.PublishRequest =
-    requestBody.copy(bucketConfig = Some(customBucketConfig))
-
-  val reviseRequest = definitions.ReviseRequest(
+  val reviseRequest: ReviseRequest = definitions.ReviseRequest(
     name = "A different name",
     description = "Brief and succint.",
     license = License.MIT,
@@ -200,18 +165,64 @@ class PublishHandlerSpec
     )
   )
 
-  val authToken = List(Authorization(OAuth2BearerToken(token.value)))
-
-  val userAuthToken = List(Authorization(OAuth2BearerToken(userToken.value)))
-
-  val client = createClient(createRoutes())
-
-  lazy val notificationHandler = new SQSNotificationHandler(
-    ports,
-    config.sqs.region,
-    config.sqs.queueUrl,
-    config.sqs.parallelism
+  val requestBody: PublishRequest = definitions.PublishRequest(
+    name = datasetName,
+    description = "A very very long description...",
+    ownerId = 1,
+    modelCount = Vector(definitions.ModelCount("myConcept", 100L)),
+    recordCount = 100L,
+    fileCount = 100L,
+    size = 5555555L,
+    license = License.`Apache 2.0`,
+    contributors = Vector(internalContributor),
+    externalPublications = Some(Vector(internalExternalPublication)),
+    tags = Vector[String]("tag1", "tag2"),
+    ownerNodeId = ownerNodeId,
+    ownerFirstName = ownerFirstName,
+    ownerLastName = ownerLastName,
+    ownerOrcid = ownerOrcid,
+    organizationNodeId = organizationNodeId,
+    organizationName = organizationName,
+    datasetNodeId = datasetNodeId,
+    workflowId = Some(4)
   )
+
+  val customBucketRequestBody: PublishRequest =
+    requestBody.copy(bucketConfig = Some(customBucketConfig))
+
+  var token: Jwt.Token = _
+  var userToken: Jwt.Token = _
+  var authToken: List[akka.http.scaladsl.model.HttpHeader] = _
+  var userAuthToken: List[akka.http.scaladsl.model.HttpHeader] = _
+  var client: PublishClient = _
+
+  lazy val notificationHandler: SQSNotificationHandler =
+    new SQSNotificationHandler(
+      ports,
+      config.sqs.region,
+      config.sqs.queueUrl,
+      config.sqs.parallelism
+    )
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+
+    token = generateServiceToken(
+      ports.jwt,
+      organizationId = organizationId,
+      datasetId = datasetId
+    )
+
+    userToken = generateUserToken(ports.jwt, 1, organizationId, Some(datasetId))
+    authToken = List(Authorization(OAuth2BearerToken(token.value)))
+    userAuthToken = List(Authorization(OAuth2BearerToken(userToken.value)))
+    client = createClient(createRoutes())
+  }
+
+  def customBucketReleaseBody(
+    customBucketConfig: definitions.BucketConfig
+  ): ReleaseRequest =
+    definitions.ReleaseRequest(Some(customBucketConfig))
 
   /**
     * Complete the publish job successfully
@@ -937,6 +948,94 @@ class PublishHandlerSpec
 
     }
 
+    "allow an external publication to be listed multiple times with different relationships" in {
+
+      val internalExternalPubAgainWithDifferentType =
+        internalExternalPublication.copy(relationshipType = Some(IsCitedBy))
+
+      val internalExternalPubAgainWithDefaultType =
+        internalExternalPublication.copy(relationshipType = None)
+
+      val internalExternalPubs = Vector(
+        internalExternalPublication,
+        internalExternalPubAgainWithDifferentType,
+        internalExternalPubAgainWithDefaultType
+      )
+
+      val testRequestBody =
+        requestBody.copy(externalPublications = Some(internalExternalPubs))
+
+      val response = client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          testRequestBody,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      response shouldBe DatasetPublishStatus(
+        datasetName,
+        organizationId,
+        datasetId,
+        None,
+        0,
+        PublishInProgress,
+        None,
+        workflowId = PublishingWorkflow.Version4
+      )
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      val externalPublications = run(
+        PublicExternalPublicationsMapper
+          .getByDatasetAndVersion(publicDataset, publicVersion)
+      )
+
+      externalPublications should have length internalExternalPubs.length
+
+      val externalPubData =
+        externalPublications.map(p => (p.doi, p.relationshipType))
+
+      val internalExternalPubData = internalExternalPubs.map(
+        p => (p.doi, p.relationshipType.getOrElse(References))
+      )
+
+      externalPubData should contain theSameElementsAs internalExternalPubData
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs should have length 1
+
+      publishedJobs.head.externalPublications should have length internalExternalPubs.length
+
+      val jobExternalPubData = publishedJobs.head.externalPublications
+        .map(p => (p.doi, p.relationshipType))
+
+      jobExternalPubData should contain theSameElementsAs internalExternalPubData
+
+    }
+
     "not expect a previous version on first publish" in {
       client
         .publish(
@@ -1472,6 +1571,82 @@ class PublishHandlerSpec
 
       response shouldBe a[ReviseResponse.Forbidden]
     }
+
+    "allow revisions with an external publication listed multiple times with different relationships" in {
+
+      client
+        .publish(organizationId, datasetId, None, None, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicDataset = run(
+        PublicDatasetsMapper
+          .getDatasetFromSourceIds(organizationId, datasetId)
+      )
+
+      val version = run(
+        PublicDatasetVersionsMapper
+          .getLatestVersion(publicDataset.id)
+      ).get
+
+      // Should have no revisions
+      run(RevisionsMapper.getLatestRevision(version)) shouldBe None
+
+      // "Complete" the publish job
+      publishSuccessfully(publicDataset, version)
+
+      val internalExternalPubAgainWithDifferentType =
+        internalExternalPublication.copy(relationshipType = Some(IsCitedBy))
+
+      val internalExternalPubAgainWithDefaultType =
+        internalExternalPublication.copy(relationshipType = None)
+
+      val internalExternalPubs = Vector(
+        internalExternalPublication,
+        internalExternalPubAgainWithDifferentType,
+        internalExternalPubAgainWithDefaultType
+      )
+
+      val testReviseRequest =
+        reviseRequest.copy(externalPublications = Some(internalExternalPubs))
+
+      client
+        .revise(organizationId, datasetId, testReviseRequest, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[ReviseResponse.Created]
+        .value
+
+      val externalPublications = run(
+        PublicExternalPublicationsMapper
+          .getByDatasetAndVersion(publicDataset, version)
+      )
+
+      externalPublications should have length internalExternalPubs.length
+
+      val externalPubData =
+        externalPublications.map(p => (p.doi, p.relationshipType))
+
+      val internalExternalPubData = internalExternalPubs.map(
+        p => (p.doi, p.relationshipType.getOrElse(References))
+      )
+
+      externalPubData should contain theSameElementsAs internalExternalPubData
+
+      val doiExternalPubData = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .reviseRequests
+        .get(version.doi)
+        .value
+        .externalPublications
+        .map(p => (p.doi, p.relationshipType))
+
+      doiExternalPubData should contain theSameElementsAs internalExternalPubData
+
+    }
+
   }
 
   "POST /organizations/{organizationId}/datasets/{datasetId}/release" should {

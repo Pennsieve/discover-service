@@ -22,10 +22,18 @@ import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.models.License
 import io.circe.syntax._
 
+import scala.collection.mutable
 import scala.collection.mutable.{ ArrayBuffer, Map }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Random
+
+// RequestCapture holds request arguments passed to publishDoi and reviseDoi.
+// Only externalPublications are captured now, but others may be added as needed.
+case class RequestCapture(
+  doi: String,
+  externalPublications: List[PublicExternalPublication]
+)
 
 class MockDoiClient(
   httpClient: HttpRequest => Future[HttpResponse],
@@ -33,7 +41,13 @@ class MockDoiClient(
   system: ActorSystem
 ) extends DoiClient("https://mock-doi-service-host")(httpClient, ec, system) {
 
-  val dois: Map[String, DoiDTO] = Map.empty[String, DoiDTO]
+  val dois: mutable.Map[String, DoiDTO] = mutable.Map.empty[String, DoiDTO]
+
+  val publishRequests: mutable.Map[String, RequestCapture] =
+    mutable.Map.empty[String, RequestCapture]
+
+  val reviseRequests: mutable.Map[String, RequestCapture] =
+    mutable.Map.empty[String, RequestCapture]
 
   def createMockDoi(
     organizationId: Int,
@@ -62,6 +76,12 @@ class MockDoiClient(
           dto.organizationId == organizationId && dto.datasetId == datasetId
       }
       .map(_._2)
+  }
+
+  def clear(): Unit = {
+    dois.clear()
+    publishRequests.clear()
+    reviseRequests.clear()
   }
 
   override def createDraftDoi(
@@ -105,6 +125,7 @@ class MockDoiClient(
           url = Some(url),
           publisher = publisher.getOrElse(dto.publisher)
         )
+        publishRequests += doi -> RequestCapture(doi, externalPublications)
         dois += doi -> published
         Future.successful(published)
       }
@@ -130,6 +151,7 @@ class MockDoiClient(
           creators = Some(contributors.map(c => Some(c.fullName)))
         )
         dois += doi -> revised
+        reviseRequests += doi -> RequestCapture(doi, externalPublications)
         Future.successful(revised)
       }
       case None => Future.failed(NoDoiException)

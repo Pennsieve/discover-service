@@ -33,7 +33,12 @@ class FileHandlerSpec
   def createClient(routes: Route): FileClient =
     FileClient.httpClient(Route.toFunction(routes))
 
-  val fileClient: FileClient = createClient(createRoutes())
+  var fileClient: FileClient = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    fileClient = createClient(createRoutes())
+  }
 
   "GET /files/{sourcePackageId}" should {
 

@@ -28,13 +28,18 @@ class MetricsHandlerSpec
   def createClient(routes: Route): MetricsClient =
     MetricsClient.httpClient(Route.toFunction(routes))
 
-  val metricsClient: MetricsClient = createClient(createRoutes())
+  var metricsClient: MetricsClient = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    metricsClient = createClient(createRoutes())
+  }
 
   "GET /metrics/dataset/downloads/summary" should {
 
     "present the dataset download summary for the requested date range" in {
-      val ds1 = TestUtilities.createDatasetV1(ports.db)()
-      val ds2 = TestUtilities.createDatasetV1(ports.db)()
+      val ds1 = TestUtilities.createDatasetV1(ports.db)(sourceDatasetId = 1)
+      val ds2 = TestUtilities.createDatasetV1(ports.db)(sourceDatasetId = 2)
       TestUtilities.createDatasetDownloadRow(ports.db)(
         ds1.datasetId,
         ds1.version,
@@ -72,12 +77,17 @@ class MetricsHandlerSpec
         GetDatasetDownloadsSummaryResponse.OK(
           Vector(
             DatasetDownloadSummaryRow(
-              1,
-              1,
+              ds1.datasetId,
+              ds1.version,
               DownloadOrigin.Discover.entryName,
               1
             ),
-            DatasetDownloadSummaryRow(1, 2, DownloadOrigin.SPARC.entryName, 1)
+            DatasetDownloadSummaryRow(
+              ds2.datasetId,
+              ds2.version,
+              DownloadOrigin.SPARC.entryName,
+              1
+            )
           )
         )
     }

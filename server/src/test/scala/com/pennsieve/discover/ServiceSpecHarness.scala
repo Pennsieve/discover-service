@@ -3,27 +3,22 @@
 package com.pennsieve.discover
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
 import com.pennsieve.discover.clients._
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.db.{
+  DatasetDownloadsMapper,
   PublicContributorsMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   PublicFilesMapper,
   WorkspaceSettingsMapper
 }
-import com.pennsieve.discover.notifications.SQSNotificationHandler
 import com.pennsieve.discover.models._
+import com.pennsieve.discover.testcontainers.DockerContainers.postgresContainer.postgresConfiguration
+import com.pennsieve.discover.testcontainers.PostgresDockerContainer
 import com.pennsieve.service.utilities.SingleHttpResponder
-import com.pennsieve.test.AwaitableImplicits
-import com.spotify.docker.client.DefaultDockerClient
-import com.spotify.docker.client.exceptions.DockerException
+import com.pennsieve.test.{ AwaitableImplicits, PersistantTestContainers }
 import com.typesafe.scalalogging.StrictLogging
-import com.whisk.docker.DockerFactory
-import com.whisk.docker.impl.spotify.SpotifyDockerFactory
-import com.whisk.docker.scalatest.DockerTestKit
-import org.scalatest.time.{ Second, Seconds, Span }
 import org.scalatest.{
   BeforeAndAfterAll,
   BeforeAndAfterEach,
@@ -44,28 +39,78 @@ trait ServiceSpecHarness
     extends Suite
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with DockerPostgresService
-    with DockerTestKit
+    with PersistantTestContainers
+    with PostgresDockerContainer
     with AwaitableImplicits
     with OptionValues
     with StrictLogging { suite: Suite =>
 
-  implicit private val system: ActorSystem = ActorSystem("discover-service")
-  implicit private val executionContext: ExecutionContext = system.dispatcher
+  // system is deliberately left uninitialized here to avoid conflicts with
+  // other commonly used traits that provide an ActorSystem. i.e., ScalatestRouteTest.
+  // If a class extends both this trait and ScalatestRouteTest, then
+  // they do not need to do anything. The system will be supplied by ScalatestRouteTest.
+  // But tests that do not extend ScalatestRouteTest or another trait that provides an implicit
+  // ActorSystem, should override this value by initializing it themselves. See PublicDatasetVersionsMapperSpec
+  // for example.
+  implicit def system: ActorSystem
+  implicit def executionContext: ExecutionContext = system.dispatcher
 
-  override val PullImagesTimeout: FiniteDuration = 5.minutes
-  override val StartContainersTimeout: FiniteDuration = 120.seconds
-  override val StopContainersTimeout: FiniteDuration = 120.seconds
+  implicit var config: Config = _
 
-  // increase default patience to allow containers to come up
-  implicit val patience: PatienceConfig =
-    PatienceConfig(Span(60, Seconds), Span(1, Second))
+  def getPorts(config: Config): Ports = {
+    val doiClient: DoiClient =
+      new MockDoiClient(
+        new SingleHttpResponder().responder,
+        executionContext,
+        system
+      )
 
-  // provide a dockerFactory
-  override implicit val dockerFactory: DockerFactory =
-    TestUtilities.dockerFactoryApiVersion141
-  implicit val config: Config =
-    Config(
+    val athenaClient: AthenaClient =
+      new MockAthenaClient()
+
+    val stepFunctionsClient: StepFunctionsClient =
+      new MockStepFunctionsClient()
+
+    val lambdaClient: LambdaClient = new MockLambdaClient()
+
+    val s3StreamClient: S3StreamClient =
+      new MockS3StreamClient()
+
+    val searchClient: SearchClient =
+      new MockSearchClient()
+
+    val pennsieveApiClient: PennsieveApiClient =
+      new MockPennsieveApiClient()
+
+    val authorizationClient: AuthorizationClient =
+      new MockAuthorizationClient(config.jwt.key)
+
+    val sqsClient = SqsAsyncClient
+      .builder()
+      .httpClientBuilder(NettyNioAsyncHttpClient.builder())
+      .region(config.sqs.region)
+      .endpointOverride(new URI("https://localhost"))
+      .build()
+
+    Ports(config).copy(
+      doiClient = doiClient,
+      stepFunctionsClient = stepFunctionsClient,
+      lambdaClient = lambdaClient,
+      s3StreamClient = s3StreamClient,
+      searchClient = searchClient,
+      pennsieveApiClient = pennsieveApiClient,
+      authorizationClient = authorizationClient,
+      sqsClient = sqsClient,
+      athenaClient = athenaClient
+    )
+  }
+
+  implicit var ports: Ports = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+
+    config = Config(
       host = "0.0.0.0",
       port = 8080,
       publicUrl = "https://discover.pennsieve.org",
@@ -126,56 +171,11 @@ trait ServiceSpecHarness
         IdSpace(99999, "Test Collections ID Space")
       )
     )
+    ports = getPorts(config)
 
-  def getPorts(config: Config): Ports = {
-    val doiClient: DoiClient =
-      new MockDoiClient(
-        new SingleHttpResponder().responder,
-        executionContext,
-        system
-      )
+    DatabaseMigrator.run(config.postgres)
 
-    val athenaClient: AthenaClient =
-      new MockAthenaClient()
-
-    val stepFunctionsClient: StepFunctionsClient =
-      new MockStepFunctionsClient()
-
-    val lambdaClient: LambdaClient = new MockLambdaClient()
-
-    val s3StreamClient: S3StreamClient =
-      new MockS3StreamClient()
-
-    val searchClient: SearchClient =
-      new MockSearchClient()
-
-    val pennsieveApiClient: PennsieveApiClient =
-      new MockPennsieveApiClient()
-
-    val authorizationClient: AuthorizationClient =
-      new MockAuthorizationClient(config.jwt.key)
-
-    val sqsClient = SqsAsyncClient
-      .builder()
-      .httpClientBuilder(NettyNioAsyncHttpClient.builder())
-      .region(config.sqs.region)
-      .endpointOverride(new URI("https://localhost"))
-      .build()
-
-    Ports(config).copy(
-      doiClient = doiClient,
-      stepFunctionsClient = stepFunctionsClient,
-      lambdaClient = lambdaClient,
-      s3StreamClient = s3StreamClient,
-      searchClient = searchClient,
-      pennsieveApiClient = pennsieveApiClient,
-      authorizationClient = authorizationClient,
-      sqsClient = sqsClient,
-      athenaClient = athenaClient
-    )
   }
-
-  lazy implicit val ports: Ports = getPorts(config)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -189,11 +189,6 @@ trait ServiceSpecHarness
     // Postgres and Scala uses UTC, so things can go wrong when running the tests locally in a non-UTC timezone.
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
 
-    val setup = isContainerReady(postgresContainer).map { _ =>
-      DatabaseMigrator.run(config.postgres)
-    }
-
-    Await.result(setup, 30.seconds)
   }
 
   override def afterAll(): Unit = {
@@ -212,7 +207,6 @@ trait ServiceSpecHarness
 
     ports.doiClient
       .asInstanceOf[MockDoiClient]
-      .dois
       .clear()
 
     ports.searchClient
@@ -240,6 +234,7 @@ trait ServiceSpecHarness
         _ <- PublicDatasetVersionsMapper.delete
         _ <- PublicFilesMapper.delete
         _ <- WorkspaceSettingsMapper.delete
+        _ <- DatasetDownloadsMapper.delete
       } yield ())
       .awaitFinite()
 

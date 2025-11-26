@@ -15,7 +15,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class MockAthenaClient extends AthenaClient {
 
-  private val defaultDatasetDownloads = List(
+  val defaultDatasetDownloads: List[DatasetDownload] = List(
     DatasetDownload(
       1,
       1,

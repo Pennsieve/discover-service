@@ -12,8 +12,6 @@ import org.scalatest.Inspectors
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import scala.concurrent.ExecutionContextExecutor
-
 class ServerRoutesSpec
     extends AnyWordSpec
     with Matchers
@@ -21,10 +19,12 @@ class ServerRoutesSpec
     with ScalatestRouteTest
     with ServiceSpecHarness {
 
-  override implicit val executor: ExecutionContextExecutor =
-    super[ScalatestRouteTest].executor
+  var serverRoutes: Route = _
 
-  val serverRoutes = Route.seal(Server.createRoutes(ports))
+  override def afterStart(): Unit = {
+    super.afterStart()
+    serverRoutes = Route.seal(Server.createRoutes(ports))
+  }
 
   "GET /packages/packageId/files" should {
 

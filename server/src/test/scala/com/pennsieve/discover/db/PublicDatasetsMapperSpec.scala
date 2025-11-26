@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.db
 
+import akka.actor.ActorSystem
 import com.pennsieve.discover.server.definitions.DatasetPublishStatus
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
@@ -21,6 +22,13 @@ class PublicDatasetsMapperSpec
     with ServiceSpecHarness
     with AwaitableImplicits
     with Matchers {
+
+  override implicit val system: ActorSystem = ActorSystem("discover-service")
+
+  override def afterAll(): Unit = {
+    system.terminate()
+    super.afterAll()
+  }
 
   "PublicDatasetsMapper" should {
 

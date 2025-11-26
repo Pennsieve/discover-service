@@ -26,7 +26,12 @@ class TagHandlerSpec
   def createClient(routes: Route): TagClient =
     TagClient.httpClient(Route.toFunction(routes))
 
-  val tagClient: TagClient = createClient(createRoutes())
+  var tagClient: TagClient = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    tagClient = createClient(createRoutes())
+  }
 
   "GET /tags" should {
 
