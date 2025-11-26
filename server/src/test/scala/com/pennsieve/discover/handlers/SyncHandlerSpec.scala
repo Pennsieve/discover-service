@@ -26,7 +26,12 @@ class SyncHandlerSpec
   def createSyncClient(routes: Route): SyncClient =
     SyncClient.httpClient(Route.toFunction(routes))
 
-  val syncClient: SyncClient = createSyncClient(createRoutes())
+  var syncClient: SyncClient = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    syncClient = createSyncClient(createRoutes())
+  }
 
   "GET /metrics/dataset/athena/download/sync" should {
 
@@ -104,6 +109,14 @@ class SyncHandlerSpec
         OffsetDateTime.of(2020, 11, 10, 10, 3, 1, 0, ZoneOffset.UTC)
       )
 
+      val mockAthena = ports.athenaClient
+        .asInstanceOf[MockAthenaClient]
+
+      mockAthena.datasetDownloadsForRange = Some(
+        mockAthena.defaultDatasetDownloads
+          .map(_.copy(datasetId = ds1.datasetId, version = ds1.version))
+      )
+
       syncClient
         .syncAthenaDownloads(
           LocalDate.of(2020, 11, 10),
@@ -116,20 +129,17 @@ class SyncHandlerSpec
         LocalDate.of(2020, 11, 11)
       )
 
-      val reqId2DownloadTimeInLocal = convertToLocalOffset(
-        OffsetDateTime.of(2020, 11, 10, 19, 3, 1, 0, ZoneOffset.UTC) // this is the downloadedAt time of req2 which the MockAthenaClient will return
-      )
-
       responseMetrics shouldBe
         List(
           row1,
           row2,
+          // this is the download the MockAthenaClient will return because of the time range
           DatasetDownload(
-            1,
-            1,
+            ds1.datasetId,
+            ds1.version,
             Some(DownloadOrigin.AWSRequesterPayer),
             Some("REQID2"),
-            reqId2DownloadTimeInLocal
+            OffsetDateTime.of(2020, 11, 10, 19, 3, 1, 0, ZoneOffset.UTC)
           )
         )
     }
@@ -160,7 +170,7 @@ class SyncHandlerSpec
         OffsetDateTime.of(2020, 11, 10, 10, 3, 12, 0, ZoneOffset.UTC)
       )
       val req4 = DatasetDownload(
-        153, // There is no dataset with id == 153 in the DB, so this should be skipped, and syncAthenaDownloads should return a Right
+        99999999, // There is no dataset with id == 99999999 in the DB (I hope), so this should be skipped, and syncAthenaDownloads should return a Right
         0,
         Some(DownloadOrigin.AWSRequesterPayer),
         Some("REQID4"),
@@ -184,25 +194,7 @@ class SyncHandlerSpec
       )
 
       responseMetrics shouldBe
-        List(
-          req1.copy(downloadedAt = convertToLocalOffset(req1.downloadedAt)),
-          req2.copy(
-            version = ds1V2.version,
-            downloadedAt = convertToLocalOffset(req2.downloadedAt)
-          )
-        )
+        List(req1, req2.copy(version = ds1V2.version))
     }
-  }
-
-  // I believe the DB connection returns the downloadedAt values in DatasetDownloads in the local time offset.
-  // Without the conversion to the local offset tests were failing locally on developer machines,
-  // but passing in CI where the system timezone is UTC.
-  def convertToLocalOffset(utcTime: OffsetDateTime): OffsetDateTime = {
-    val localOffset =
-      ZoneId
-        .systemDefault()
-        .getRules()
-        .getOffset(utcTime.toInstant)
-    utcTime.withOffsetSameInstant(localOffset)
   }
 }

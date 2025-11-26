@@ -42,7 +42,12 @@ class SearchHandlerSpec
   def createClient(routes: Route): SearchClient =
     SearchClient.httpClient(Route.toFunction(routes))
 
-  val searchClient: SearchClient = createClient(createRoutes())
+  var searchClient: SearchClient = _
+
+  override def afterStart(): Unit = {
+    super.afterStart()
+    searchClient = createClient(createRoutes())
+  }
 
   def toClientDefinition(
     dto: server.definitions.PublicDatasetDto

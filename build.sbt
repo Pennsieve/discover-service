@@ -61,7 +61,7 @@ lazy val utilitiesVersion = "4-55953e4"
 lazy val doiServiceClientVersion = "12-756107b"
 lazy val slickVersion = "3.3.3"
 lazy val slickPgVersion = "0.20.3"
-lazy val dockerItVersion = "0.9.9"
+lazy val testContainersVersion = "0.40.1"
 lazy val logbackVersion = "1.2.3"
 lazy val awsSdkVersion = "2.10.56"
 lazy val pureConfigVersion = "0.17.1"
@@ -84,8 +84,9 @@ lazy val server = project
     scalafmtOnCompile := true,
     assembly / test := {},
     Test / fork := true,
-    Test / testForkedParallel := true,
-    // Only run integration tests with the `integration:test` command
+    Test / testForkedParallel := false,
+    Test / parallelExecution := false,
+      // Only run integration tests with the `integration:test` command
     inConfig(Integration)(Defaults.testTasks),
     Test / testOptions := Seq(
       Tests.Filter(!_.toLowerCase.contains("integration"))
@@ -167,8 +168,6 @@ lazy val server = project
       "com.zaneli" %% "scalikejdbc-athena" % "0.2.4",
       // Test dependencies
       "org.scalatest" %% "scalatest" % "3.2.12" % Test,
-      "com.whisk" %% "docker-testkit-scalatest" % dockerItVersion % Test,
-      "com.whisk" %% "docker-testkit-impl-spotify" % dockerItVersion % Test,
       "com.pennsieve" %% "utilities" % utilitiesVersion % "test" classifier "tests",
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion % "test" classifier "tests",
       "com.typesafe.akka" %% "akka-testkit" % akkaVersion.value % Test,
@@ -177,7 +176,9 @@ lazy val server = project
       "org.apache.httpcomponents" % "httpclient" % "4.5.8" % Test,
       "software.amazon.awssdk" % "s3" % awsSdkVersion % Test,
       "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test,
-      "org.mock-server" % "mockserver-client-java-no-dependencies" % "5.14.0" % Test
+      "org.mock-server" % "mockserver-client-java-no-dependencies" % "5.14.0" % Test,
+      "com.dimafeng" %% "testcontainers-scala" % testContainersVersion % Test,
+      "com.pennsieve" %% "pennsieve-core" % coreVersion % Test classifier "tests",
     ),
     Compile / guardrailTasks := List(
       ScalaServer(

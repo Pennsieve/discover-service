@@ -9,6 +9,8 @@ import com.pennsieve.discover.TestUtilities._
 import com.pennsieve.discover.clients.AwsElasticSearchClient
 import com.pennsieve.discover.models._
 import com.pennsieve.discover.server.definitions
+import com.pennsieve.discover.testcontainers.DockerContainers.elasticSearchDockerContainerImpl.elasticSearchConfiguration
+import com.pennsieve.discover.testcontainers.ElasticSearchDockerContainer
 import com.sksamuel.elastic4s.ElasticDsl._
 import io.circe.generic.auto._
 import com.sksamuel.elastic4s.circe._
@@ -26,12 +28,14 @@ class ElasticSearchSpec
     extends AnyWordSpec
     with Matchers
     with ServiceSpecHarness
-    with DockerElasticSearchService {
+    with ElasticSearchDockerContainer {
 
-  implicit lazy private val system: ActorSystem =
-    ActorSystem("discover-service")
-  implicit lazy private val executionContext: ExecutionContext =
-    system.dispatcher
+  override implicit val system: ActorSystem = ActorSystem("discover-service")
+
+  override def afterAll(): Unit = {
+    system.terminate()
+    super.afterAll()
+  }
 
   var searchClient: AwsElasticSearchClient = _
   var searchPorts: Ports = _
@@ -52,8 +56,8 @@ class ElasticSearchSpec
     searchPorts.copy(searchClient = searchClient)
   }
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
+  override def afterStart(): Unit = {
+    super.afterStart()
     searchPorts = getSearchPorts(config)
     searchClient = searchPorts.searchClient.asInstanceOf[AwsElasticSearchClient]
   }
