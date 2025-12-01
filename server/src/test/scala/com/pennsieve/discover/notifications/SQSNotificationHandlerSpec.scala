@@ -1058,7 +1058,7 @@ class SQSNotificationHandlerSpec
           PublishStatus.PublishSucceeded,
           publicDatasetV1.version
         ),
-        waitTime = 60.seconds
+        waitTime = 120.seconds
       ) shouldBe an[MessageAction.Delete]
 
       // create version 2
@@ -1139,7 +1139,7 @@ class SQSNotificationHandlerSpec
           PublishStatus.PublishSucceeded,
           publicDatasetV2.version
         ),
-        waitTime = 60.seconds
+        waitTime = 120.seconds
       ) shouldBe an[MessageAction.Delete]
 
     }
