@@ -51,7 +51,7 @@ trait ServiceSpecHarness
   // they do not need to do anything. The system will be supplied by ScalatestRouteTest.
   // But tests that do not extend ScalatestRouteTest or another trait that provides an implicit
   // ActorSystem, should override this value by initializing it themselves. See PublicDatasetVersionsMapperSpec
-  // for example.
+  // for example which uses ActorSystemTestKit to provide the ActorSystem.
   implicit def system: ActorSystem
   implicit def executionContext: ExecutionContext = system.dispatcher
 

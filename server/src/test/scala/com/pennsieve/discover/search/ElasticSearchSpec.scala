@@ -2,7 +2,6 @@
 
 package com.pennsieve.discover.search
 
-import akka.actor.ActorSystem
 import com.pennsieve.models._
 import com.pennsieve.discover._
 import com.pennsieve.discover.TestUtilities._
@@ -28,14 +27,8 @@ class ElasticSearchSpec
     extends AnyWordSpec
     with Matchers
     with ServiceSpecHarness
-    with ElasticSearchDockerContainer {
-
-  override implicit val system: ActorSystem = ActorSystem("discover-service")
-
-  override def afterAll(): Unit = {
-    system.terminate()
-    super.afterAll()
-  }
+    with ElasticSearchDockerContainer
+    with ActorSystemTestKit {
 
   var searchClient: AwsElasticSearchClient = _
   var searchPorts: Ports = _

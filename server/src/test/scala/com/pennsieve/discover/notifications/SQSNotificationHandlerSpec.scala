@@ -2,10 +2,13 @@
 
 package com.pennsieve.discover.notifications
 
-import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.stream.alpakka.sqs.MessageAction
-import com.pennsieve.discover.ServiceSpecHarness
+import com.pennsieve.discover.{
+  ActorSystemTestKit,
+  ServiceSpecHarness,
+  TestUtilities
+}
 import com.pennsieve.models.{
   DatasetMetadataV4_0,
   DatasetMetadataV5_0,
@@ -49,7 +52,6 @@ import com.pennsieve.discover.db.{
 }
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.discover.server.definitions.DatasetPublishStatus
-import com.pennsieve.discover.TestUtilities
 import com.pennsieve.discover.notifications.SQSNotificationType.INDEX
 import com.pennsieve.doi.client.definitions._
 import com.pennsieve.models.RelationshipType.{ IsCitedBy, References }
@@ -73,14 +75,8 @@ class SQSNotificationHandlerSpec
     extends AnyWordSpec
     with Matchers
     with Inside
-    with ServiceSpecHarness {
-
-  override implicit val system: ActorSystem = ActorSystem("discover-service")
-
-  override def afterAll(): Unit = {
-    system.terminate()
-    super.afterAll()
-  }
+    with ServiceSpecHarness
+    with ActorSystemTestKit {
 
   lazy val notificationHandler = new SQSNotificationHandler(
     ports,

@@ -2,10 +2,12 @@
 
 package com.pennsieve.discover.db
 
-import akka.actor.ActorSystem
-import com.pennsieve.discover.server.definitions.DatasetPublishStatus
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.{
+  ActorSystemTestKit,
+  ServiceSpecHarness,
+  TestUtilities
+}
 import com.pennsieve.discover.models._
 import com.pennsieve.test.AwaitableImplicits
 import io.circe.syntax._
@@ -18,14 +20,8 @@ class RevisionsMapperSpec
     extends AnyWordSpec
     with ServiceSpecHarness
     with AwaitableImplicits
-    with Matchers {
-
-  override implicit val system: ActorSystem = ActorSystem("discover-service")
-
-  override def afterAll(): Unit = {
-    system.terminate()
-    super.afterAll()
-  }
+    with Matchers
+    with ActorSystemTestKit {
 
   def run[A](
     dbio: DBIOAction[A, NoStream, Nothing],
