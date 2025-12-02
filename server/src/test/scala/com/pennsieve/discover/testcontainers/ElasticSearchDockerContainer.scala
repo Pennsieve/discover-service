@@ -39,6 +39,7 @@ final class ElasticSearchDockerContainerImpl
       waitStrategy = Some(
         new LogMessageWaitStrategy()
           .withRegEx(ElasticSearchDockerContainer.regex)
+          .withTimes(1)
       )
     ) {
 

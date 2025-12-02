@@ -12,12 +12,12 @@ object DockerContainers {
   val postgresContainer: PostgresDockerContainerImpl =
     new PostgresDockerContainerImpl
 
-  lazy val elasticSearchDockerContainerImpl: ElasticSearchDockerContainerImpl =
+  val elasticSearchDockerContainerImpl: ElasticSearchDockerContainerImpl =
     new ElasticSearchDockerContainerImpl
 
-  lazy val s3DockerContainerImpl: DiscoverServiceS3DockerContainerImpl =
+  val s3DockerContainerImpl: DiscoverServiceS3DockerContainerImpl =
     new DiscoverServiceS3DockerContainerImpl
 
-  lazy val mockServerContainer: MockServerDockerContainerImpl =
+  val mockServerContainer: MockServerDockerContainerImpl =
     new MockServerDockerContainerImpl
 }

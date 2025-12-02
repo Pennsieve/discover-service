@@ -526,7 +526,7 @@ class ElasticSearchSpec
 
       Search
         .buildSearchIndex(searchPorts)
-        .awaitFinite()
+        .awaitFinite(60.seconds)
 
       val aliases1 = searchClient.elasticClient
         .execute { catAliases() }
@@ -572,7 +572,7 @@ class ElasticSearchSpec
 
       Search
         .buildSearchIndex(searchPorts)
-        .awaitFinite()
+        .awaitFinite(60.seconds)
 
       val aliases2 = searchClient.elasticClient
         .execute { catAliases() }
