@@ -6,10 +6,13 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.Uri
 import com.pennsieve.discover.models._
 import com.pennsieve.discover.testcontainers.MockServerDockerContainer
-import com.pennsieve.discover.ExternalPublishBucketConfiguration
-
+import com.pennsieve.discover.{
+  ActorSystemTestKit,
+  ExternalPublishBucketConfiguration
+}
 import com.pennsieve.models._
 import com.pennsieve.test.{ AwaitableImplicits, PersistantTestContainers }
+import com.typesafe.config.Config
 import org.mockserver.client.MockServerClient
 import org.mockserver.model.{ HttpRequest, MediaType, RequestDefinition }
 import org.mockserver.model.HttpRequest.request
@@ -42,9 +45,9 @@ class MockServerS3StreamClientSpec
     with AwaitableImplicits
     with ScalaFutures
     with PersistantTestContainers
-    with MockServerDockerContainer {
+    with MockServerDockerContainer
+    with ActorSystemTestKit {
 
-  implicit private var system: ActorSystem = _
   implicit private var executionContext: ExecutionContext = _
   var s3Presigner: S3Presigner = _
   var s3Client: S3Client = _
@@ -55,7 +58,8 @@ class MockServerS3StreamClientSpec
   override def afterStart(): Unit = {
     super.afterStart()
 
-    system = ActorSystem("discover-service", mockServerContainer.config)
+    testConfig = Some(mockServerContainer.config)
+
     executionContext = system.dispatcher
 
     s3Presigner = S3Presigner

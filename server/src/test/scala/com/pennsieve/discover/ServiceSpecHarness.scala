@@ -32,8 +32,7 @@ import squants.information.InformationConversions._
 
 import java.net.URI
 import java.util.TimeZone
-import scala.concurrent.{ Await, ExecutionContext }
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.ExecutionContext
 
 trait ServiceSpecHarness
     extends Suite
@@ -43,7 +42,8 @@ trait ServiceSpecHarness
     with PostgresDockerContainer
     with AwaitableImplicits
     with OptionValues
-    with StrictLogging { suite: Suite =>
+    with StrictLogging {
+  suite: Suite =>
 
   // system is deliberately left uninitialized here to avoid conflicts with
   // other commonly used traits that provide an ActorSystem. i.e., ScalatestRouteTest.
@@ -51,8 +51,9 @@ trait ServiceSpecHarness
   // they do not need to do anything. The system will be supplied by ScalatestRouteTest.
   // But tests that do not extend ScalatestRouteTest or another trait that provides an implicit
   // ActorSystem, should override this value by initializing it themselves. See PublicDatasetVersionsMapperSpec
-  // for example.
+  // for example which uses ActorSystemTestKit to provide the ActorSystem.
   implicit def system: ActorSystem
+
   implicit def executionContext: ExecutionContext = system.dispatcher
 
   implicit var config: Config = _
@@ -240,4 +241,5 @@ trait ServiceSpecHarness
 
     super.afterEach()
   }
+
 }

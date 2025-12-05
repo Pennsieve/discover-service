@@ -6,7 +6,7 @@ node("executor") {
     def commitHash  = sh(returnStdout: true, script: 'git rev-parse HEAD | cut -c-7').trim()
     def imageTag = "${env.BUILD_NUMBER}-${commitHash}"
 
-    def sbt = "sbt -Dsbt.log.noformat=true -Dversion=$imageTag"
+    def sbt = "sbt -J-XX:ReservedCodeCacheSize=256m -Dsbt.log.noformat=true -Dversion=$imageTag"
 
     def pennsieveNexusCreds = usernamePassword(
         credentialsId: "pennsieve-nexus-ci-login",

@@ -2,13 +2,13 @@
 
 package com.pennsieve.discover.clients
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.model.Uri
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.stream.testkit.scaladsl.TestSink
 import akka.util.ByteString
 import com.pennsieve.discover.{
+  ActorSystemTestKit,
   ExternalPublishBucketConfiguration,
   S3Exception
 }
@@ -59,9 +59,9 @@ class S3StreamClientSpec
     with AwaitableImplicits
     with ScalaFutures
     with PersistantTestContainers
-    with DiscoverServiceS3DockerContainer {
+    with DiscoverServiceS3DockerContainer
+    with ActorSystemTestKit {
 
-  implicit private var system: ActorSystem = _
   implicit private var executionContext: ExecutionContext = _
 
   var s3Client: S3Client = _
@@ -70,7 +70,8 @@ class S3StreamClientSpec
 
   override def afterStart(): Unit = {
     super.afterStart()
-    system = ActorSystem("discover-service", s3Container.config)
+
+    testConfig = Some(s3Container.config)
     executionContext = system.dispatcher
 
     s3Presigner = S3Presigner
