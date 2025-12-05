@@ -25,7 +25,6 @@ import org.scalatest.{
   OptionValues,
   Suite
 }
-import slick.jdbc.DataSourceJdbcDataSource
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.regions.Region
@@ -33,8 +32,7 @@ import squants.information.InformationConversions._
 
 import java.net.URI
 import java.util.TimeZone
-import scala.concurrent.{ Await, ExecutionContext }
-import scala.concurrent.duration.{ DurationInt, FiniteDuration }
+import scala.concurrent.ExecutionContext
 
 trait ServiceSpecHarness
     extends Suite
@@ -44,7 +42,8 @@ trait ServiceSpecHarness
     with PostgresDockerContainer
     with AwaitableImplicits
     with OptionValues
-    with StrictLogging { suite: Suite =>
+    with StrictLogging {
+  suite: Suite =>
 
   // system is deliberately left uninitialized here to avoid conflicts with
   // other commonly used traits that provide an ActorSystem. i.e., ScalatestRouteTest.
@@ -54,6 +53,7 @@ trait ServiceSpecHarness
   // ActorSystem, should override this value by initializing it themselves. See PublicDatasetVersionsMapperSpec
   // for example which uses ActorSystemTestKit to provide the ActorSystem.
   implicit def system: ActorSystem
+
   implicit def executionContext: ExecutionContext = system.dispatcher
 
   implicit var config: Config = _
@@ -197,11 +197,6 @@ trait ServiceSpecHarness
     super.afterAll()
   }
 
-  override def beforeEach(): Unit = {
-    super.beforeEach()
-    logConnectionPoolStats("before test", ports.db)
-  }
-
   override def afterEach(): Unit = {
     ports.stepFunctionsClient
       .asInstanceOf[MockStepFunctionsClient]
@@ -232,8 +227,6 @@ trait ServiceSpecHarness
       .asInstanceOf[MockAthenaClient]
       .reset()
 
-    logConnectionPoolStats("after test", ports.db)
-
     // Clear dataset tables
     ports.db
       .run(for {
@@ -246,46 +239,7 @@ trait ServiceSpecHarness
       } yield ())
       .awaitFinite()
 
-    logConnectionPoolStats("after DB clean", ports.db)
-
     super.afterEach()
   }
 
-  import com.zaxxer.hikari.HikariDataSource
-
-  def logConnectionPoolStats(when: String, db: Database): Unit = {
-    db.source match {
-      case wrapper: DataSourceJdbcDataSource =>
-        try {
-          val hikariDS = wrapper.ds.asInstanceOf[HikariDataSource]
-
-          // Check if the pool is running
-          println(s"Pool running $when: ${!hikariDS.isClosed}")
-
-          val mxBean = hikariDS.getHikariPoolMXBean
-          if (mxBean != null) {
-            val poolName = hikariDS.getPoolName
-            println(s"=== HikariCP Stats for $poolName $when===")
-            println(s"  Active connections: ${mxBean.getActiveConnections}")
-            println(s"  Idle connections: ${mxBean.getIdleConnections}")
-            println(s"  Total connections: ${mxBean.getTotalConnections}")
-            println(
-              s"  Threads awaiting connection: ${mxBean.getThreadsAwaitingConnection}"
-            )
-          } else {
-            println(
-              s"HikariPoolMXBean is null $when - pool may not be initialized or MBeans not registered"
-            )
-            println(s"  Pool closed? ${hikariDS.isClosed}")
-            println(s"  Pool name: ${hikariDS.getPoolName}")
-          }
-        } catch {
-          case e: Exception =>
-            println(s"Error accessing HikariDataSource: ${e.getMessage}")
-            e.printStackTrace()
-        }
-      case other =>
-        println(s"Unexpected source type: ${other.getClass.getName}")
-    }
-  }
 }
