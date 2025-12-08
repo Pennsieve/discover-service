@@ -53,7 +53,12 @@ class MockS3StreamClient extends S3StreamClient {
 
   private var nextResponse: Option[List[TestFile]] = None
 
-  def withNextResponse(testFiles: List[TestFile]) = {
+  def withNextResponse(
+    testFiles: List[TestFile]
+  )(implicit
+    system: ActorSystem
+  ) = {
+    testFiles.foreach(_.generate)
     nextResponse = Some(testFiles)
   }
 
@@ -69,7 +74,6 @@ class MockS3StreamClient extends S3StreamClient {
       case Some(testFiles) => testFiles
       case None => throw new Exception("use withNextResponse to set test data")
     }
-    testFiles.foreach(_.generate)
     val source = Source(testFiles.map(_.zipSource))
     nextResponse = None
     source

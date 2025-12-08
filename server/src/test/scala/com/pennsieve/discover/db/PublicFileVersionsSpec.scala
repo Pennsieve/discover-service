@@ -2,10 +2,13 @@
 
 package com.pennsieve.discover.db
 
-import akka.actor.ActorSystem
 import com.github.tminglei.slickpg.LTree
 import com.pennsieve.discover.models.{ FileTreeNode, PublicFileVersion, S3Key }
-import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.{
+  ActorSystemTestKit,
+  ServiceSpecHarness,
+  TestUtilities
+}
 import com.pennsieve.models.{ File, FileManifest, FileType }
 import com.pennsieve.test.AwaitableImplicits
 import org.scalatest.matchers.should.Matchers
@@ -19,14 +22,8 @@ class PublicFileVersionsSpec
     extends AnyWordSpec
     with ServiceSpecHarness
     with AwaitableImplicits
-    with Matchers {
-
-  override implicit val system: ActorSystem = ActorSystem("discover-service")
-
-  override def afterAll(): Unit = {
-    system.terminate()
-    super.afterAll()
-  }
+    with Matchers
+    with ActorSystemTestKit {
 
   def run[A](
     dbio: DBIOAction[A, NoStream, Nothing],

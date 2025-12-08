@@ -2,10 +2,12 @@
 
 package com.pennsieve.discover.db
 
-import akka.actor.ActorSystem
-import com.pennsieve.discover.server.definitions.DatasetPublishStatus
 import com.pennsieve.discover.db.profile.api._
-import com.pennsieve.discover.{ ServiceSpecHarness, TestUtilities }
+import com.pennsieve.discover.{
+  ActorSystemTestKit,
+  ServiceSpecHarness,
+  TestUtilities
+}
 import com.pennsieve.discover.models.PublicDataset
 import com.pennsieve.models.{ License, PublishStatus }
 import com.pennsieve.models.PublishStatus.{
@@ -21,14 +23,8 @@ class PublicDatasetsMapperSpec
     extends AnyWordSpec
     with ServiceSpecHarness
     with AwaitableImplicits
-    with Matchers {
-
-  override implicit val system: ActorSystem = ActorSystem("discover-service")
-
-  override def afterAll(): Unit = {
-    system.terminate()
-    super.afterAll()
-  }
+    with Matchers
+    with ActorSystemTestKit {
 
   "PublicDatasetsMapper" should {
 

@@ -2,7 +2,6 @@
 
 package com.pennsieve.discover.search
 
-import akka.actor.ActorSystem
 import com.pennsieve.models._
 import com.pennsieve.discover._
 import com.pennsieve.discover.TestUtilities._
@@ -28,14 +27,12 @@ class ElasticSearchSpec
     extends AnyWordSpec
     with Matchers
     with ServiceSpecHarness
-    with ElasticSearchDockerContainer {
+    with ElasticSearchDockerContainer
+    with ActorSystemTestKit {
 
-  override implicit val system: ActorSystem = ActorSystem("discover-service")
-
-  override def afterAll(): Unit = {
-    system.terminate()
-    super.afterAll()
-  }
+  // These tests often fail on Jenkins with timeouts, so
+  // this value needs to be larger than needed for local runs.
+  private val waitDuration = 60.seconds
 
   var searchClient: AwsElasticSearchClient = _
   var searchPorts: Ports = _
@@ -66,7 +63,7 @@ class ElasticSearchSpec
     super.beforeEach()
     Search
       .buildSearchIndex(searchPorts)
-      .awaitFinite(60.seconds)
+      .awaitFinite(waitDuration)
   }
 
   def datasetDocument(
@@ -206,205 +203,205 @@ class ElasticSearchSpec
   "search" should {
 
     "search all fields" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(Some("ppmi"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2)
     }
 
     "handle typos" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(Some("brian~"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2, dataset3)
     }
 
     "search datasets by the contents of the dataset readme" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(query = Some("readme"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset1, dataset3)
     }
 
     "search datasets by organization" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(organization = Some("SPARC"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2, dataset3)
     }
 
     "search datasets by organization id" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(organizationId = Some(10))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2, dataset3)
     }
 
     "search datasets for common stems" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(query = Some("investigation"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset1, dataset2)
 
       searchClient
         .searchDatasets(query = Some("ganglia~"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset1, dataset2)
     }
 
     "search datasets by name" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(query = Some("color"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset1)
     }
 
     "search datasets by tag" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(tags = Some(List("investigation")))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset1, dataset2)
 
       searchClient
         .searchDatasets(tags = Some(List("seizure")))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2, dataset3)
 
       // AND multiple tags
       searchClient
         .searchDatasets(tags = Some(List("seizure", "investigation")))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2)
 
       // normalize letter case
       searchClient
         .searchDatasets(tags = Some(List("SEIZURE")))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2, dataset3)
 
       // strict match
       searchClient
         .searchDatasets(tags = Some(List("seize")))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe empty
     }
 
     "search datasets by contributor" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(query = Some("Sally"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset1)
 
       searchClient
         .searchDatasets(query = Some("Ardell"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some("Jeffrey Laurance Ardell"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some("Gump 9999"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset3)
     }
 
     "search datasets with structured query" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(query = Some("seizure | colors"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset1, dataset2, dataset3)
 
       searchClient
         .searchDatasets(query = Some("seizure & colors"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe empty
 
       searchClient
         .searchDatasets(query = Some("seizure & PPMI"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some("(colors | PPMI) & neuro"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some("investigation +readme"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset1)
 
       searchClient
         .searchDatasets(query = Some("investigation -readme"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe Set(dataset2)
 
       searchClient
         .searchDatasets(query = Some(""" "red blue" """))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .to(Set) shouldBe empty
     }
 
     "handle limit and offset for datasets" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       val result1 = searchClient
         .searchDatasets(limit = 1, offset = 0)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
 
       result1.length shouldBe 1
 
       val result2 = searchClient
         .searchDatasets(limit = 1, offset = 1)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
 
       result2.length shouldBe 1
@@ -413,21 +410,21 @@ class ElasticSearchSpec
 
       val result3 = searchClient
         .searchDatasets(offset = 2)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
 
       result3.length shouldBe 1
     }
 
     "order datasets by date created" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(
           orderBy = OrderBy.Date,
           orderDirection = OrderDirection.Ascending
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets shouldBe List(dataset1, dataset2, dataset3)
 
       searchClient
@@ -435,19 +432,19 @@ class ElasticSearchSpec
           orderBy = OrderBy.Date,
           orderDirection = OrderDirection.Descending
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets shouldBe List(dataset3, dataset2, dataset1)
     }
 
     "order datasets by name" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(
           orderBy = OrderBy.Name,
           orderDirection = OrderDirection.Ascending
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets shouldBe List(dataset1, dataset3, dataset2)
 
       searchClient
@@ -455,7 +452,7 @@ class ElasticSearchSpec
           orderBy = OrderBy.Name,
           orderDirection = OrderDirection.Descending
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets shouldBe List(dataset2, dataset3, dataset1)
     }
 
@@ -466,26 +463,26 @@ class ElasticSearchSpec
 
       searchClient
         .insertDatasets(List(dataset4, dataset5, dataset6))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(
           orderBy = OrderBy.Name,
           orderDirection = OrderDirection.Ascending
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets shouldBe List(dataset4, dataset5, dataset6)
     }
 
     "order datasets by size" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .searchDatasets(
           orderBy = OrderBy.Size,
           orderDirection = OrderDirection.Ascending
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets shouldBe List(dataset1, dataset2, dataset3)
 
       searchClient
@@ -493,12 +490,12 @@ class ElasticSearchSpec
           orderBy = OrderBy.Size,
           orderDirection = OrderDirection.Descending
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets shouldBe List(dataset3, dataset2, dataset1)
     }
 
     "replace existing document when adding a new version of a dataset" in {
-      searchClient.insertDatasets(datasets).awaitFinite()
+      searchClient.insertDatasets(datasets).awaitFinite(waitDuration)
 
       searchClient
         .insertDataset(
@@ -506,18 +503,18 @@ class ElasticSearchSpec
             dataset = dataset1.dataset.copy(description = "yellow green blue")
           )
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       // Now "red" is not found anywhere
       searchClient
         .searchDatasets(Some("red"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets shouldEqual Seq.empty
 
       // ... but "yellow" is
       searchClient
         .searchDatasets(Some("yellow"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .length shouldBe 1
     }
@@ -533,11 +530,11 @@ class ElasticSearchSpec
 
       Search
         .buildSearchIndex(searchPorts)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       val aliases1 = searchClient.elasticClient
         .execute { catAliases() }
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .result
 
       aliases1.map(_.alias).to(List).sorted shouldBe List(
@@ -548,19 +545,19 @@ class ElasticSearchSpec
 
       searchClient
         .searchRecords()
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .records
         .length shouldBe 1 //one mocked record per dataset
 
       searchClient
         .searchDatasets(Some("test"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .length shouldBe 1
 
       searchClient
         .searchFiles(query = Some("brain.dcm"), None)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .length shouldBe 1
 
@@ -579,11 +576,11 @@ class ElasticSearchSpec
 
       Search
         .buildSearchIndex(searchPorts)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       val aliases2 = searchClient.elasticClient
         .execute { catAliases() }
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .result
 
       aliases2.map(_.alias).to(List).sorted shouldBe List(
@@ -598,25 +595,25 @@ class ElasticSearchSpec
 
       searchClient
         .searchDatasets(Some("bytes"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .length shouldBe 1
 
       searchClient
         .searchFiles(query = Some("brain.dcm"), None)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .length shouldBe 2
 
       searchClient
         .searchDatasets()
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .length shouldBe 2
 
       searchClient
         .searchRecords()
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .records
         .length shouldBe 2 //one mocked record per dataset
     }
@@ -643,7 +640,7 @@ class ElasticSearchSpec
       // Initial indexing
       Search
         .buildSearchIndex(searchPorts)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       val revision = Revision(dataset.id, version.version, revision = 1)
 
@@ -662,33 +659,33 @@ class ElasticSearchSpec
           collections = List(collection),
           externalPublications = List.empty
         )
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       // Should update dataset metadata
       searchClient
         .searchDatasets(Some("bytes"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .length shouldBe 1
 
       // And readme
       searchClient
         .searchDatasets(Some("flowers"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .length shouldBe 1
 
       // Index should still have old files for the dataset
       searchClient
         .searchFiles(query = Some("brain.dcm"), None)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .length shouldBe 1
 
       // And also contain new files created by the revision
       searchClient
         .searchFiles(query = Some("readme.md"), None)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .length shouldBe 1
     }
@@ -714,20 +711,20 @@ class ElasticSearchSpec
       // Should index dataset
       searchClient
         .searchDatasets()
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .datasets
         .length shouldBe 1
 
       // But not files
       searchClient
         .searchFiles()
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files shouldBe empty
 
       // Nor records
       searchClient
         .searchRecords()
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .records shouldBe empty
     }
 
@@ -756,81 +753,81 @@ class ElasticSearchSpec
     }
 
     "search files by name" in {
-      searchClient.insertFiles(files).awaitFinite()
+      searchClient.insertFiles(files).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(query = Some("result"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .to(Set) shouldEqual Set(file3)
     }
 
     "handle file typos" in {
-      searchClient.insertFiles(files).awaitFinite()
+      searchClient.insertFiles(files).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(query = Some("zipyp"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .to(Set) shouldBe Set(file4)
     }
 
     "search files by file type" in {
-      searchClient.insertFiles(files).awaitFinite()
+      searchClient.insertFiles(files).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(fileType = Some("zip"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .to(Set) shouldEqual Set(file1, file3)
     }
 
     "search files by file type fuzzily" in {
-      searchClient.insertFiles(files).awaitFinite()
+      searchClient.insertFiles(files).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(fileType = Some("jpg"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .to(Set) shouldEqual Set(file4)
     }
 
     "search files by organization" in {
-      searchClient.insertFiles(files).awaitFinite()
+      searchClient.insertFiles(files).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(organization = Some("SPARC"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .to(Set) shouldBe Set(file2, file3)
     }
 
     "search files by organization id" in {
-      searchClient.insertFiles(files).awaitFinite()
+      searchClient.insertFiles(files).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(organizationId = Some(10))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .to(Set) shouldBe Set(file2, file3)
     }
 
     "search files by dataset" in {
-      searchClient.insertFiles(files).awaitFinite()
+      searchClient.insertFiles(files).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(datasetId = Some(dataset1.dataset.id))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .to(Set) shouldBe Set(file1, file4)
     }
 
     "replace existing file entries when re-indexing a dataset" in {
-      searchClient.insertFiles(Seq(file1)).awaitFinite()
+      searchClient.insertFiles(Seq(file1)).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(fileType = Some("zip"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
         .length shouldBe 1
 
@@ -841,28 +838,28 @@ class ElasticSearchSpec
       // TODO: call deleteFiles within insertFiles
       searchClient
         .deleteFiles(dataset1.dataset.id, Some(newVersion))
-        .awaitFinite()
-      searchClient.insertFiles(Seq(newFile)).awaitFinite()
+        .awaitFinite(waitDuration)
+      searchClient.insertFiles(Seq(newFile)).awaitFinite(waitDuration)
 
       searchClient
         .searchFiles(fileType = Some("zip"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files shouldBe Seq(newFile)
     }
 
     "handle limit and offset for files" in {
-      searchClient.insertFiles(files).awaitFinite()
+      searchClient.insertFiles(files).awaitFinite(waitDuration)
 
       val result1 = searchClient
         .searchFiles(limit = 2, offset = 0)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
 
       result1.length shouldBe 2
 
       val result2 = searchClient
         .searchFiles(limit = 1, offset = 2)
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .files
 
       result2.length shouldBe 1
@@ -886,7 +883,7 @@ class ElasticSearchSpec
                 )
             )
         )
-        .awaitFinite(60.seconds)
+        .awaitFinite(waitDuration)
     }
 
     val record1 =
@@ -899,11 +896,11 @@ class ElasticSearchSpec
     "search records" in {
       searchClient
         .insertRecords(records.map(RecordDocument(_)))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       searchClient
         .searchRecords()
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .records
         .map(_.record)
         .to(Set) shouldBe records.to(Set)
@@ -912,11 +909,11 @@ class ElasticSearchSpec
     "search records by organization" in {
       searchClient
         .insertRecords(records.map(RecordDocument(_)))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       searchClient
         .searchRecords(organization = Some("Blackfynn"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .records
         .map(_.record) shouldBe List(record2)
     }
@@ -924,11 +921,11 @@ class ElasticSearchSpec
     "search records by dataset" in {
       searchClient
         .insertRecords(records.map(RecordDocument(_)))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       searchClient
         .searchRecords(datasetId = Some(record1.datasetId))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .records
         .map(_.record) shouldBe List(record1)
     }
@@ -936,11 +933,11 @@ class ElasticSearchSpec
     "search records by model name" in {
       searchClient
         .insertRecords(records.map(RecordDocument(_)))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       searchClient
         .searchRecords(model = Some("medicine"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .records
         .map(_.record) shouldBe List(record2)
     }
@@ -953,11 +950,11 @@ class ElasticSearchSpec
 
       searchClient
         .insertRecords(List(record1, record2).map(RecordDocument(_)))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
 
       searchClient
         .searchRecords(model = Some("Trial-balloon"))
-        .awaitFinite()
+        .awaitFinite(waitDuration)
         .records
         .map(_.record) shouldBe List(record1)
     }

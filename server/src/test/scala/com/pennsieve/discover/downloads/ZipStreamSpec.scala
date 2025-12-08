@@ -3,10 +3,10 @@
 package com.pennsieve.discover.downloads
 
 import akka.NotUsed
-import akka.actor.ActorSystem
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import com.pennsieve.discover.ActorSystemTestKit
 import com.pennsieve.test.AwaitableImplicits
 import com.pennsieve.discover.TestUtilities._
 import com.pennsieve.discover.clients.{ MockS3StreamClient, TestFile }
@@ -23,9 +23,9 @@ class ZipStreamSpec
     with Matchers
     with AwaitableImplicits
     with ScalaFutures
-    with TempDirectoryFixture {
+    with TempDirectoryFixture
+    with ActorSystemTestKit {
 
-  implicit private val system: ActorSystem = ActorSystem("discover-service")
   implicit private val executionContext: ExecutionContext = system.dispatcher
 
   "zip stream" should {
