@@ -2,7 +2,6 @@
 
 package com.pennsieve.discover.db
 
-import akka.actor.ActorSystem
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.models.{
   OrderBy,
@@ -18,6 +17,7 @@ import com.pennsieve.discover.server.definitions.{
   DatasetsPage
 }
 import com.pennsieve.discover.{
+  ActorSystemTestKit,
   DatasetUnpublishedException,
   ServiceSpecHarness,
   TestUtilities
@@ -42,14 +42,8 @@ class PublicDatasetVersionsMapperSpec
     with ServiceSpecHarness
     with AwaitableImplicits
     with Matchers
-    with ScalaFutures {
-
-  override implicit val system: ActorSystem = ActorSystem("discover-service")
-
-  override def afterAll(): Unit = {
-    system.terminate()
-    super.afterAll()
-  }
+    with ScalaFutures
+    with ActorSystemTestKit {
 
   "PublicDatasetVersionsMapper" should {
 
