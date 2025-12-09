@@ -67,6 +67,7 @@ class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
         externalPublications = List(externalPublication),
         publishBucket = S3Bucket("publish-bucket"),
         embargoBucket = S3Bucket("embargo-bucket"),
+        expectPrevious = true,
         workflowId = PublishingWorkflow.Version4
       )
 
@@ -95,6 +96,7 @@ class JobEncodingSpec extends AnyWordSpec with Suite with Matchers {
           |  "external_publications" : "[{\\"doi\\":\\"10.26275/t6j6-77pu\\",\\"relationshipType\\":\\"IsSourceOf\\"}]",
           |  "publish_bucket" : "publish-bucket",
           |  "embargo_bucket" : "embargo-bucket",
+          |  "expect_previous" : "true",
           |  "workflow_id" : "4"
           |}""".stripMargin
 

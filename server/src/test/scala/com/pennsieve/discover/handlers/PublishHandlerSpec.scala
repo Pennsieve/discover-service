@@ -36,6 +36,7 @@ import com.pennsieve.discover.notifications.{
 }
 import com.pennsieve.doi.models.DoiState
 import com.pennsieve.models.PublishStatus.{
+  EmbargoSucceeded,
   PublishFailed,
   PublishInProgress,
   PublishSucceeded,
@@ -185,6 +186,8 @@ class PublishHandlerSpec
     datasetNodeId = datasetNodeId,
     workflowId = Some(4)
   )
+
+  val requestBodyV5: PublishRequest = requestBody.copy(workflowId = Some(5))
 
   val customBucketRequestBody: PublishRequest =
     requestBody.copy(bucketConfig = Some(customBucketConfig))
@@ -429,6 +432,7 @@ class PublishHandlerSpec
           )
           job.version shouldBe publicVersion.version
           job.doi shouldBe doiDto.doi
+          job.expectPrevious shouldBe false
 
       }
     }
@@ -472,6 +476,7 @@ class PublishHandlerSpec
 
       publishedJobs should have length 1
       publishedJobs.head.s3Bucket.value shouldBe customBucketConfig.publish
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "publish to an embargo bucket" in {
@@ -550,6 +555,7 @@ class PublishHandlerSpec
 
       publishedJobs.length shouldBe 1
       publishedJobs.head.s3Bucket shouldBe config.s3.embargoBucket
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "correctly use custom embargo bucket" in {
@@ -592,6 +598,7 @@ class PublishHandlerSpec
 
       publishedJobs.length shouldBe 1
       publishedJobs.head.s3Bucket.value shouldBe customBucketConfig.embargo
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "return the publishing status of the dataset" in {
@@ -1029,6 +1036,218 @@ class PublishHandlerSpec
 
       jobExternalPubData should contain theSameElementsAs internalExternalPubData
 
+    }
+
+    "not expect a previous version on first publish" in {
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          requestBodyV5,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.expectPrevious shouldBe false
+    }
+
+    "not expect a previous version on first embargo" in {
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          Some(true),
+          Some(LocalDate.now().plusDays(30)),
+          requestBodyV5,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.expectPrevious shouldBe false
+    }
+
+    "expect a previous version on second publish" in {
+
+      TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = PublishSucceeded,
+        migrated = true
+      )
+
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          requestBodyV5,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.expectPrevious shouldBe true
+    }
+
+    "not expect a previous version on second embargo" in {
+
+      // there is only ever one embargoed version. If a second embargo
+      // comes in, the previous one is deleted from postgres first.
+      val releaseDate = LocalDate.now().plusDays(60)
+
+      TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = EmbargoSucceeded,
+        embargoReleaseDate = Some(releaseDate),
+        migrated = true
+      )
+
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          Some(true),
+          Some(releaseDate),
+          requestBodyV5,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.expectPrevious shouldBe false
+    }
+
+    "not expect a previous version if only other version is failed" in {
+
+      TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = PublishFailed,
+        migrated = true
+      )
+
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          requestBodyV5,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.expectPrevious shouldBe false
+    }
+
+    "not expect a previous version if most recent version is unpublished" in {
+
+      TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = Unpublished,
+        migrated = true
+      )
+
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          requestBodyV5,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.expectPrevious shouldBe false
+    }
+
+    "expect a previous version if most recent version is failed, but there are older successful versions" in {
+
+      val dataset = TestUtilities.createDatasetV1(ports.db)(
+        sourceOrganizationId = organizationId,
+        sourceDatasetId = datasetId,
+        status = PublishSucceeded,
+        migrated = true
+      )
+
+      TestUtilities.createNewDatasetVersion(ports.db)(
+        dataset.datasetId,
+        status = PublishFailed,
+        migrated = true
+      )
+
+      client
+        .publish(
+          organizationId,
+          datasetId,
+          None,
+          None,
+          requestBodyV5,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publishedJobs = ports.stepFunctionsClient
+        .asInstanceOf[MockStepFunctionsClient]
+        .startedJobs
+
+      publishedJobs.length shouldBe 1
+      publishedJobs.head.expectPrevious shouldBe true
     }
 
   }
@@ -2435,6 +2654,7 @@ class PublishHandlerSpec
 
       publishedJobs.length shouldBe 1
       publishedJobs.head.s3Bucket shouldBe config.s3.publishBucket
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "not Embargo with release date of today" in {
@@ -2513,6 +2733,7 @@ class PublishHandlerSpec
 
       publishedJobs.length shouldBe 1
       publishedJobs.head.s3Bucket shouldBe config.s3.publishBucket
+      publishedJobs.head.expectPrevious shouldBe false
     }
 
     "check Release Dates are after today" in {

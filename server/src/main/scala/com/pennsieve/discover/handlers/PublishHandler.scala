@@ -35,7 +35,7 @@ import com.pennsieve.models.{
   PublishStatus,
   RelationshipType
 }
-import com.pennsieve.models.PublishStatus.Unpublished
+import com.pennsieve.models.PublishStatus.{ PublishSucceeded, Unpublished }
 import io.circe.{ DecodingFailure, Json }
 import slick.dbio.DBIOAction
 import slick.jdbc.TransactionIsolation
@@ -216,6 +216,14 @@ class PublishHandler(
             latest <- PublicDatasetVersionsMapper
               .getLatestVisibleVersion(publicDataset)
 
+            // should the publish job expect a previously published version (of the manifest)?
+            // Only if there is a visible version that has not been unpublished.
+            expectPrevious = latest match {
+              case None => false
+              case Some(version) if version.status == Unpublished => false
+              case _ => true
+            }
+
             requestedWorkflow = body.workflowId.getOrElse(
               PublishingWorkflow.Version4
             )
@@ -326,6 +334,7 @@ class PublishHandler(
                     externalPublications,
                     publishBucket,
                     embargoBucket,
+                    expectPrevious,
                     workflowId = workflowVersion
                   )
                 )
