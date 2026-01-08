@@ -43,7 +43,7 @@ lazy val akkaHttpVersion = SettingKey[String]("akkaHttpVersion")
 lazy val akkaVersion = SettingKey[String]("akkaVersion")
 lazy val alpakkaVersion = SettingKey[String]("alpakkaVersion")
 
-lazy val akkaHttp213Version = "10.2.9"
+lazy val akkaHttp213Version = "10.5.3"
 lazy val akka213Version = "2.6.19"
 lazy val alpakka213Version = "4.0.0"
 lazy val akkaHttp212Version = "10.1.11"
