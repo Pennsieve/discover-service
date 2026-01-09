@@ -164,7 +164,7 @@ class S3StreamClientSpec
           case (path, source) =>
             source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))
         }
-        .toMat(TestSink.probe)(Keep.right)
+        .toMat(TestSink())(Keep.right)
         .run()
 
       sink.request(n = 100)
@@ -187,7 +187,7 @@ class S3StreamClientSpec
           case (path, source) =>
             source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))
         }
-        .toMat(TestSink.probe)(Keep.right)
+        .toMat(TestSink())(Keep.right)
         .run()
 
       sink.request(n = 100)
@@ -218,7 +218,7 @@ class S3StreamClientSpec
           case (path, source) =>
             source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))
         }
-        .toMat(TestSink.probe)(Keep.right)
+        .toMat(TestSink())(Keep.right)
         .run()
 
       sink.request(n = 100)
@@ -247,7 +247,7 @@ class S3StreamClientSpec
           case (path, source) =>
             source.runWith(Sink.fold(ByteString.empty)(_ ++ _)).map((path, _))
         }
-        .toMat(TestSink.probe)(Keep.right)
+        .toMat(TestSink())(Keep.right)
         .run()
 
       sink.request(n = 100)

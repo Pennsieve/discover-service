@@ -86,7 +86,7 @@ lazy val server = project
     Test / fork := true,
     Test / testForkedParallel := false,
     Test / parallelExecution := false,
-      // Only run integration tests with the `integration:test` command
+    // Only run integration tests with the `integration:test` command
     inConfig(Integration)(Defaults.testTasks),
     Test / testOptions := Seq(
       Tests.Filter(!_.toLowerCase.contains("integration"))
@@ -133,8 +133,10 @@ lazy val server = project
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion.value,
       "com.typesafe.akka" %% "akka-http-xml" % akkaHttpVersion.value,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-stream-typed" % akkaVersion.value,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value,
       "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion.value,
       "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % alpakkaVersion.value,
       "com.lightbend.akka" %% "akka-stream-alpakka-s3" % alpakkaVersion.value,
       "com.lightbend.akka" %% "akka-stream-alpakka-awslambda" % alpakkaVersion.value,
@@ -178,7 +180,7 @@ lazy val server = project
       "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test,
       "org.mock-server" % "mockserver-client-java-no-dependencies" % "5.14.0" % Test,
       "com.dimafeng" %% "testcontainers-scala" % testContainersVersion % Test,
-      "com.pennsieve" %% "pennsieve-core" % coreVersion % Test classifier "tests",
+      "com.pennsieve" %% "pennsieve-core" % coreVersion % Test classifier "tests"
     ),
     Compile / guardrailTasks := List(
       ScalaServer(
@@ -361,7 +363,9 @@ lazy val client = project
       "io.circe" %% "circe-jawn" % circeVersion.value,
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion.value,
       "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion.value,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-stream-typed" % akkaVersion.value,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value
     ),
     libraryDependencies ++= handle212OnlyDependency(
@@ -434,6 +438,7 @@ lazy val scripts = project
       "io.circe" %% "circe-jawn" % circeVersion.value,
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion.value,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion.value,
+      "com.typesafe.akka" %% "akka-stream-typed" % akkaVersion.value,
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion
     )
   )
