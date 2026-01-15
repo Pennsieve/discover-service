@@ -124,3 +124,25 @@ data "terraform_remote_state" "africa_south_region" {
     region = "us-east-1"
   }
 }
+
+# Import VPC Data
+data "terraform_remote_state" "vpc" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.aws_account}-terraform-state"
+    key    = "aws/${data.aws_region.current_region.name}/${var.vpc_name}/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+# Import Fargate Cluster Data
+data "terraform_remote_state" "fargate" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.aws_account}-terraform-state"
+    key    = "aws/${data.aws_region.current_region.name}/${var.vpc_name}/${var.environment_name}/fargate/terraform.tfstate"
+    region = "us-east-1"
+  }
+}

@@ -91,3 +91,29 @@ locals {
   }
 
 }
+
+# ECS Delete Task Configuration
+variable "ecs_delete_task_enabled" {
+  description = "Enable/disable the ECS delete task feature"
+  default     = "false"
+}
+
+variable "ecs_delete_task_container_name" {
+  description = "Name of the container in the delete task"
+  default     = "delete-task"
+}
+
+variable "ecs_delete_task_image" {
+  description = "Docker image for the delete task"
+  default     = "pennsieve/storage-s3-cleanup"
+}
+
+variable "ecs_delete_task_cpu" {
+  description = "CPU units for the delete task (256, 512, 1024, 2048, 4096)"
+  default     = "256"
+}
+
+variable "ecs_delete_task_memory" {
+  description = "Memory (MB) for the delete task"
+  default     = "512"
+}

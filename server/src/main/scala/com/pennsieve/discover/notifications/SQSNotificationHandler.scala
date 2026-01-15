@@ -404,24 +404,57 @@ class SQSNotificationHandler(
         )
       )(executionContext, logContext, ports)
 
-      // Notify Pennsieve API that publishing has completed
-      _ = ports.log.info("handleSuccess() notify API")
-      _ <- ports.pennsieveApiClient
-        .putPublishComplete(publishStatus, None)
-        .value
-        .flatMap(_.fold(Future.failed, Future.successful))
-
-      // invoke S3 Cleanup Lambda to delete publishing intermediate files
-      _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
-      _ <- ports.lambdaClient.runS3Clean(
-        updatedVersion.s3Key.value,
-        updatedVersion.datasetId,
-        Some(updatedVersion.version),
-        updatedVersion.s3Bucket.value,
-        updatedVersion.s3Bucket.value,
-        S3CleanupStage.Tidy,
-        updatedVersion.migrated
+      // Fetch the deleteTaskEnabled parameter at runtime
+      deleteTaskEnabled <- ports.ssmClient.getBooleanParameter(
+        "ecs-delete-task-enabled",
+        defaultValue = false
       )
+
+      _ <- if (deleteTaskEnabled) {
+        // Delete task enabled: invoke Fargate task (handles putPublishComplete)
+        ports.log.info(
+          "handleSuccess() deleteTaskEnabled=true, invoking delete task"
+        )
+        for {
+          _ <- ports.ecsClient.runDeleteTask(
+            datasetId = publicDataset.id,
+            version = updatedVersion.version,
+            organizationId = publicDataset.sourceOrganizationId,
+            publishSuccess = true
+          )
+          _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
+          _ <- ports.lambdaClient.runS3Clean(
+            updatedVersion.s3Key.value,
+            updatedVersion.datasetId,
+            Some(updatedVersion.version),
+            updatedVersion.s3Bucket.value,
+            updatedVersion.s3Bucket.value,
+            S3CleanupStage.Tidy,
+            updatedVersion.migrated
+          )
+        } yield ()
+      } else {
+        // Delete task disabled: call putPublishComplete directly
+        ports.log.info(
+          "handleSuccess() deleteTaskEnabled=false, calling putPublishComplete"
+        )
+        for {
+          _ <- ports.pennsieveApiClient
+            .putPublishComplete(publishStatus, None)
+            .value
+            .flatMap(_.fold(Future.failed, Future.successful))
+          _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
+          _ <- ports.lambdaClient.runS3Clean(
+            updatedVersion.s3Key.value,
+            updatedVersion.datasetId,
+            Some(updatedVersion.version),
+            updatedVersion.s3Bucket.value,
+            updatedVersion.s3Bucket.value,
+            S3CleanupStage.Tidy,
+            updatedVersion.migrated
+          )
+        } yield ()
+      }
     } yield ()
 
   private def publishFirstVersion(
