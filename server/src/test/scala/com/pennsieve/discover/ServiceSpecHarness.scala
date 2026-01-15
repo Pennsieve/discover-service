@@ -181,7 +181,7 @@ trait ServiceSpecHarness
         region = Region.US_EAST_1,
         parameterPathPrefix = "/test/discover-service"
       ),
-      s3StorageCleanupTask = S3StorageCleanupTaskConfiguration(
+      storageCleanupTask = StorageCleanupTaskConfiguration(
         cluster = "test-cluster",
         taskDefinition = "test-task-definition",
         subnetIds = List("subnet-123", "subnet-456"),

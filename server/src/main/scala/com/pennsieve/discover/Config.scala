@@ -36,7 +36,7 @@ case class Config(
   runtimeSettings: RuntimeSettings,
   doiCollections: DoiCollections,
   ssm: SSMConfiguration,
-  s3StorageCleanupTask: S3StorageCleanupTaskConfiguration
+  storageCleanupTask: StorageCleanupTaskConfiguration
 )
 
 object Config {
@@ -143,7 +143,7 @@ case class SSMConfiguration(
   parameterPathPrefix: String
 )
 
-case class S3StorageCleanupTaskConfiguration(
+case class StorageCleanupTaskConfiguration(
   cluster: String,
   taskDefinition: String,
   subnetIds: List[String],

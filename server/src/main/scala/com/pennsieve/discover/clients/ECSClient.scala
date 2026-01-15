@@ -2,7 +2,7 @@
 
 package com.pennsieve.discover.clients
 
-import com.pennsieve.discover.S3StorageCleanupTaskConfiguration
+import com.pennsieve.discover.StorageCleanupTaskConfiguration
 import com.typesafe.scalalogging.StrictLogging
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
@@ -46,7 +46,7 @@ trait ECSClient {
 }
 
 class AwsECSClient(
-  config: S3StorageCleanupTaskConfiguration,
+  config: StorageCleanupTaskConfiguration,
   region: Region
 ) extends ECSClient
     with StrictLogging {
