@@ -395,38 +395,38 @@ resource "aws_ssm_parameter" "doi_collections_id_space_name" {
 }
 
 // ECS Delete Task Configuration
-resource "aws_ssm_parameter" "ecs_delete_task_enabled" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-delete-task-enabled"
+resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_enabled" {
+  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-enabled"
   type  = "String"
-  value = var.ecs_delete_task_enabled
+  value = var.ecs_s3_storage_cleanup_task_enabled
 }
 
-resource "aws_ssm_parameter" "ecs_delete_task_cluster" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-delete-task-cluster"
+resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_cluster" {
+  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-cluster"
   type  = "String"
   value = data.terraform_remote_state.fargate.outputs.ecs_cluster_arn
 }
 
-resource "aws_ssm_parameter" "ecs_delete_task_definition" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-delete-task-definition"
+resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_definition" {
+  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-definition"
   type  = "String"
-  value = aws_ecs_task_definition.delete_task.arn
+  value = aws_ecs_task_definition.s3_storage_cleanup_task.arn
 }
 
-resource "aws_ssm_parameter" "ecs_delete_task_subnets" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-delete-task-subnets"
+resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_subnets" {
+  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-subnets"
   type  = "String"
   value = join(",", data.terraform_remote_state.vpc.outputs.private_subnet_ids)
 }
 
-resource "aws_ssm_parameter" "ecs_delete_task_security_group" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-delete-task-security-group"
+resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_security_group" {
+  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-security-group"
   type  = "String"
-  value = aws_security_group.delete_fargate_task_security_group.id
+  value = aws_security_group.s3_storage_cleanup_fargate_task_security_group.id
 }
 
-resource "aws_ssm_parameter" "ecs_delete_task_container_name" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-delete-task-container-name"
+resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_container_name" {
+  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-container-name"
   type  = "String"
-  value = var.ecs_delete_task_container_name
+  value = var.ecs_s3_storage_cleanup_task_container_name
 }

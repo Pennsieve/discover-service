@@ -181,12 +181,12 @@ trait ServiceSpecHarness
         region = Region.US_EAST_1,
         parameterPathPrefix = "/test/discover-service"
       ),
-      deleteTask = DeleteTaskConfiguration(
+      s3StorageCleanupTask = S3StorageCleanupTaskConfiguration(
         cluster = "test-cluster",
         taskDefinition = "test-task-definition",
         subnetIds = List("subnet-123", "subnet-456"),
         securityGroupId = "sg-123",
-        containerName = "delete-task"
+        containerName = "s3-storage-cleanup-task"
       )
     )
     ports = getPorts(config)

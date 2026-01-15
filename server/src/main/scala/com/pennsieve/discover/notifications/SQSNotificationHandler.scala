@@ -404,19 +404,19 @@ class SQSNotificationHandler(
         )
       )(executionContext, logContext, ports)
 
-      // Fetch the deleteTaskEnabled parameter at runtime
-      deleteTaskEnabled <- ports.ssmClient.getBooleanParameter(
-        "ecs-delete-task-enabled",
+      // Fetch the s3StorageCleanupTaskEnabled parameter at runtime
+      s3StorageCleanupTaskEnabled <- ports.ssmClient.getBooleanParameter(
+        "ecs-s3-storage-cleanup-task-enabled",
         defaultValue = false
       )
 
-      _ <- if (deleteTaskEnabled) {
+      _ <- if (s3StorageCleanupTaskEnabled) {
         // Delete task enabled: invoke Fargate task (handles putPublishComplete)
         ports.log.info(
-          "handleSuccess() deleteTaskEnabled=true, invoking delete task"
+          "handleSuccess() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task"
         )
         for {
-          _ <- ports.ecsClient.runDeleteTask(
+          _ <- ports.ecsClient.runS3StorageCleanupTask(
             datasetId = publicDataset.id,
             version = updatedVersion.version,
             organizationId = publicDataset.sourceOrganizationId,
@@ -436,7 +436,7 @@ class SQSNotificationHandler(
       } else {
         // Delete task disabled: call putPublishComplete directly
         ports.log.info(
-          "handleSuccess() deleteTaskEnabled=false, calling putPublishComplete"
+          "handleSuccess() s3StorageCleanupTaskEnabled=false, calling putPublishComplete"
         )
         for {
           _ <- ports.pennsieveApiClient

@@ -2,7 +2,7 @@
 
 package com.pennsieve.discover.clients
 
-import com.pennsieve.discover.DeleteTaskConfiguration
+import com.pennsieve.discover.S3StorageCleanupTaskConfiguration
 import com.typesafe.scalalogging.StrictLogging
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
@@ -27,7 +27,7 @@ import scala.jdk.CollectionConverters._
 trait ECSClient {
 
   /**
-    * Runs the delete task as a Fargate task.
+    * Runs the s3 storage cleanup task as a Fargate task.
     *
     * @param datasetId The public dataset ID
     * @param version The dataset version
@@ -35,7 +35,7 @@ trait ECSClient {
     * @param publishSuccess Whether the publish operation was successful
     * @return The RunTaskResponse from ECS
     */
-  def runDeleteTask(
+  def runS3StorageCleanupTask(
     datasetId: Int,
     version: Int,
     organizationId: Int,
@@ -46,7 +46,7 @@ trait ECSClient {
 }
 
 class AwsECSClient(
-  config: DeleteTaskConfiguration,
+  config: S3StorageCleanupTaskConfiguration,
   region: Region
 ) extends ECSClient
     with StrictLogging {
@@ -58,7 +58,7 @@ class AwsECSClient(
     .region(region)
     .build()
 
-  override def runDeleteTask(
+  override def runS3StorageCleanupTask(
     datasetId: Int,
     version: Int,
     organizationId: Int,
@@ -119,7 +119,7 @@ class AwsECSClient(
       .build()
 
     logger.info(
-      s"Running delete task for dataset $datasetId version $version (org: $organizationId, success: $publishSuccess)"
+      s"Running s3 storage cleanup task for dataset $datasetId version $version (org: $organizationId, success: $publishSuccess)"
     )
 
     client.runTask(request).toScala.map { response =>

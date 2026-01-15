@@ -7,7 +7,7 @@ import software.amazon.awssdk.services.ecs.model.{ RunTaskResponse, Task }
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ ExecutionContext, Future }
 
-case class DeleteTaskRequest(
+case class S3StorageCleanupTaskRequest(
   datasetId: Int,
   version: Int,
   organizationId: Int,
@@ -16,13 +16,13 @@ case class DeleteTaskRequest(
 
 class MockECSClient extends ECSClient {
 
-  val requests: ListBuffer[DeleteTaskRequest] = ListBuffer.empty
+  val requests: ListBuffer[S3StorageCleanupTaskRequest] = ListBuffer.empty
 
   def clear(): Unit = {
     requests.clear()
   }
 
-  override def runDeleteTask(
+  override def runS3StorageCleanupTask(
     datasetId: Int,
     version: Int,
     organizationId: Int,
@@ -30,7 +30,7 @@ class MockECSClient extends ECSClient {
   )(implicit
     ec: ExecutionContext
   ): Future[RunTaskResponse] = {
-    requests += DeleteTaskRequest(
+    requests += S3StorageCleanupTaskRequest(
       datasetId,
       version,
       organizationId,

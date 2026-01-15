@@ -162,7 +162,7 @@ object Ports {
     )
 
     val ecsClient: ECSClient = new AwsECSClient(
-      config = config.deleteTask,
+      config = config.s3StorageCleanupTask,
       region = config.ssm.region
     )
 
