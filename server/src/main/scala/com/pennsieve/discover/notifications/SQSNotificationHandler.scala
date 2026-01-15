@@ -410,51 +410,38 @@ class SQSNotificationHandler(
         defaultValue = false
       )
 
+      // Notify Pennsieve API that publishing has completed
       _ <- if (s3StorageCleanupTaskEnabled) {
-        // Delete task enabled: invoke Fargate task (handles putPublishComplete)
+        // S3 storage cleanup task enabled: invoke Fargate task (handles putPublishComplete)
         ports.log.info(
           "handleSuccess() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task"
         )
-        for {
-          _ <- ports.ecsClient.runS3StorageCleanupTask(
-            datasetId = publicDataset.id,
-            version = updatedVersion.version,
-            organizationId = publicDataset.sourceOrganizationId,
-            publishSuccess = true
-          )
-          _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
-          _ <- ports.lambdaClient.runS3Clean(
-            updatedVersion.s3Key.value,
-            updatedVersion.datasetId,
-            Some(updatedVersion.version),
-            updatedVersion.s3Bucket.value,
-            updatedVersion.s3Bucket.value,
-            S3CleanupStage.Tidy,
-            updatedVersion.migrated
-          )
-        } yield ()
-      } else {
-        // Delete task disabled: call putPublishComplete directly
-        ports.log.info(
-          "handleSuccess() s3StorageCleanupTaskEnabled=false, calling putPublishComplete"
+        ports.ecsClient.runS3StorageCleanupTask(
+          datasetId = publicDataset.id,
+          version = updatedVersion.version,
+          organizationId = publicDataset.sourceOrganizationId,
+          publishSuccess = true
         )
-        for {
-          _ <- ports.pennsieveApiClient
-            .putPublishComplete(publishStatus, None)
-            .value
-            .flatMap(_.fold(Future.failed, Future.successful))
-          _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
-          _ <- ports.lambdaClient.runS3Clean(
-            updatedVersion.s3Key.value,
-            updatedVersion.datasetId,
-            Some(updatedVersion.version),
-            updatedVersion.s3Bucket.value,
-            updatedVersion.s3Bucket.value,
-            S3CleanupStage.Tidy,
-            updatedVersion.migrated
-          )
-        } yield ()
+      } else {
+        // S3 storage cleanup task disabled: call putPublishComplete directly
+        ports.log.info("handleSuccess() notify API")
+        ports.pennsieveApiClient
+          .putPublishComplete(publishStatus, None)
+          .value
+          .flatMap(_.fold(Future.failed, Future.successful))
       }
+
+      // invoke S3 Cleanup Lambda to delete publishing intermediate files
+      _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
+      _ <- ports.lambdaClient.runS3Clean(
+        updatedVersion.s3Key.value,
+        updatedVersion.datasetId,
+        Some(updatedVersion.version),
+        updatedVersion.s3Bucket.value,
+        updatedVersion.s3Bucket.value,
+        S3CleanupStage.Tidy,
+        updatedVersion.migrated
+      )
     } yield ()
 
   private def publishFirstVersion(
