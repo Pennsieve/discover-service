@@ -3,9 +3,12 @@
 package com.pennsieve.discover
 
 import com.pennsieve.discover.models.S3Bucket
+import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.OptionValues._
+import pureconfig._
+import pureconfig.generic.auto._
 import software.amazon.awssdk.arns.Arn
 
 class ConfigSpec extends AnyWordSpec with Matchers {
@@ -44,5 +47,47 @@ class ConfigSpec extends AnyWordSpec with Matchers {
       config.doiCollections.pennsieveDoiPrefix shouldBe "10.00000"
     }
 
+    "parse subnet-ids as a HOCON list" in {
+      val config: Config =
+        Config.loadForTest("config-with-external-buckets.conf")
+
+      config.storageCleanupTask.subnetIds.values shouldBe List(
+        "subnet-123",
+        "subnet-456"
+      )
+    }
+
+  }
+
+  "CommaSeparatedStrings" should {
+    import Config.commaSeparatedReader
+
+    "parse a comma-separated string" in {
+      val hocon = ConfigFactory.parseString("""value = "subnet-1,subnet-2,subnet-3"""")
+      val result = ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
+
+      result shouldBe Right(CommaSeparatedStrings(List("subnet-1", "subnet-2", "subnet-3")))
+    }
+
+    "trim whitespace around values" in {
+      val hocon = ConfigFactory.parseString("""value = "subnet-1 , subnet-2 , subnet-3"""")
+      val result = ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
+
+      result shouldBe Right(CommaSeparatedStrings(List("subnet-1", "subnet-2", "subnet-3")))
+    }
+
+    "handle an empty string" in {
+      val hocon = ConfigFactory.parseString("""value = """"")
+      val result = ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
+
+      result shouldBe Right(CommaSeparatedStrings(List.empty))
+    }
+
+    "parse a HOCON list" in {
+      val hocon = ConfigFactory.parseString("""value = ["subnet-1", "subnet-2"]""")
+      val result = ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
+
+      result shouldBe Right(CommaSeparatedStrings(List("subnet-1", "subnet-2")))
+    }
   }
 }
