@@ -102,7 +102,7 @@ class AwsECSClient(
       .awsvpcConfiguration(
         AwsVpcConfiguration
           .builder()
-          .subnets(config.subnetIds.asJava)
+          .subnets(config.subnetIds.values.asJava)
           .securityGroups(config.securityGroupId)
           .assignPublicIp(AssignPublicIp.DISABLED)
           .build()
