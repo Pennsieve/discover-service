@@ -15,15 +15,19 @@ import com.pennsieve.discover.clients.{
   AthenaClientImpl,
   AuthorizationClient,
   AuthorizationClientImpl,
+  AwsECSClient,
   AwsElasticSearchClient,
+  AwsSSMClient,
   AwsStepFunctionsClient,
   DoiClient,
+  ECSClient,
   HttpClient,
   LambdaClient,
   PennsieveApiClient,
   PennsieveApiClientImpl,
   S3StreamClient,
   SearchClient,
+  SSMClient,
   StepFunctionsClient
 }
 import com.pennsieve.discover.db.profile
@@ -52,7 +56,9 @@ case class Ports(
   pennsieveApiClient: PennsieveApiClient,
   authorizationClient: AuthorizationClient,
   sqsClient: SqsAsyncClient,
-  athenaClient: AthenaClient
+  athenaClient: AthenaClient,
+  ssmClient: SSMClient,
+  ecsClient: ECSClient
 ) {
   val logger: ContextLogger = new ContextLogger()
   val log: LoggerTakingImplicit[LogContext] = logger.context
@@ -150,6 +156,16 @@ object Ports {
       sparcAodTable = config.athena.sparcAodBucketAccessTable
     )
 
+    val ssmClient: SSMClient = new AwsSSMClient(
+      parameterPathPrefix = config.ssm.parameterPathPrefix,
+      region = config.ssm.region
+    )
+
+    val ecsClient: ECSClient = new AwsECSClient(
+      config = config.storageCleanupTask,
+      region = config.ssm.region
+    )
+
     Ports(
       config,
       jwt,
@@ -162,7 +178,9 @@ object Ports {
       pennsieveApiClient,
       authorizationClient,
       sqsClient,
-      athenaClient
+      athenaClient,
+      ssmClient,
+      ecsClient
     )
   }
 }

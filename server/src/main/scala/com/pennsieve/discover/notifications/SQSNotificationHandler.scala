@@ -404,12 +404,32 @@ class SQSNotificationHandler(
         )
       )(executionContext, logContext, ports)
 
+      // Fetch the s3StorageCleanupTaskEnabled parameter at runtime
+      s3StorageCleanupTaskEnabled <- ports.ssmClient.getBooleanParameter(
+        "ecs-s3-storage-cleanup-task-enabled",
+        defaultValue = false
+      )
+
       // Notify Pennsieve API that publishing has completed
-      _ = ports.log.info("handleSuccess() notify API")
-      _ <- ports.pennsieveApiClient
-        .putPublishComplete(publishStatus, None)
-        .value
-        .flatMap(_.fold(Future.failed, Future.successful))
+      _ <- if (s3StorageCleanupTaskEnabled) {
+        // S3 storage cleanup task enabled: invoke Fargate task (handles putPublishComplete)
+        ports.log.info(
+          "handleSuccess() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task"
+        )
+        ports.ecsClient.runS3StorageCleanupTask(
+          datasetId = publicDataset.id,
+          version = updatedVersion.version,
+          organizationId = publicDataset.sourceOrganizationId,
+          publishSuccess = true
+        )
+      } else {
+        // S3 storage cleanup task disabled: call putPublishComplete directly
+        ports.log.info("handleSuccess() notify API")
+        ports.pennsieveApiClient
+          .putPublishComplete(publishStatus, None)
+          .value
+          .flatMap(_.fold(Future.failed, Future.successful))
+      }
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
       _ = ports.log.info("handleSuccess() run S3 clean: TIDY")

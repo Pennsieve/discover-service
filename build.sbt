@@ -145,6 +145,8 @@ lazy val server = project
       "software.amazon.awssdk" % "sns" % awsSdkVersion,
       "software.amazon.awssdk" % "s3" % awsSdkVersion,
       "software.amazon.awssdk" % "sts" % awsSdkVersion,
+      "software.amazon.awssdk" % "ecs" % awsSdkVersion,
+      "software.amazon.awssdk" % "ssm" % awsSdkVersion,
       "software.amazon.awssdk" % "url-connection-client" % awsSdkVersion,
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-squants" % pureConfigVersion,

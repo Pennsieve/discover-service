@@ -93,6 +93,10 @@ trait ServiceSpecHarness
       .endpointOverride(new URI("https://localhost"))
       .build()
 
+    val ssmClient: SSMClient = new MockSSMClient()
+
+    val ecsClient: ECSClient = new MockECSClient()
+
     Ports(config).copy(
       doiClient = doiClient,
       stepFunctionsClient = stepFunctionsClient,
@@ -102,7 +106,9 @@ trait ServiceSpecHarness
       pennsieveApiClient = pennsieveApiClient,
       authorizationClient = authorizationClient,
       sqsClient = sqsClient,
-      athenaClient = athenaClient
+      athenaClient = athenaClient,
+      ssmClient = ssmClient,
+      ecsClient = ecsClient
     )
   }
 
@@ -170,6 +176,17 @@ trait ServiceSpecHarness
       doiCollections = DoiCollections(
         pennsieveDoiPrefix = "10.00000",
         IdSpace(99999, "Test Collections ID Space")
+      ),
+      ssm = SSMConfiguration(
+        region = Region.US_EAST_1,
+        parameterPathPrefix = "/test/discover-service"
+      ),
+      storageCleanupTask = StorageCleanupTaskConfiguration(
+        cluster = "test-cluster",
+        taskDefinition = "test-task-definition",
+        subnetIds = List("subnet-123", "subnet-456"),
+        securityGroupId = "sg-123",
+        containerName = "s3-storage-cleanup-task"
       )
     )
     ports = getPorts(config)
@@ -226,6 +243,14 @@ trait ServiceSpecHarness
     ports.athenaClient
       .asInstanceOf[MockAthenaClient]
       .reset()
+
+    ports.ssmClient
+      .asInstanceOf[MockSSMClient]
+      .clear()
+
+    ports.ecsClient
+      .asInstanceOf[MockECSClient]
+      .clear()
 
     // Clear dataset tables
     ports.db

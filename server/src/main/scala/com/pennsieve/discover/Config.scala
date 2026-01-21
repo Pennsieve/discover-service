@@ -34,7 +34,9 @@ case class Config(
   externalPublishBuckets: Map[S3Bucket, Arn] = Map.empty,
   athena: AthenaConfig,
   runtimeSettings: RuntimeSettings,
-  doiCollections: DoiCollections
+  doiCollections: DoiCollections,
+  ssm: SSMConfiguration,
+  storageCleanupTask: StorageCleanupTaskConfiguration
 )
 
 object Config {
@@ -135,3 +137,16 @@ case class RuntimeSettings(deleteReleaseIntermediateFile: Boolean)
 case class DoiCollections(pennsieveDoiPrefix: String, idSpace: IdSpace)
 
 case class IdSpace(id: Int, name: String)
+
+case class SSMConfiguration(
+  region: Region,
+  parameterPathPrefix: String
+)
+
+case class StorageCleanupTaskConfiguration(
+  cluster: String,
+  taskDefinition: String,
+  subnetIds: List[String],
+  securityGroupId: String,
+  containerName: String
+)
