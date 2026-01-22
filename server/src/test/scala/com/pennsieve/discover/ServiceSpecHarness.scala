@@ -184,7 +184,7 @@ trait ServiceSpecHarness
       storageCleanupTask = StorageCleanupTaskConfiguration(
         cluster = "test-cluster",
         taskDefinition = "test-task-definition",
-        subnetIds = List("subnet-123", "subnet-456"),
+        subnetIds = CommaSeparatedStrings(List("subnet-123", "subnet-456")),
         securityGroupId = "sg-123",
         containerName = "s3-storage-cleanup-task"
       )
