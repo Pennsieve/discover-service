@@ -236,6 +236,33 @@ data "aws_iam_policy_document" "iam_policy_document" {
   }
 
   statement {
+    sid    = "RunECSCleanupTask"
+    effect = "Allow"
+
+    actions = [
+      "ecs:RunTask",
+    ]
+
+    resources = [
+      aws_ecs_task_definition.s3_storage_cleanup_task.arn,
+    ]
+  }
+
+  statement {
+    sid    = "PassRoleForECSTask"
+    effect = "Allow"
+
+    actions = [
+      "iam:PassRole",
+    ]
+
+    resources = [
+      aws_iam_role.s3_storage_cleanup_task_exec_role.arn,
+      aws_iam_role.s3_storage_cleanup_task_role.arn,
+    ]
+  }
+
+  statement {
     sid    = "AssumeSPARCPublishBucketRole"
     effect = "Allow"
     actions = ["sts:AssumeRole"]
