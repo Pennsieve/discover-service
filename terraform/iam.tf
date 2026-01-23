@@ -257,7 +257,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
     ]
 
     resources = [
-      aws_iam_role.s3_storage_cleanup_task_exec_role.arn,
+      aws_iam_role.s3_storage_cleanup_task_execution_role.arn,
       aws_iam_role.s3_storage_cleanup_task_role.arn,
     ]
   }
