@@ -399,6 +399,10 @@ resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_enabled" {
   name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-enabled"
   type  = "String"
   value = var.ecs_s3_storage_cleanup_task_enabled
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_cluster" {
