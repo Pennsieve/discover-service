@@ -235,32 +235,6 @@ data "aws_iam_policy_document" "iam_policy_document" {
     ]
   }
 
-  statement {
-    sid    = "RunECSCleanupTask"
-    effect = "Allow"
-
-    actions = [
-      "ecs:RunTask",
-    ]
-
-    resources = [
-      aws_ecs_task_definition.s3_storage_cleanup_task.arn,
-    ]
-  }
-
-  statement {
-    sid    = "PassRoleForECSTask"
-    effect = "Allow"
-
-    actions = [
-      "iam:PassRole",
-    ]
-
-    resources = [
-      aws_iam_role.s3_storage_cleanup_task_execution_role.arn,
-      aws_iam_role.s3_storage_cleanup_task_role.arn,
-    ]
-  }
 
   statement {
     sid    = "AssumeSPARCPublishBucketRole"
@@ -333,4 +307,45 @@ data "aws_iam_policy_document" "iam_policy_document" {
   #     data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_arn,
   #   ]
   # }
+}
+
+# Separate policy for ECS cleanup task permissions (to avoid policy size limit)
+resource "aws_iam_policy" "ecs_cleanup_task_policy" {
+  name   = "${var.environment_name}-${var.service_name}-ecs-cleanup-policy-${data.terraform_remote_state.region.outputs.aws_region_shortname}"
+  path   = "/service/"
+  policy = data.aws_iam_policy_document.ecs_cleanup_task_policy_document.json
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_cleanup_task_policy_attachment" {
+  role       = var.ecs_task_iam_role_id
+  policy_arn = aws_iam_policy.ecs_cleanup_task_policy.arn
+}
+
+data "aws_iam_policy_document" "ecs_cleanup_task_policy_document" {
+  statement {
+    sid    = "RunECSCleanupTask"
+    effect = "Allow"
+
+    actions = [
+      "ecs:RunTask",
+    ]
+
+    resources = [
+      aws_ecs_task_definition.s3_storage_cleanup_task.arn,
+    ]
+  }
+
+  statement {
+    sid    = "PassRoleForECSTask"
+    effect = "Allow"
+
+    actions = [
+      "iam:PassRole",
+    ]
+
+    resources = [
+      aws_iam_role.s3_storage_cleanup_task_execution_role.arn,
+      aws_iam_role.s3_storage_cleanup_task_role.arn,
+    ]
+  }
 }
