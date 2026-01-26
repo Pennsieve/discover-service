@@ -146,3 +146,14 @@ data "terraform_remote_state" "fargate" {
     region = "us-east-1"
   }
 }
+
+# Import Publish Storage Sync Data
+data "terraform_remote_state" "publish_storage_sync" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.aws_account}-terraform-state"
+    key    = "aws/${data.aws_region.current_region.name}/${var.vpc_name}/${var.environment_name}/publish-storage-sync/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
