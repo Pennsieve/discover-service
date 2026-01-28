@@ -414,7 +414,7 @@ resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_cluster" {
 resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_definition" {
   name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-definition"
   type  = "String"
-  value = aws_ecs_task_definition.s3_storage_cleanup_task.arn
+  value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_definition_arn
 }
 
 resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_subnets" {
@@ -426,11 +426,11 @@ resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_subnets" {
 resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_security_group" {
   name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-security-group"
   type  = "String"
-  value = aws_security_group.s3_storage_cleanup_fargate_task_security_group.id
+  value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_security_group_id
 }
 
 resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_container_name" {
   name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-container-name"
   type  = "String"
-  value = var.ecs_s3_storage_cleanup_task_container_name
+  value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_container_name
 }
