@@ -8,10 +8,13 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ ExecutionContext, Future }
 
 case class S3StorageCleanupTaskRequest(
-  datasetId: Int,
+  sourceDatasetId: Int,
+  publicDatasetId: Int,
   version: Int,
   organizationId: Int,
-  publishSuccess: Boolean
+  publishSuccess: Boolean,
+  s3Bucket: String,
+  s3Key: String
 )
 
 class MockECSClient extends ECSClient {
@@ -23,18 +26,24 @@ class MockECSClient extends ECSClient {
   }
 
   override def runS3StorageCleanupTask(
-    datasetId: Int,
+    sourceDatasetId: Int,
+    publicDatasetId: Int,
     version: Int,
     organizationId: Int,
-    publishSuccess: Boolean
+    publishSuccess: Boolean,
+    s3Bucket: String,
+    s3Key: String
   )(implicit
     ec: ExecutionContext
   ): Future[RunTaskResponse] = {
     requests += S3StorageCleanupTaskRequest(
-      datasetId,
+      sourceDatasetId,
+      publicDatasetId,
       version,
       organizationId,
-      publishSuccess
+      publishSuccess,
+      s3Bucket,
+      s3Key
     )
     Future.successful(
       RunTaskResponse
