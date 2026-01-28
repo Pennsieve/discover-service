@@ -417,10 +417,10 @@ class SQSNotificationHandler(
           "handleSuccess() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task"
         )
         ports.ecsClient.runS3StorageCleanupTask(
-          datasetId = publicDataset.id,
-          version = updatedVersion.version,
-          organizationId = publicDataset.sourceOrganizationId,
-          publishSuccess = true
+          sourceDatasetId = publicDataset.sourceDatasetId,
+          publicDatasetId = publicDataset.id,
+          s3Bucket = updatedVersion.s3Bucket.value,
+          s3Key = updatedVersion.s3Key.value
         )
       } else {
         // S3 storage cleanup task disabled: call putPublishComplete directly

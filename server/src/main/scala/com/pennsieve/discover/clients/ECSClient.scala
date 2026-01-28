@@ -29,17 +29,17 @@ trait ECSClient {
   /**
     * Runs the s3 storage cleanup task as a Fargate task.
     *
-    * @param datasetId The public dataset ID
-    * @param version The dataset version
-    * @param organizationId The source organization ID
-    * @param publishSuccess Whether the publish operation was successful
+    * @param sourceDatasetId The source dataset ID
+    * @param publicDatasetId The public dataset ID
+    * @param s3Bucket The S3 bucket where the dataset is published
+    * @param s3Key The S3 key prefix for the published dataset
     * @return The RunTaskResponse from ECS
     */
   def runS3StorageCleanupTask(
-    datasetId: Int,
-    version: Int,
-    organizationId: Int,
-    publishSuccess: Boolean
+    sourceDatasetId: Int,
+    publicDatasetId: Int,
+    s3Bucket: String,
+    s3Key: String
   )(implicit
     ec: ExecutionContext
   ): Future[RunTaskResponse]
@@ -59,31 +59,20 @@ class AwsECSClient(
     .build()
 
   override def runS3StorageCleanupTask(
-    datasetId: Int,
-    version: Int,
-    organizationId: Int,
-    publishSuccess: Boolean
+    sourceDatasetId: Int,
+    publicDatasetId: Int,
+    s3Bucket: String,
+    s3Key: String
   )(implicit
     ec: ExecutionContext
   ): Future[RunTaskResponse] = {
 
     val environmentOverrides = List(
-      KeyValuePair.builder().name("DATASET_ID").value(datasetId.toString).build(),
-      KeyValuePair
-        .builder()
-        .name("DATASET_VERSION")
-        .value(version.toString)
-        .build(),
-      KeyValuePair
-        .builder()
-        .name("ORGANIZATION_ID")
-        .value(organizationId.toString)
-        .build(),
-      KeyValuePair
-        .builder()
-        .name("PUBLISH_SUCCESS")
-        .value(publishSuccess.toString)
-        .build()
+      KeyValuePair.builder().name("DATASET_ID").value(sourceDatasetId.toString).build(),
+      KeyValuePair.builder().name("PUBLIC_DATASET_ID").value(publicDatasetId.toString).build(),
+      KeyValuePair.builder().name("PUBLISHED_BUCKET").value(s3Bucket).build(),
+      KeyValuePair.builder().name("PUBLISHED_S3_PREFIX").value(s3Key).build(),
+      KeyValuePair.builder().name("MANIFEST_KEY").value("manifest.json").build()
     )
 
     val containerOverride = ContainerOverride
@@ -119,17 +108,17 @@ class AwsECSClient(
       .build()
 
     logger.info(
-      s"Running s3 storage cleanup task for dataset $datasetId version $version (org: $organizationId, success: $publishSuccess)"
+      s"Running s3 storage cleanup task for publicDatasetId=$publicDatasetId sourceDatasetId=$sourceDatasetId bucket=$s3Bucket key=$s3Key"
     )
 
     client.runTask(request).toScala.map { response =>
       if (response.failures().isEmpty) {
         logger.info(
-          s"Delete task started successfully for dataset $datasetId version $version"
+          s"Storage cleanup task started successfully for publicDatasetId=$publicDatasetId"
         )
       } else {
         logger.warn(
-          s"Delete task had failures for dataset $datasetId version $version: ${response.failures()}"
+          s"Storage cleanup task had failures for publicDatasetId=$publicDatasetId: ${response.failures()}"
         )
       }
       response
