@@ -331,7 +331,7 @@ data "aws_iam_policy_document" "ecs_cleanup_task_policy_document" {
     ]
 
     resources = [
-      data.terraform_remote_state.publish_storage_sync.outputs.ecs_task_definition_arn,
+      data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_definition_arn,
     ]
   }
 
@@ -344,8 +344,8 @@ data "aws_iam_policy_document" "ecs_cleanup_task_policy_document" {
     ]
 
     resources = [
-      data.terraform_remote_state.publish_storage_sync.outputs.ecs_task_task_role_arn,
-      data.terraform_remote_state.publish_storage_sync.outputs.ecs_task_execution_role_arn,
+      data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_task_role_arn,
+      data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_execution_role_arn,
     ]
   }
 }
