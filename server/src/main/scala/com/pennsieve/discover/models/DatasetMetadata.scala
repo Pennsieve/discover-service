@@ -4,7 +4,7 @@ package com.pennsieve.discover.models
 
 object DatasetMetadata {
   private val METADATA_FILE = "metadata.json"
-  private val MANIFEST_FILE = "manifest.json"
+  val MANIFEST_FILE = "manifest.json"
   private val README_FILE = "readme.md"
   private val CHANGELOG_FILE = "changelog.md"
   private val BANNER = "banner"

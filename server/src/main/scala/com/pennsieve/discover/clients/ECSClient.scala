@@ -3,6 +3,7 @@
 package com.pennsieve.discover.clients
 
 import com.pennsieve.discover.StorageCleanupTaskConfiguration
+import com.pennsieve.discover.models.DatasetMetadata
 import com.typesafe.scalalogging.StrictLogging
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
@@ -31,6 +32,9 @@ trait ECSClient {
     *
     * @param sourceDatasetId The source dataset ID
     * @param publicDatasetId The public dataset ID
+    * @param version The dataset version
+    * @param organizationId The source organization ID
+    * @param publishSuccess Whether the publish operation was successful
     * @param s3Bucket The S3 bucket where the dataset is published
     * @param s3Key The S3 key prefix for the published dataset
     * @return The RunTaskResponse from ECS
@@ -38,6 +42,9 @@ trait ECSClient {
   def runS3StorageCleanupTask(
     sourceDatasetId: Int,
     publicDatasetId: Int,
+    version: Int,
+    organizationId: Int,
+    publishSuccess: Boolean,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -61,6 +68,9 @@ class AwsECSClient(
   override def runS3StorageCleanupTask(
     sourceDatasetId: Int,
     publicDatasetId: Int,
+    version: Int,
+    organizationId: Int,
+    publishSuccess: Boolean,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -70,9 +80,12 @@ class AwsECSClient(
     val environmentOverrides = List(
       KeyValuePair.builder().name("DATASET_ID").value(sourceDatasetId.toString).build(),
       KeyValuePair.builder().name("PUBLIC_DATASET_ID").value(publicDatasetId.toString).build(),
+      KeyValuePair.builder().name("DATASET_VERSION").value(version.toString).build(),
+      KeyValuePair.builder().name("ORGANIZATION_ID").value(organizationId.toString).build(),
+      KeyValuePair.builder().name("PUBLISH_SUCCESS").value(publishSuccess.toString).build(),
       KeyValuePair.builder().name("PUBLISHED_BUCKET").value(s3Bucket).build(),
       KeyValuePair.builder().name("PUBLISHED_S3_PREFIX").value(s3Key).build(),
-      KeyValuePair.builder().name("MANIFEST_KEY").value("manifest.json").build()
+      KeyValuePair.builder().name("MANIFEST_KEY").value(DatasetMetadata.MANIFEST_FILE).build()
     )
 
     val containerOverride = ContainerOverride
