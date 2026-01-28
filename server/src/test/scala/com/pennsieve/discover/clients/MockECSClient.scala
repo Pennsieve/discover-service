@@ -10,6 +10,9 @@ import scala.concurrent.{ ExecutionContext, Future }
 case class S3StorageCleanupTaskRequest(
   sourceDatasetId: Int,
   publicDatasetId: Int,
+  version: Int,
+  organizationId: Int,
+  publishSuccess: Boolean,
   s3Bucket: String,
   s3Key: String
 )
@@ -25,6 +28,9 @@ class MockECSClient extends ECSClient {
   override def runS3StorageCleanupTask(
     sourceDatasetId: Int,
     publicDatasetId: Int,
+    version: Int,
+    organizationId: Int,
+    publishSuccess: Boolean,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -33,6 +39,9 @@ class MockECSClient extends ECSClient {
     requests += S3StorageCleanupTaskRequest(
       sourceDatasetId,
       publicDatasetId,
+      version,
+      organizationId,
+      publishSuccess,
       s3Bucket,
       s3Key
     )
