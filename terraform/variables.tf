@@ -93,7 +93,6 @@ locals {
 }
 
 # ECS Storage Cleanup Task Configuration
-# The task definition is defined in publish-storage-sync repo
 variable "ecs_s3_storage_cleanup_task_enabled" {
   description = "Enable/disable the ECS s3 storage cleanup task feature"
   default     = "false"
