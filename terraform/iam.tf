@@ -331,7 +331,7 @@ data "aws_iam_policy_document" "ecs_cleanup_task_policy_document" {
     ]
 
     resources = [
-      data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_definition_arn,
+      "arn:aws:ecs:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:task-definition/${data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_definition_family}:*",
     ]
   }
 
