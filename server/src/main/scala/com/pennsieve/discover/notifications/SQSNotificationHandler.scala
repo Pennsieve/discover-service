@@ -419,7 +419,8 @@ class SQSNotificationHandler(
         ports.ecsClient.runS3StorageCleanupTask(
           sourceDatasetId = publicDataset.sourceDatasetId,
           publicDatasetId = publicDataset.id,
-          version = publishStatus.publishedVersionCount,
+          publishedVersionCount = publishStatus.publishedVersionCount,
+          lastPublishedDate = updatedVersion.createdAt,
           organizationId = publicDataset.sourceOrganizationId,
           publishSuccess = true,
           s3Bucket = updatedVersion.s3Bucket.value,

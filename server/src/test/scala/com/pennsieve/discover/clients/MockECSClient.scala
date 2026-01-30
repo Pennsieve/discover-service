@@ -4,13 +4,15 @@ package com.pennsieve.discover.clients
 
 import software.amazon.awssdk.services.ecs.model.{ RunTaskResponse, Task }
 
+import java.time.OffsetDateTime
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ ExecutionContext, Future }
 
 case class S3StorageCleanupTaskRequest(
   sourceDatasetId: Int,
   publicDatasetId: Int,
-  version: Int,
+  publishedVersionCount: Int,
+  lastPublishedDate: OffsetDateTime,
   organizationId: Int,
   publishSuccess: Boolean,
   s3Bucket: String,
@@ -28,7 +30,8 @@ class MockECSClient extends ECSClient {
   override def runS3StorageCleanupTask(
     sourceDatasetId: Int,
     publicDatasetId: Int,
-    version: Int,
+    publishedVersionCount: Int,
+    lastPublishedDate: OffsetDateTime,
     organizationId: Int,
     publishSuccess: Boolean,
     s3Bucket: String,
@@ -39,7 +42,8 @@ class MockECSClient extends ECSClient {
     requests += S3StorageCleanupTaskRequest(
       sourceDatasetId,
       publicDatasetId,
-      version,
+      publishedVersionCount,
+      lastPublishedDate,
       organizationId,
       publishSuccess,
       s3Bucket,
@@ -48,7 +52,12 @@ class MockECSClient extends ECSClient {
     Future.successful(
       RunTaskResponse
         .builder()
-        .tasks(Task.builder().taskArn("arn:aws:ecs:us-east-1:123456789:task/test-task").build())
+        .tasks(
+          Task
+            .builder()
+            .taskArn("arn:aws:ecs:us-east-1:123456789:task/test-task")
+            .build()
+        )
         .build()
     )
   }
