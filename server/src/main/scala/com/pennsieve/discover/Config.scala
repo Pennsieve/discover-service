@@ -47,7 +47,13 @@ object Config {
   // Handle comma-separated strings from env vars for specific fields
   implicit val commaSeparatedReader: ConfigReader[CommaSeparatedStrings] =
     ConfigReader[String]
-      .map(s => CommaSeparatedStrings(if (s.isEmpty) List.empty else s.split(",").map(_.trim).toList))
+      .map(
+        s =>
+          CommaSeparatedStrings(
+            if (s.isEmpty) List.empty
+            else s.split(",").map(_.trim).toList
+          )
+      )
       .orElse(ConfigReader[List[String]].map(CommaSeparatedStrings(_)))
 
   implicit val externalPublishBucketConfigurationReader
@@ -145,10 +151,7 @@ case class DoiCollections(pennsieveDoiPrefix: String, idSpace: IdSpace)
 
 case class IdSpace(id: Int, name: String)
 
-case class SSMConfiguration(
-  region: Region,
-  parameterPathPrefix: String
-)
+case class SSMConfiguration(region: Region, parameterPathPrefix: String)
 
 case class CommaSeparatedStrings(values: List[String])
 

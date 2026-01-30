@@ -63,29 +63,41 @@ class ConfigSpec extends AnyWordSpec with Matchers {
     import Config.commaSeparatedReader
 
     "parse a comma-separated string" in {
-      val hocon = ConfigFactory.parseString("""value = "subnet-1,subnet-2,subnet-3"""")
-      val result = ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
+      val hocon =
+        ConfigFactory.parseString("""value = "subnet-1,subnet-2,subnet-3"""")
+      val result =
+        ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
 
-      result shouldBe Right(CommaSeparatedStrings(List("subnet-1", "subnet-2", "subnet-3")))
+      result shouldBe Right(
+        CommaSeparatedStrings(List("subnet-1", "subnet-2", "subnet-3"))
+      )
     }
 
     "trim whitespace around values" in {
-      val hocon = ConfigFactory.parseString("""value = "subnet-1 , subnet-2 , subnet-3"""")
-      val result = ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
+      val hocon = ConfigFactory.parseString(
+        """value = "subnet-1 , subnet-2 , subnet-3""""
+      )
+      val result =
+        ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
 
-      result shouldBe Right(CommaSeparatedStrings(List("subnet-1", "subnet-2", "subnet-3")))
+      result shouldBe Right(
+        CommaSeparatedStrings(List("subnet-1", "subnet-2", "subnet-3"))
+      )
     }
 
     "handle an empty string" in {
       val hocon = ConfigFactory.parseString("""value = """"")
-      val result = ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
+      val result =
+        ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
 
       result shouldBe Right(CommaSeparatedStrings(List.empty))
     }
 
     "parse a HOCON list" in {
-      val hocon = ConfigFactory.parseString("""value = ["subnet-1", "subnet-2"]""")
-      val result = ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
+      val hocon =
+        ConfigFactory.parseString("""value = ["subnet-1", "subnet-2"]""")
+      val result =
+        ConfigSource.fromConfig(hocon).at("value").load[CommaSeparatedStrings]
 
       result shouldBe Right(CommaSeparatedStrings(List("subnet-1", "subnet-2")))
     }

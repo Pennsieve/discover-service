@@ -21,6 +21,9 @@ import software.amazon.awssdk.services.ecs.model.{
   TaskOverride
 }
 
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+
 import scala.compat.java8.FutureConverters._
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.jdk.CollectionConverters._
@@ -32,7 +35,8 @@ trait ECSClient {
     *
     * @param sourceDatasetId The source dataset ID
     * @param publicDatasetId The public dataset ID
-    * @param version The dataset version
+    * @param publishedVersionCount the number of dataset versions with a published status
+    * @param lastPublishedDate The timestamp when the version was published
     * @param organizationId The source organization ID
     * @param publishSuccess Whether the publish operation was successful
     * @param s3Bucket The S3 bucket where the dataset is published
@@ -42,7 +46,8 @@ trait ECSClient {
   def runS3StorageCleanupTask(
     sourceDatasetId: Int,
     publicDatasetId: Int,
-    version: Int,
+    publishedVersionCount: Int,
+    lastPublishedDate: OffsetDateTime,
     organizationId: Int,
     publishSuccess: Boolean,
     s3Bucket: String,
@@ -52,10 +57,8 @@ trait ECSClient {
   ): Future[RunTaskResponse]
 }
 
-class AwsECSClient(
-  config: StorageCleanupTaskConfiguration,
-  region: Region
-) extends ECSClient
+class AwsECSClient(config: StorageCleanupTaskConfiguration, region: Region)
+    extends ECSClient
     with StrictLogging {
 
   private lazy val client: EcsAsyncClient = EcsAsyncClient
@@ -68,7 +71,8 @@ class AwsECSClient(
   override def runS3StorageCleanupTask(
     sourceDatasetId: Int,
     publicDatasetId: Int,
-    version: Int,
+    publishedVersionCount: Int,
+    lastPublishedDate: OffsetDateTime,
     organizationId: Int,
     publishSuccess: Boolean,
     s3Bucket: String,
@@ -78,14 +82,43 @@ class AwsECSClient(
   ): Future[RunTaskResponse] = {
 
     val environmentOverrides = List(
-      KeyValuePair.builder().name("DATASET_ID").value(sourceDatasetId.toString).build(),
-      KeyValuePair.builder().name("PUBLIC_DATASET_ID").value(publicDatasetId.toString).build(),
-      KeyValuePair.builder().name("DATASET_VERSION").value(version.toString).build(),
-      KeyValuePair.builder().name("ORGANIZATION_ID").value(organizationId.toString).build(),
-      KeyValuePair.builder().name("PUBLISH_SUCCESS").value(publishSuccess.toString).build(),
+      KeyValuePair
+        .builder()
+        .name("DATASET_ID")
+        .value(sourceDatasetId.toString)
+        .build(),
+      KeyValuePair
+        .builder()
+        .name("PUBLIC_DATASET_ID")
+        .value(publicDatasetId.toString)
+        .build(),
+      KeyValuePair
+        .builder()
+        .name("PUBLISHED_VERSION_COUNT")
+        .value(publishedVersionCount.toString)
+        .build(),
+      KeyValuePair
+        .builder()
+        .name("LAST_PUBLISHED_DATE")
+        .value(lastPublishedDate.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+        .build(),
+      KeyValuePair
+        .builder()
+        .name("ORGANIZATION_ID")
+        .value(organizationId.toString)
+        .build(),
+      KeyValuePair
+        .builder()
+        .name("PUBLISH_SUCCESS")
+        .value(publishSuccess.toString)
+        .build(),
       KeyValuePair.builder().name("PUBLISHED_BUCKET").value(s3Bucket).build(),
       KeyValuePair.builder().name("PUBLISHED_S3_PREFIX").value(s3Key).build(),
-      KeyValuePair.builder().name("MANIFEST_KEY").value(DatasetMetadata.MANIFEST_FILE).build()
+      KeyValuePair
+        .builder()
+        .name("MANIFEST_KEY")
+        .value(DatasetMetadata.MANIFEST_FILE)
+        .build()
     )
 
     val containerOverride = ContainerOverride

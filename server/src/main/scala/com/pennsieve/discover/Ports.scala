@@ -26,8 +26,8 @@ import com.pennsieve.discover.clients.{
   PennsieveApiClient,
   PennsieveApiClientImpl,
   S3StreamClient,
-  SearchClient,
   SSMClient,
+  SearchClient,
   StepFunctionsClient
 }
 import com.pennsieve.discover.db.profile

@@ -42,10 +42,8 @@ trait SSMClient {
   ): Future[Boolean]
 }
 
-class AwsSSMClient(
-  parameterPathPrefix: String,
-  region: Region
-) extends SSMClient
+class AwsSSMClient(parameterPathPrefix: String, region: Region)
+    extends SSMClient
     with StrictLogging {
 
   private lazy val client: SsmAsyncClient = SsmAsyncClient
