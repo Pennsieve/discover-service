@@ -404,8 +404,6 @@ class SQSNotificationHandler(
         )
       )(executionContext, logContext, ports)
 
-      // Notify Pennsieve API that publishing has completed
-      // Only invoke storage sync task for non-embargo publishes (PublishSucceeded)
       // Embargo publishes (EmbargoSucceeded) should not trigger storage sync
       _ <- if (updatedVersion.underEmbargo) {
         ports.log.info("handleSuccess() embargo publish - notify API directly")
@@ -593,7 +591,6 @@ class SQSNotificationHandler(
           Future.successful(true)
       }
 
-      // Notify Pennsieve API that release has completed via storage sync task
       _ = ports.log.info("handleReleaseSuccess() invoking storage sync task")
       _ <- invokeStorageSyncTask(
         publicDataset,
