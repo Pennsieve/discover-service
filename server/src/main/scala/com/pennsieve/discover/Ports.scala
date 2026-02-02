@@ -38,7 +38,6 @@ import com.pennsieve.service.utilities.{
 }
 import com.typesafe.scalalogging.LoggerTakingImplicit
 import com.zaxxer.hikari.HikariDataSource
-import slick.util.AsyncExecutor
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
@@ -90,18 +89,9 @@ object Ports {
       hikariDataSource.setSchema(config.postgres.schema)
       hikariDataSource.setConnectionInitSql("set time zone 'UTC'")
 
-      // Currently minThreads, maxThreads and maxConnections MUST be the same value
-      // https://github.com/slick/slick/issues/1938
       Database.forDataSource(
         hikariDataSource,
-        maxConnections = None, // Ignored if an executor is provided
-        executor = AsyncExecutor(
-          name = "AsyncExecutor.pennsieve",
-          minThreads = config.postgres.numConnections,
-          maxThreads = config.postgres.numConnections,
-          maxConnections = config.postgres.numConnections,
-          queueSize = config.postgres.queueSize
-        )
+        maxConnections = Some(config.postgres.numConnections)
       )
     }
 
