@@ -404,35 +404,18 @@ class SQSNotificationHandler(
         )
       )(executionContext, logContext, ports)
 
-      // Fetch the s3StorageCleanupTaskEnabled parameter at runtime
-      s3StorageCleanupTaskEnabled <- ports.ssmClient.getBooleanParameter(
-        "ecs-s3-storage-cleanup-task-enabled",
-        defaultValue = false
-      )
-
-      // Notify Pennsieve API that publishing has completed
-      _ <- if (s3StorageCleanupTaskEnabled) {
-        // S3 storage cleanup task enabled: invoke Fargate task (handles putPublishComplete)
-        ports.log.info(
-          "handleSuccess() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task"
-        )
-        ports.ecsClient.runS3StorageCleanupTask(
-          sourceDatasetId = publicDataset.sourceDatasetId,
-          publicDatasetId = publicDataset.id,
-          publishedVersionCount = publishStatus.publishedVersionCount,
-          lastPublishedDate = updatedVersion.createdAt,
-          organizationId = publicDataset.sourceOrganizationId,
-          publishSuccess = true,
-          s3Bucket = updatedVersion.s3Bucket.value,
-          s3Key = updatedVersion.s3Key.value
-        )
-      } else {
-        // S3 storage cleanup task disabled: call putPublishComplete directly
-        ports.log.info("handleSuccess() notify API")
+      // Embargo publishes (EmbargoSucceeded) should not trigger storage sync
+      _ <- if (updatedVersion.underEmbargo) {
+        ports.log.info("handleSuccess() embargo publish - notify API directly")
         ports.pennsieveApiClient
           .putPublishComplete(publishStatus, None)
           .value
           .flatMap(_.fold(Future.failed, Future.successful))
+      } else {
+        ports.log.info(
+          "handleSuccess() non-embargo publish - invoking storage sync task"
+        )
+        invokeStorageSyncTask(publicDataset, updatedVersion, publishStatus)
       }
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
@@ -535,6 +518,42 @@ class SQSNotificationHandler(
     } yield ()
   }
 
+  private def invokeStorageSyncTask(
+    publicDataset: PublicDataset,
+    version: PublicDatasetVersion,
+    publishStatus: DatasetPublishStatus
+  )(implicit
+    logContext: LogContext
+  ): Future[Unit] =
+    for {
+      s3StorageCleanupTaskEnabled <- ports.ssmClient.getBooleanParameter(
+        "ecs-s3-storage-cleanup-task-enabled",
+        defaultValue = false
+      )
+
+      _ <- if (s3StorageCleanupTaskEnabled) {
+        ports.log.info(
+          s"invokeStorageSyncTask() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task with status=${publishStatus.status}"
+        )
+        ports.ecsClient.runS3StorageCleanupTask(
+          sourceDatasetId = publicDataset.sourceDatasetId,
+          publicDatasetId = publicDataset.id,
+          publishedVersionCount = publishStatus.publishedVersionCount,
+          lastPublishedDate = version.createdAt,
+          organizationId = publicDataset.sourceOrganizationId,
+          publishStatus = publishStatus.status,
+          s3Bucket = version.s3Bucket.value,
+          s3Key = version.s3Key.value
+        )
+      } else {
+        ports.log.info("invokeStorageSyncTask() notify API")
+        ports.pennsieveApiClient
+          .putPublishComplete(publishStatus, None)
+          .value
+          .flatMap(_.fold(Future.failed, Future.successful))
+      }
+    } yield ()
+
   private def handleReleaseSuccess(
     message: ReleaseNotification,
     publicDataset: PublicDataset,
@@ -566,10 +585,8 @@ class SQSNotificationHandler(
           Future.successful(true)
       }
 
-      _ <- ports.pennsieveApiClient
-        .putPublishComplete(publishStatus, None)
-        .value
-        .flatMap(_.fold(Future.failed, Future.successful))
+      _ = ports.log.info("handleReleaseSuccess() invoking storage sync task")
+      _ <- invokeStorageSyncTask(publicDataset, updatedVersion, publishStatus)
 
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)

@@ -4,6 +4,7 @@ package com.pennsieve.discover.clients
 
 import com.pennsieve.discover.StorageCleanupTaskConfiguration
 import com.pennsieve.discover.models.DatasetMetadata
+import com.pennsieve.models.PublishStatus
 import com.typesafe.scalalogging.StrictLogging
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
@@ -38,7 +39,7 @@ trait ECSClient {
     * @param publishedVersionCount the number of dataset versions with a published status
     * @param lastPublishedDate The timestamp when the version was published
     * @param organizationId The source organization ID
-    * @param publishSuccess Whether the publish operation was successful
+    * @param publishStatus The publish status (e.g., PublishSucceeded, EmbargoSucceeded)
     * @param s3Bucket The S3 bucket where the dataset is published
     * @param s3Key The S3 key prefix for the published dataset
     * @return The RunTaskResponse from ECS
@@ -49,7 +50,7 @@ trait ECSClient {
     publishedVersionCount: Int,
     lastPublishedDate: OffsetDateTime,
     organizationId: Int,
-    publishSuccess: Boolean,
+    publishStatus: PublishStatus,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -74,7 +75,7 @@ class AwsECSClient(config: StorageCleanupTaskConfiguration, region: Region)
     publishedVersionCount: Int,
     lastPublishedDate: OffsetDateTime,
     organizationId: Int,
-    publishSuccess: Boolean,
+    publishStatus: PublishStatus,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -109,8 +110,8 @@ class AwsECSClient(config: StorageCleanupTaskConfiguration, region: Region)
         .build(),
       KeyValuePair
         .builder()
-        .name("PUBLISH_SUCCESS")
-        .value(publishSuccess.toString)
+        .name("PUBLISH_STATUS")
+        .value(publishStatus.entryName)
         .build(),
       KeyValuePair.builder().name("PUBLISHED_BUCKET").value(s3Bucket).build(),
       KeyValuePair.builder().name("PUBLISHED_S3_PREFIX").value(s3Key).build(),

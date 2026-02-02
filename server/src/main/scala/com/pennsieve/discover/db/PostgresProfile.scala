@@ -23,7 +23,6 @@ import io.circe.syntax._
 import slick.ast.BaseTypedType
 import slick.jdbc.{ JdbcCapabilities, JdbcType }
 import slick.basic.Capability
-import slick.lifted.MappedToBase.mappedToIsomorphism
 
 trait PostgresProfile
     extends ExPostgresProfile
@@ -105,14 +104,18 @@ trait PostgresProfile
         s => FileChecksum.fromString(s)
       )
 
-    implicit val datasetTypeMapper = MappedColumnType
-      .base[DatasetType, String](_.entryName, DatasetType.withName)
+    implicit val datasetTypeMapper
+      : JdbcType[DatasetType] with BaseTypedType[DatasetType] =
+      MappedColumnType
+        .base[DatasetType, String](_.entryName, DatasetType.withName)
 
-    implicit val releaseAssetFileTypeMapper = MappedColumnType
-      .base[ReleaseAssetFileType, String](
-        _.entryName,
-        ReleaseAssetFileType.withName
-      )
+    implicit val releaseAssetFileTypeMapper: JdbcType[ReleaseAssetFileType]
+      with BaseTypedType[ReleaseAssetFileType] =
+      MappedColumnType
+        .base[ReleaseAssetFileType, String](
+          _.entryName,
+          ReleaseAssetFileType.withName
+        )
   }
 
   override val pgjson = "jsonb" // jsonb support is in postgres 9.4.0 onward; for 9.3.x use "json"
