@@ -415,12 +415,7 @@ class SQSNotificationHandler(
         ports.log.info(
           "handleSuccess() non-embargo publish - invoking storage sync task"
         )
-        invokeStorageSyncTask(
-          publicDataset,
-          updatedVersion,
-          publishStatus,
-          PublishStatus.PublishSucceeded
-        )
+        invokeStorageSyncTask(publicDataset, updatedVersion, publishStatus)
       }
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
@@ -526,8 +521,7 @@ class SQSNotificationHandler(
   private def invokeStorageSyncTask(
     publicDataset: PublicDataset,
     version: PublicDatasetVersion,
-    publishStatus: DatasetPublishStatus,
-    status: PublishStatus
+    publishStatus: DatasetPublishStatus
   )(implicit
     logContext: LogContext
   ): Future[Unit] =
@@ -539,7 +533,7 @@ class SQSNotificationHandler(
 
       _ <- if (s3StorageCleanupTaskEnabled) {
         ports.log.info(
-          s"invokeStorageSyncTask() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task with status=$status"
+          s"invokeStorageSyncTask() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task with status=${publishStatus.status}"
         )
         ports.ecsClient.runS3StorageCleanupTask(
           sourceDatasetId = publicDataset.sourceDatasetId,
@@ -547,7 +541,7 @@ class SQSNotificationHandler(
           publishedVersionCount = publishStatus.publishedVersionCount,
           lastPublishedDate = version.createdAt,
           organizationId = publicDataset.sourceOrganizationId,
-          publishStatus = status,
+          publishStatus = publishStatus.status,
           s3Bucket = version.s3Bucket.value,
           s3Key = version.s3Key.value
         )
@@ -592,12 +586,7 @@ class SQSNotificationHandler(
       }
 
       _ = ports.log.info("handleReleaseSuccess() invoking storage sync task")
-      _ <- invokeStorageSyncTask(
-        publicDataset,
-        updatedVersion,
-        publishStatus,
-        PublishStatus.PublishSucceeded
-      )
+      _ <- invokeStorageSyncTask(publicDataset, updatedVersion, publishStatus)
 
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
