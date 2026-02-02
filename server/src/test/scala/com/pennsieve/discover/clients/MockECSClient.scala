@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.clients
 
+import com.pennsieve.models.PublishStatus
 import software.amazon.awssdk.services.ecs.model.{ RunTaskResponse, Task }
 
 import java.time.OffsetDateTime
@@ -14,7 +15,7 @@ case class S3StorageCleanupTaskRequest(
   publishedVersionCount: Int,
   lastPublishedDate: OffsetDateTime,
   organizationId: Int,
-  publishSuccess: Boolean,
+  publishStatus: PublishStatus,
   s3Bucket: String,
   s3Key: String
 )
@@ -33,7 +34,7 @@ class MockECSClient extends ECSClient {
     publishedVersionCount: Int,
     lastPublishedDate: OffsetDateTime,
     organizationId: Int,
-    publishSuccess: Boolean,
+    publishStatus: PublishStatus,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -45,7 +46,7 @@ class MockECSClient extends ECSClient {
       publishedVersionCount,
       lastPublishedDate,
       organizationId,
-      publishSuccess,
+      publishStatus,
       s3Bucket,
       s3Key
     )
