@@ -415,7 +415,12 @@ class SQSNotificationHandler(
         ports.log.info(
           "handleSuccess() non-embargo publish - invoking storage sync task"
         )
-        invokeStorageSyncTask(publicDataset, updatedVersion, publishStatus)
+        invokeStorageSyncTask(
+          publicDataset,
+          updatedVersion,
+          publishStatus,
+          SQSNotificationType.PUBLISH
+        )
       }
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
@@ -521,7 +526,8 @@ class SQSNotificationHandler(
   private def invokeStorageSyncTask(
     publicDataset: PublicDataset,
     version: PublicDatasetVersion,
-    publishStatus: DatasetPublishStatus
+    publishStatus: DatasetPublishStatus,
+    publishType: SQSNotificationType
   )(implicit
     logContext: LogContext
   ): Future[Unit] =
@@ -533,7 +539,7 @@ class SQSNotificationHandler(
 
       _ <- if (s3StorageCleanupTaskEnabled) {
         ports.log.info(
-          s"invokeStorageSyncTask() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task with status=${publishStatus.status}"
+          s"invokeStorageSyncTask() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task with status=${publishStatus.status} publishType=$publishType"
         )
         ports.ecsClient.runS3StorageCleanupTask(
           sourceDatasetId = publicDataset.sourceDatasetId,
@@ -542,6 +548,7 @@ class SQSNotificationHandler(
           lastPublishedDate = version.createdAt,
           organizationId = publicDataset.sourceOrganizationId,
           publishStatus = publishStatus.status,
+          publishType = publishType,
           s3Bucket = version.s3Bucket.value,
           s3Key = version.s3Key.value
         )
@@ -586,7 +593,12 @@ class SQSNotificationHandler(
       }
 
       _ = ports.log.info("handleReleaseSuccess() invoking storage sync task")
-      _ <- invokeStorageSyncTask(publicDataset, updatedVersion, publishStatus)
+      _ <- invokeStorageSyncTask(
+        publicDataset,
+        updatedVersion,
+        publishStatus,
+        SQSNotificationType.RELEASE
+      )
 
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)

@@ -2,6 +2,7 @@
 
 package com.pennsieve.discover.clients
 
+import com.pennsieve.discover.notifications.SQSNotificationType
 import com.pennsieve.models.PublishStatus
 import software.amazon.awssdk.services.ecs.model.{ RunTaskResponse, Task }
 
@@ -16,6 +17,7 @@ case class S3StorageCleanupTaskRequest(
   lastPublishedDate: OffsetDateTime,
   organizationId: Int,
   publishStatus: PublishStatus,
+  publishType: SQSNotificationType,
   s3Bucket: String,
   s3Key: String
 )
@@ -35,6 +37,7 @@ class MockECSClient extends ECSClient {
     lastPublishedDate: OffsetDateTime,
     organizationId: Int,
     publishStatus: PublishStatus,
+    publishType: SQSNotificationType,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -47,6 +50,7 @@ class MockECSClient extends ECSClient {
       lastPublishedDate,
       organizationId,
       publishStatus,
+      publishType,
       s3Bucket,
       s3Key
     )

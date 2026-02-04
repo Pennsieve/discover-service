@@ -4,6 +4,7 @@ package com.pennsieve.discover.clients
 
 import com.pennsieve.discover.StorageCleanupTaskConfiguration
 import com.pennsieve.discover.models.DatasetMetadata
+import com.pennsieve.discover.notifications.SQSNotificationType
 import com.pennsieve.models.PublishStatus
 import com.typesafe.scalalogging.StrictLogging
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
@@ -40,6 +41,7 @@ trait ECSClient {
     * @param lastPublishedDate The timestamp when the version was published
     * @param organizationId The source organization ID
     * @param publishStatus The publish status (e.g., PublishSucceeded, EmbargoSucceeded)
+    * @param publishType The type of publish operation (PUBLISH or RELEASE)
     * @param s3Bucket The S3 bucket where the dataset is published
     * @param s3Key The S3 key prefix for the published dataset
     * @return The RunTaskResponse from ECS
@@ -51,6 +53,7 @@ trait ECSClient {
     lastPublishedDate: OffsetDateTime,
     organizationId: Int,
     publishStatus: PublishStatus,
+    publishType: SQSNotificationType,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -76,6 +79,7 @@ class AwsECSClient(config: StorageCleanupTaskConfiguration, region: Region)
     lastPublishedDate: OffsetDateTime,
     organizationId: Int,
     publishStatus: PublishStatus,
+    publishType: SQSNotificationType,
     s3Bucket: String,
     s3Key: String
   )(implicit
@@ -112,6 +116,11 @@ class AwsECSClient(config: StorageCleanupTaskConfiguration, region: Region)
         .builder()
         .name("PUBLISH_STATUS")
         .value(publishStatus.entryName)
+        .build(),
+      KeyValuePair
+        .builder()
+        .name("PUBLISH_TYPE")
+        .value(publishType.entryName)
         .build(),
       KeyValuePair.builder().name("PUBLISHED_BUCKET").value(s3Bucket).build(),
       KeyValuePair.builder().name("PUBLISHED_S3_PREFIX").value(s3Key).build(),
