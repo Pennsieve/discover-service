@@ -592,13 +592,10 @@ class SQSNotificationHandler(
           Future.successful(true)
       }
 
-      _ = ports.log.info("handleReleaseSuccess() invoking storage sync task")
-      _ <- invokeStorageSyncTask(
-        publicDataset,
-        updatedVersion,
-        publishStatus,
-        SQSNotificationType.RELEASE
-      )
+      _ <- ports.pennsieveApiClient
+        .putPublishComplete(publishStatus, None)
+        .value
+        .flatMap(_.fold(Future.failed, Future.successful))
 
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
