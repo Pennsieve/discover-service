@@ -160,5 +160,6 @@ case class StorageCleanupTaskConfiguration(
   taskDefinition: String,
   subnetIds: CommaSeparatedStrings,
   securityGroupId: String,
-  containerName: String
+  containerName: String,
+  queueUrl: String
 )

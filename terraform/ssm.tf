@@ -418,8 +418,8 @@ resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_definition" {
 }
 
 resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_subnets" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-subnets"
-  type  = "String"
+  name = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-subnets"
+  type = "String"
   value = join(",", data.terraform_remote_state.vpc.outputs.private_subnet_ids)
 }
 
@@ -433,4 +433,10 @@ resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_container_name" {
   name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-container-name"
   type  = "String"
   value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_container_name
+}
+
+resource "aws_ssm_parameter" "publish_storage_sync_queue_url" {
+  name  = "/${var.environment_name}/${var.service_name}/publish-storage-sync-queue-url"
+  type  = "String"
+  value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_queue_url
 }

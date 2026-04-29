@@ -186,7 +186,8 @@ trait ServiceSpecHarness
         taskDefinition = "test-task-definition",
         subnetIds = CommaSeparatedStrings(List("subnet-123", "subnet-456")),
         securityGroupId = "sg-123",
-        containerName = "s3-storage-cleanup-task"
+        containerName = "s3-storage-cleanup-task",
+        queueUrl = "http://localhost:9324/queue/publish-storage-sync-queue"
       )
     )
     ports = getPorts(config)

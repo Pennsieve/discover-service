@@ -4,12 +4,15 @@ package com.pennsieve.discover.notifications
 
 import com.pennsieve.discover.Ports
 import com.pennsieve.service.utilities.LogContext
+import io.circe.Encoder
 import io.circe.syntax.EncoderOps
+import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 
 import scala.concurrent.{ ExecutionContext, Future }
 
 object SQSMessenger {
+
   def queueMessage(
     queueUrl: String,
     message: SQSNotification
