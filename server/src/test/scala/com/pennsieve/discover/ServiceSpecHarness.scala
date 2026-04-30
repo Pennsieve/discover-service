@@ -94,8 +94,6 @@ trait ServiceSpecHarness
       defaults = Map(PublishStorageSync.IsEnabledSSMKey -> "true")
     )
 
-    val ecsClient: ECSClient = new MockECSClient()
-
     val publishStorageSyncMessenger = new MockPublishStorageSyncMessenger()
 
     Ports(config).copy(
@@ -109,7 +107,6 @@ trait ServiceSpecHarness
       sqsClient = sqsClient,
       athenaClient = athenaClient,
       ssmClient = mockSSMClient,
-      ecsClient = ecsClient,
       publishStorageSyncMessenger = publishStorageSyncMessenger
     )
   }
@@ -183,12 +180,7 @@ trait ServiceSpecHarness
         region = Region.US_EAST_1,
         parameterPathPrefix = "/test/discover-service"
       ),
-      storageCleanupTask = StorageCleanupTaskConfiguration(
-        cluster = "test-cluster",
-        taskDefinition = "test-task-definition",
-        subnetIds = CommaSeparatedStrings(List("subnet-123", "subnet-456")),
-        securityGroupId = "sg-123",
-        containerName = "s3-storage-cleanup-task",
+      publishStorageSync = PublishStorageSyncConfiguration(
         queueUrl = "http://localhost:9324/queue/publish-storage-sync-queue"
       )
     )
@@ -249,10 +241,6 @@ trait ServiceSpecHarness
 
     ports.ssmClient
       .asInstanceOf[MockSSMClient]
-      .clear()
-
-    ports.ecsClient
-      .asInstanceOf[MockECSClient]
       .clear()
 
     ports.sqsClient.asInstanceOf[MockSqsAsyncClient].clear()

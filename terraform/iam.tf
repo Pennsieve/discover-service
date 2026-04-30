@@ -101,6 +101,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
     ]
   }
 
+
   statement {
     sid    = "KMSDecryptMessages"
     effect = "Allow"
@@ -309,43 +310,31 @@ data "aws_iam_policy_document" "iam_policy_document" {
   # }
 }
 
-# Separate policy for ECS cleanup task permissions (to avoid policy size limit)
-resource "aws_iam_policy" "ecs_cleanup_task_policy" {
-  name   = "${var.environment_name}-${var.service_name}-ecs-cleanup-policy-${data.terraform_remote_state.region.outputs.aws_region_shortname}"
+# Separate policy for publish storage sync permissions (to avoid policy size limit)
+resource "aws_iam_policy" "publish_storage_sync_policy" {
+  name   = "${var.environment_name}-${var.service_name}-publish-storage-sync-policy-${data.terraform_remote_state.region.outputs.aws_region_shortname}"
   path   = "/service/"
-  policy = data.aws_iam_policy_document.ecs_cleanup_task_policy_document.json
+  policy = data.aws_iam_policy_document.publish_storage_sync_policy_document.json
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_cleanup_task_policy_attachment" {
+resource "aws_iam_role_policy_attachment" "publish_storage_sync_policy_attachment" {
   role       = var.ecs_task_iam_role_id
-  policy_arn = aws_iam_policy.ecs_cleanup_task_policy.arn
+  policy_arn = aws_iam_policy.publish_storage_sync_policy.arn
 }
 
-data "aws_iam_policy_document" "ecs_cleanup_task_policy_document" {
+data "aws_iam_policy_document" "publish_storage_sync_policy_document" {
+
   statement {
-    sid    = "RunECSCleanupTask"
+    sid    = "SQSSendPublishStorageSyncMessages"
     effect = "Allow"
 
     actions = [
-      "ecs:RunTask",
+      "sqs:SendMessage",
     ]
 
     resources = [
-      "arn:aws:ecs:${data.aws_region.current_region.name}:${data.aws_caller_identity.current.account_id}:task-definition/${data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_definition_family}:*",
+      data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_queue_arn,
     ]
   }
 
-  statement {
-    sid    = "PassRoleForECSTask"
-    effect = "Allow"
-
-    actions = [
-      "iam:PassRole",
-    ]
-
-    resources = [
-      data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_task_role_arn,
-      data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_execution_role_arn,
-    ]
-  }
 }
