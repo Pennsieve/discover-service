@@ -6,10 +6,11 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ ExecutionContext, Future }
 
-class MockSSMClient extends SSMClient {
+class MockSSMClient(defaults: Map[String, String] = Map.empty)
+    extends SSMClient {
 
   // Store parameter values that can be configured per test
-  val parameters: mutable.Map[String, String] = mutable.Map.empty
+  val parameters: mutable.Map[String, String] = mutable.Map.from(defaults)
 
   // Track which parameters were requested
   val requestedParameters: ListBuffer[String] = ListBuffer.empty
@@ -20,6 +21,7 @@ class MockSSMClient extends SSMClient {
 
   def clear(): Unit = {
     parameters.clear()
+    parameters ++= defaults
     requestedParameters.clear()
   }
 

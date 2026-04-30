@@ -89,9 +89,10 @@ trait ServiceSpecHarness
 
     val sqsClient = new MockSqsAsyncClient()
 
-    val mockSSMClient: MockSSMClient = new MockSSMClient()
     // assume the usual case where this is true. Tests that require false can re-set.
-    mockSSMClient.setParameter(PublishStorageSync.IsEnabledSSMKey, "true")
+    val mockSSMClient: MockSSMClient = new MockSSMClient(
+      defaults = Map(PublishStorageSync.IsEnabledSSMKey -> "true")
+    )
 
     val ecsClient: ECSClient = new MockECSClient()
 

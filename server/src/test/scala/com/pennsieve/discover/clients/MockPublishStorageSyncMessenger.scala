@@ -12,15 +12,26 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class MockPublishStorageSyncMessenger extends PublishStorageSyncMessenger {
   val queuedMessages: ArrayBuffer[PublishStorageSyncMessage] = ArrayBuffer.empty
+  private var failNextWith: Option[Throwable] = None
+
+  /** Cause the next call to queueMessage to return Future.failed(t). */
+  def failNext(t: Throwable): Unit = failNextWith = Some(t)
 
   override def queueMessage(
     message: PublishStorageSyncMessage
   )(implicit
     ec: ExecutionContext
-  ): Future[String] = {
-    queuedMessages += message
-    Future.successful("mock-message-id")
+  ): Future[String] = failNextWith match {
+    case Some(t) =>
+      failNextWith = None
+      Future.failed(t)
+    case None =>
+      queuedMessages += message
+      Future.successful("mock-message-id")
   }
 
-  def clear(): Unit = queuedMessages.clear()
+  def clear(): Unit = {
+    failNextWith = None
+    queuedMessages.clear()
+  }
 }
