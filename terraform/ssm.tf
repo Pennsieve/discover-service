@@ -395,8 +395,8 @@ resource "aws_ssm_parameter" "doi_collections_id_space_name" {
 }
 
 // Publish Storage Sync Configuration
-// Not renaming this because it should be temporary
 resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_enabled" {
+  // Not renaming this because it should be temporary
   name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-enabled"
   type  = "String"
   value = var.ecs_s3_storage_cleanup_task_enabled
