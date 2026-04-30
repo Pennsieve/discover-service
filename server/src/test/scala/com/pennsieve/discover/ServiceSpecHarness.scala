@@ -87,12 +87,7 @@ trait ServiceSpecHarness
     val authorizationClient: AuthorizationClient =
       new MockAuthorizationClient(config.jwt.key)
 
-    val sqsClient = SqsAsyncClient
-      .builder()
-      .httpClientBuilder(NettyNioAsyncHttpClient.builder())
-      .region(config.sqs.region)
-      .endpointOverride(new URI("https://localhost"))
-      .build()
+    val sqsClient = new MockSqsAsyncClient()
 
     val mockSSMClient: MockSSMClient = new MockSSMClient()
     // assume the usual case where this is true. Tests that require false can re-set.
@@ -258,6 +253,8 @@ trait ServiceSpecHarness
     ports.ecsClient
       .asInstanceOf[MockECSClient]
       .clear()
+
+    ports.sqsClient.asInstanceOf[MockSqsAsyncClient].clear()
 
     ports.publishStorageSyncMessenger
       .asInstanceOf[MockPublishStorageSyncMessenger]

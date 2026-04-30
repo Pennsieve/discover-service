@@ -23,6 +23,8 @@ class MockSqsAsyncClient extends SqsAsyncClient {
     )
   }
 
+  def clear(): Unit = sendMessageCalls.clear()
+
   // Required methods
   override def serviceName(): String = "sqs"
   override def close(): Unit = ()

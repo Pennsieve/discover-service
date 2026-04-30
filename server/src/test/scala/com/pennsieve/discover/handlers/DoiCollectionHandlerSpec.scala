@@ -118,8 +118,6 @@ class DoiCollectionHandlerSpec
   override def afterStart(): Unit = {
     super.afterStart()
 
-    // we're overriding ServiceSpecHarness ports with a mock SQS client
-    ports = ports.copy(sqsClient = new MockSqsAsyncClient())
     client = createClient(createRoutes())
 
     pennsieveDoiPrefix = config.doiCollections.pennsieveDoiPrefix
@@ -160,15 +158,6 @@ class DoiCollectionHandlerSpec
       generateUserToken(ports.jwt, 1, collectionOrgId, Some(sourceCollectionId))
 
     userAuthToken = List(Authorization(OAuth2BearerToken(userToken.value)))
-  }
-
-  override def afterEach(): Unit = {
-    super.afterEach()
-
-    ports.sqsClient
-      .asInstanceOf[MockSqsAsyncClient]
-      .sendMessageCalls
-      .clear()
   }
 
   "POST /collection/{collectionId}/publish" should {

@@ -118,8 +118,6 @@ class SQSNotificationHandlerSpec
   "Publish notifications queue handler" should {
     "update publish status as successful" in {
 
-      ports = ports.copy(sqsClient = new MockSqsAsyncClient)
-
       val datasetName = TestUtilities.randomString()
 
       val publicDataset =
