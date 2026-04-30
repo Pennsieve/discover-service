@@ -14,6 +14,7 @@ import com.pennsieve.discover.db.{
   WorkspaceSettingsMapper
 }
 import com.pennsieve.discover.models._
+import com.pennsieve.discover.notifications.PublishStorageSync
 import com.pennsieve.discover.testcontainers.DockerContainers.postgresContainer.postgresConfiguration
 import com.pennsieve.discover.testcontainers.PostgresDockerContainer
 import com.pennsieve.service.utilities.SingleHttpResponder
@@ -93,9 +94,13 @@ trait ServiceSpecHarness
       .endpointOverride(new URI("https://localhost"))
       .build()
 
-    val ssmClient: SSMClient = new MockSSMClient()
+    val mockSSMClient: MockSSMClient = new MockSSMClient()
+    // assume the usual case where this is true. Tests that require false can re-set.
+    mockSSMClient.setParameter(PublishStorageSync.IsEnabledSSMKey, "true")
 
     val ecsClient: ECSClient = new MockECSClient()
+
+    val publishStorageSyncMessenger = new MockPublishStorageSyncMessenger()
 
     Ports(config).copy(
       doiClient = doiClient,
@@ -107,8 +112,9 @@ trait ServiceSpecHarness
       authorizationClient = authorizationClient,
       sqsClient = sqsClient,
       athenaClient = athenaClient,
-      ssmClient = ssmClient,
-      ecsClient = ecsClient
+      ssmClient = mockSSMClient,
+      ecsClient = ecsClient,
+      publishStorageSyncMessenger = publishStorageSyncMessenger
     )
   }
 
@@ -251,6 +257,10 @@ trait ServiceSpecHarness
 
     ports.ecsClient
       .asInstanceOf[MockECSClient]
+      .clear()
+
+    ports.publishStorageSyncMessenger
+      .asInstanceOf[MockPublishStorageSyncMessenger]
       .clear()
 
     // Clear dataset tables

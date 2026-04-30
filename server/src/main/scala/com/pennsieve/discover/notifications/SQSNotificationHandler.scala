@@ -516,7 +516,7 @@ class SQSNotificationHandler(
   ): Future[Unit] =
     for {
       s3StorageCleanupTaskEnabled <- ports.ssmClient.getBooleanParameter(
-        "ecs-s3-storage-cleanup-task-enabled",
+        PublishStorageSync.IsEnabledSSMKey,
         defaultValue = false
       )
 
@@ -525,9 +525,8 @@ class SQSNotificationHandler(
           s"enqueueStorageSyncTask() s3StorageCleanupTaskEnabled=true"
         )
 
-        PublishStorageSyncMessenger
+        ports.publishStorageSyncMessenger
           .queueMessage(
-            ports,
             PublishStorageSyncMessage(
               organizationId = publicDataset.sourceOrganizationId,
               datasetId = publicDataset.sourceDatasetId,

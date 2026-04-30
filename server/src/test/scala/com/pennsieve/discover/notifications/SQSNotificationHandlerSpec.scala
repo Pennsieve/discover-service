@@ -29,10 +29,13 @@ import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.clients.{
   MockDoiClient,
   MockPennsieveApiClient,
+  MockPublishStorageSyncMessenger,
   MockS3StreamClient,
-  MockSearchClient
+  MockSearchClient,
+  MockSqsAsyncClient
 }
 import com.pennsieve.discover.models.{
+  DatasetMetadata,
   PublicDataset,
   PublicDatasetVersion,
   PublicFile,
@@ -52,12 +55,16 @@ import com.pennsieve.discover.db.{
 }
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.discover.server.definitions.DatasetPublishStatus
-import com.pennsieve.discover.notifications.SQSNotificationType.INDEX
+import com.pennsieve.discover.notifications.SQSNotificationType.{
+  INDEX,
+  PUSH_DOI
+}
 import com.pennsieve.doi.client.definitions._
 import com.pennsieve.models.RelationshipType.{ IsCitedBy, References }
 import com.sksamuel.elastic4s.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
+import io.circe.parser.decode
 import software.amazon.awssdk.services.sqs.model.{
   Message,
   ReceiveMessageRequest
@@ -65,6 +72,8 @@ import software.amazon.awssdk.services.sqs.model.{
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.LoneElement._
+import org.scalatest.EitherValues
 
 import java.time.LocalDate
 import java.util.{ Calendar, UUID }
@@ -76,7 +85,8 @@ class SQSNotificationHandlerSpec
     with Matchers
     with Inside
     with ServiceSpecHarness
-    with ActorSystemTestKit {
+    with ActorSystemTestKit
+    with EitherValues {
 
   lazy val notificationHandler = new SQSNotificationHandler(
     ports,
@@ -107,6 +117,8 @@ class SQSNotificationHandlerSpec
 
   "Publish notifications queue handler" should {
     "update publish status as successful" in {
+
+      ports = ports.copy(sqsClient = new MockSqsAsyncClient)
 
       val datasetName = TestUtilities.randomString()
 
@@ -199,36 +211,35 @@ class SQSNotificationHandlerSpec
         )
       )
 
-      // pushing the DOI is now done asynchronously via separate SQS Message request
-      //      val actualDoi: DoiDTO = ports.doiClient
-      //        .asInstanceOf[MockDoiClient]
-      //        .dois(doi.doi)
-      //      actualDoi.title shouldBe Some(publicDataset.name)
-      //      actualDoi.creators shouldBe Some(List())
-      //      actualDoi.publicationYear shouldBe Some(futureYear)
-      //      actualDoi.url shouldBe Some(
-      //        s"https://discover.pennsieve.org/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
-      //      )
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages
+        .loneElement shouldBe PublishStorageSyncMessage(
+        publicDataset.sourceOrganizationId,
+        publicDataset.sourceDatasetId,
+        publicDataset.id,
+        publicVersion.s3Bucket.value,
+        DatasetMetadata.MANIFEST_FILE,
+        publicVersion.s3Key.value
+      )
 
-      // indexing the published dataset is now done asynchronously via separate SQS Message request
-      //      val (
-      //        indexedVersion,
-      //        indexedRevision,
-      //        indexedSponsorship,
-      //        indexedFiles,
-      //        indexedRecords
-      //      ) =
-      //        ports.searchClient
-      //          .asInstanceOf[MockSearchClient]
-      //          .indexedDatasets(publicDataset.id)
-      //
-      //      indexedVersion.version shouldBe publicDatasetV1.version
-      //      indexedRevision shouldBe None
-      //      indexedSponsorship shouldBe None
-      //
-      //      // From defaults in MockS3StreamClient
-      //      indexedFiles.length shouldBe 2
-      //      indexedRecords.length shouldBe 1
+      ports.sqsClient
+        .asInstanceOf[MockSqsAsyncClient]
+        .sendMessageCalls
+        .map(r => decode[SQSNotification](r.messageBody()).value) should contain theSameElementsAs List(
+        PushDoiRequest(
+          PUSH_DOI,
+          publicVersion.datasetId,
+          publicVersion.version,
+          publicVersion.doi
+        ),
+        IndexDatasetRequest(
+          INDEX,
+          publicVersion.datasetId,
+          publicVersion.version
+        )
+      )
+
     }
 
     "update publish status as failed" in {
@@ -299,6 +310,10 @@ class SQSNotificationHandlerSpec
         .dois(doi.doi)
         .state shouldBe Some(DoiState.Draft)
 
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
+
     }
 
     "update publish status as failed for embargoed datasets" in {
@@ -368,6 +383,10 @@ class SQSNotificationHandlerSpec
         .asInstanceOf[MockDoiClient]
         .dois(doi.doi)
         .state shouldBe Some(DoiState.Draft)
+
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
 
     }
 
@@ -512,6 +531,12 @@ class SQSNotificationHandlerSpec
       // From defaults in MockS3StreamClient
       indexedFiles.length shouldBe 1
       indexedRecords.length shouldBe 1
+
+      // Not running this on embargo releases yet. This should be updated
+      // to check the message contents once we do.
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
     }
 
     "update release status as failed" in {
@@ -579,6 +604,10 @@ class SQSNotificationHandlerSpec
           Some(s"Version ${publicVersion.version} failed to release")
         )
       )
+
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
     }
 
     "periodically notify Pennsieve API to start release workflow" in {

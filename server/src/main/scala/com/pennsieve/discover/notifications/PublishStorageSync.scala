@@ -2,15 +2,16 @@
 
 package com.pennsieve.discover.notifications
 
-import com.pennsieve.discover.Ports
 import com.pennsieve.service.utilities.LogContext
+import com.typesafe.scalalogging.StrictLogging
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
+import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.jdk.FutureConverters._
-import scala.util.{ Failure, Success }
+import scala.util.Success
 
 case class PublishStorageSyncMessage(
   organizationId: Int,
@@ -43,32 +44,46 @@ object PublishStorageSyncMessage {
     )
 }
 
-object PublishStorageSyncMessenger {
+object PublishStorageSync {
+  val IsEnabledSSMKey = "ecs-s3-storage-cleanup-task-enabled"
+}
 
+trait PublishStorageSyncMessenger {
   def queueMessage(
-    ports: Ports,
     message: PublishStorageSyncMessage
   )(implicit
-    ec: ExecutionContext,
-    logContext: LogContext
+    ec: ExecutionContext
+  ): Future[String]
+}
+
+class SQSPublishStorageSyncMessenger(
+  sqsClient: SqsAsyncClient,
+  publishStorageSyncQueueUrl: String
+) extends PublishStorageSyncMessenger
+    with StrictLogging {
+
+  override def queueMessage(
+    message: PublishStorageSyncMessage
+  )(implicit
+    ec: ExecutionContext
   ): Future[String] = {
-    ports.log.info(
+    logger.info(
       s"publishStorageSync queueing message [publicDatasetId=${message.publicDatasetId}]"
     )
 
     val request = SendMessageRequest
       .builder()
-      .queueUrl(ports.config.storageCleanupTask.queueUrl)
+      .queueUrl(publishStorageSyncQueueUrl)
       .messageBody(message.asJson.noSpaces)
       .build()
 
-    ports.sqsClient
+    sqsClient
       .sendMessage(request)
       .asScala
       .map(_.messageId())
       .andThen {
         case Success(messageId) =>
-          ports.log.info(
+          logger.info(
             s"publishStorageSync queued message " +
               s"[messageId=$messageId, publicDatasetId=${message.publicDatasetId}]"
           )
