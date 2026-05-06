@@ -58,8 +58,8 @@ resource "aws_cloudwatch_metric_alarm" "publish_storage_sync_enqueue_failed" {
   alarm_actions = [data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_id]
 }
 
-resource "aws_cloudwatch_metric_alarm" "storage_sync_ssm_read_failed" {
-  alarm_name          = "${var.environment_name}-${var.service_name}-storage-sync-ssm-read-failed"
+resource "aws_cloudwatch_metric_alarm" "publish_storage_sync_ssm_read_failed" {
+  alarm_name          = "${var.environment_name}-${var.service_name}-publish-storage-sync-ssm-read-failed"
   alarm_description   = "Discover service could not read the publish-storage-sync enabled SSM parameter; publish chain still completed but publish-storage-sync was treated as disabled."
   namespace           = local.publish_storage_sync_metric_namespace
   metric_name         = "PublishStorageSyncSsmReadFailed"

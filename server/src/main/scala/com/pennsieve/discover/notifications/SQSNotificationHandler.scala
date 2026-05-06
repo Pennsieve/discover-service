@@ -521,7 +521,7 @@ class SQSNotificationHandler(
     logContext: LogContext
   ): Future[Unit] =
     for {
-      s3StorageCleanupTaskEnabled <- ports.ssmClient
+      publishStorageSyncTaskEnabled <- ports.ssmClient
         .getBooleanParameter(
           PublishStorageSync.IsEnabledSSMKey,
           defaultValue = false
@@ -535,12 +535,12 @@ class SQSNotificationHandler(
                 s"sourceDatasetId=${publicDataset.sourceDatasetId}]",
               err
             )
-            false
+            false // swallowing error so that original notification is not re-queued and assuming false
         }
 
-      _ <- if (s3StorageCleanupTaskEnabled) {
+      _ <- if (publishStorageSyncTaskEnabled) {
         ports.log.info(
-          s"enqueueStorageSyncTask() s3StorageCleanupTaskEnabled=true"
+          s"enqueuePublishStorageSyncTask() publishStorageSyncTaskEnabled=true"
         )
 
         ports.publishStorageSyncMessenger
@@ -568,7 +568,7 @@ class SQSNotificationHandler(
           }
       } else {
         ports.log.info(
-          "enqueueStorageSyncTask() s3StorageCleanupTaskEnabled=false, no-op"
+          "enqueuePublishStorageSyncTask() publishStorageSyncTaskEnabled=false, no-op"
         )
         Future.unit
       }
