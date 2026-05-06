@@ -410,14 +410,14 @@ class SQSNotificationHandler(
         updatedVersion.migrated
       )
 
-      // Embargo publishes (EmbargoSucceeded) should not trigger storage sync
+      // Embargo publishes (EmbargoSucceeded) should not trigger publish storage sync
       _ <- if (updatedVersion.underEmbargo) {
         Future.unit
       } else {
         ports.log.info(
-          "handleSuccess() non-embargo publish - invoking storage sync task"
+          "handleSuccess() non-embargo publish - enqueuing publish-storage-sync message"
         )
-        enqueueStorageSyncTask(publicDataset, updatedVersion)
+        enqueuePublishStorageSyncTask(publicDataset, updatedVersion)
       }
     } yield ()
 
@@ -514,7 +514,7 @@ class SQSNotificationHandler(
   // notification to be re-queued.
   // The log lines are part of a CloudWatch alarm, so any changes need to be
   // kept in sync with those alarms.
-  private def enqueueStorageSyncTask(
+  private def enqueuePublishStorageSyncTask(
     publicDataset: PublicDataset,
     version: PublicDatasetVersion
   )(implicit
@@ -529,7 +529,7 @@ class SQSNotificationHandler(
         .recover {
           case err =>
             ports.log.error(
-              s"storage-sync SSM read failed; treating as disabled " +
+              s"publish-storage-sync SSM read failed; treating as disabled " +
                 s"[publicDatasetId=${publicDataset.id}, " +
                 s"sourceOrganizationId=${publicDataset.sourceOrganizationId}, " +
                 s"sourceDatasetId=${publicDataset.sourceDatasetId}]",
@@ -558,7 +558,7 @@ class SQSNotificationHandler(
           .recover {
             case err =>
               ports.log.error(
-                s"storage-sync enqueue failed; not retrying publish chain " +
+                s"publish-storage-sync enqueue failed; not retrying publish chain " +
                   s"[publicDatasetId=${publicDataset.id}, " +
                   s"sourceOrganizationId=${publicDataset.sourceOrganizationId}, " +
                   s"sourceDatasetId=${publicDataset.sourceDatasetId}]",

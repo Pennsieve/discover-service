@@ -995,7 +995,7 @@ class SQSNotificationHandlerSpec
           )
     }
 
-    "complete publish successfully even if getting the storage-sync enabled SSM parameter fails" in {
+    "complete publish successfully even if getting the publish-storage-sync enabled SSM parameter fails" in {
 
       val datasetName = TestUtilities.randomString()
 
@@ -1100,7 +1100,7 @@ class SQSNotificationHandlerSpec
         val matchingEvents = appender.list.asScala.filter { evt =>
           evt.getLevel == ch.qos.logback.classic.Level.ERROR &&
           evt.getFormattedMessage.contains(
-            "storage-sync SSM read failed; treating as disabled"
+            "publish-storage-sync SSM read failed; treating as disabled"
           )
         }
 
@@ -1117,7 +1117,7 @@ class SQSNotificationHandlerSpec
       }
     }
 
-    "complete publish successfully even when storage-sync enqueue fails" in {
+    "complete publish successfully even when publish-storage-sync enqueue fails" in {
 
       val datasetName = TestUtilities.randomString()
 
@@ -1222,7 +1222,7 @@ class SQSNotificationHandlerSpec
         val matchingEvents = appender.list.asScala.filter { evt =>
           evt.getLevel == ch.qos.logback.classic.Level.ERROR &&
           evt.getFormattedMessage.contains(
-            "storage-sync enqueue failed; not retrying publish chain"
+            "publish-storage-sync enqueue failed; not retrying publish chain"
           )
         }
 
