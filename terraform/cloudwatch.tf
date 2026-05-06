@@ -55,6 +55,7 @@ resource "aws_cloudwatch_metric_alarm" "publish_storage_sync_enqueue_failed" {
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"
   treat_missing_data  = "notBreaching"
+  # SNS topic currently routes to PagerDuty (victor_ops name is a historical artifact)
   alarm_actions = [data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_id]
 }
 
@@ -69,5 +70,6 @@ resource "aws_cloudwatch_metric_alarm" "publish_storage_sync_ssm_read_failed" {
   threshold           = 1
   comparison_operator = "GreaterThanOrEqualToThreshold"
   treat_missing_data  = "notBreaching"
+  # SNS topic currently routes to PagerDuty (victor_ops name is a historical artifact)
   alarm_actions = [data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_id]
 }
