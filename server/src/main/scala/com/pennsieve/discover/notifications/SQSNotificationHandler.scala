@@ -412,12 +412,12 @@ class SQSNotificationHandler(
 
       // Embargo publishes (EmbargoSucceeded) should not trigger publish storage sync
       _ <- if (updatedVersion.underEmbargo) {
+        ports.log.info(
+          "handleSuccess() embargo publish - not enqueuing publish-storage-sync message"
+        )
         Future.unit
       } else {
-        ports.log.info(
-          "handleSuccess() non-embargo publish - enqueuing publish-storage-sync message"
-        )
-        enqueuePublishStorageSyncTask(publicDataset, updatedVersion)
+        enqueuePublishStorageSyncTaskIfEnabled(publicDataset, updatedVersion)
       }
     } yield ()
 
@@ -514,7 +514,7 @@ class SQSNotificationHandler(
   // notification to be re-queued.
   // The log lines are part of a CloudWatch alarm, so any changes need to be
   // kept in sync with those alarms.
-  private def enqueuePublishStorageSyncTask(
+  private def enqueuePublishStorageSyncTaskIfEnabled(
     publicDataset: PublicDataset,
     version: PublicDatasetVersion
   )(implicit
@@ -540,7 +540,7 @@ class SQSNotificationHandler(
 
       _ <- if (publishStorageSyncTaskEnabled) {
         ports.log.info(
-          s"enqueuePublishStorageSyncTask() publishStorageSyncTaskEnabled=true"
+          s"enqueuePublishStorageSyncTaskIfEnabled() publishStorageSyncTaskEnabled=true, enqueuing publish-storage-sync message"
         )
 
         ports.publishStorageSyncMessenger
@@ -568,7 +568,7 @@ class SQSNotificationHandler(
           }
       } else {
         ports.log.info(
-          "enqueuePublishStorageSyncTask() publishStorageSyncTaskEnabled=false, no-op"
+          "enqueuePublishStorageSyncTaskIfEnabled() publishStorageSyncTaskEnabled=false, no-op"
         )
         Future.unit
       }
