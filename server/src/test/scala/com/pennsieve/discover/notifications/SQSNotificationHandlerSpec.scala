@@ -995,6 +995,128 @@ class SQSNotificationHandlerSpec
           )
     }
 
+    "complete publish successfully even if getting the storage-sync enabled SSM parameter fails" in {
+
+      val datasetName = TestUtilities.randomString()
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      // Arrange: ssm client will fail on this publish
+      ports.ssmClient
+        .asInstanceOf[MockSSMClient]
+        .failNext(new RuntimeException("simulated SSM failure"))
+
+      // Capture log events from the root logger so we see whatever the
+      // ContextLogger inside ports.log writes.
+      val rootLogger = org.slf4j.LoggerFactory
+        .getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+        .asInstanceOf[ch.qos.logback.classic.Logger]
+      val appender = new ch.qos.logback.core.read.ListAppender[
+        ch.qos.logback.classic.spi.ILoggingEvent
+      ]()
+      appender.start()
+      rootLogger.addAppender(appender)
+
+      try {
+        processNotification(
+          PublishNotification(
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId,
+            PublishStatus.PublishSucceeded,
+            publicDatasetV1.version
+          )
+        ) shouldBe an[MessageAction.Delete]
+
+        val publicVersion = ports.db
+          .run(
+            PublicDatasetVersionsMapper
+              .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+          )
+          .awaitFinite()
+
+        // The publish itself still succeeded
+        publicVersion.status shouldBe PublishStatus.PublishSucceeded
+
+        // Downstream side effects still ran: API notified
+        ports.pennsieveApiClient
+          .asInstanceOf[MockPennsieveApiClient]
+          .publishCompleteRequests should have size 1
+
+        // ...and the two follow-on SQS messages were still queued.
+        // This is the core regression guard: storage-sync failure must not
+        // short-circuit the publish chain.
+        ports.sqsClient
+          .asInstanceOf[MockSqsAsyncClient]
+          .sendMessageCalls
+          .map(r => decode[SQSNotification](r.messageBody()).value) should
+          contain theSameElementsAs List(
+          PushDoiRequest(
+            PUSH_DOI,
+            publicVersion.datasetId,
+            publicVersion.version,
+            publicVersion.doi
+          ),
+          IndexDatasetRequest(
+            INDEX,
+            publicVersion.datasetId,
+            publicVersion.version
+          )
+        )
+
+        // The messenger failed, so nothing was actually queued through it
+        ports.publishStorageSyncMessenger
+          .asInstanceOf[MockPublishStorageSyncMessenger]
+          .queuedMessages shouldBe empty
+
+        // The distinctive error log was emitted with the IDs we care about
+        // and the log line the cloudwatch alarm is looking for
+        val matchingEvents = appender.list.asScala.filter { evt =>
+          evt.getLevel == ch.qos.logback.classic.Level.ERROR &&
+          evt.getFormattedMessage.contains(
+            "storage-sync SSM read failed; treating as disabled"
+          )
+        }
+
+        matchingEvents should not be empty
+        val msg = matchingEvents.head.getFormattedMessage
+        msg should include(s"publicDatasetId=${publicDataset.id}")
+        msg should include(
+          s"sourceOrganizationId=${publicDataset.sourceOrganizationId}"
+        )
+        msg should include(s"sourceDatasetId=${publicDataset.sourceDatasetId}")
+      } finally {
+        rootLogger.detachAppender(appender)
+        appender.stop()
+      }
+    }
+
     "complete publish successfully even when storage-sync enqueue fails" in {
 
       val datasetName = TestUtilities.randomString()

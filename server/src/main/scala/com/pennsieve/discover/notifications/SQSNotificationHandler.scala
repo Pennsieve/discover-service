@@ -508,6 +508,12 @@ class SQSNotificationHandler(
     } yield ()
   }
 
+  // enqueueStorageSyncTask sends a publish-storage-sync message if enabled.
+  // Any failure here should be logged and swallowed so that it does not
+  // interfere with the rest of the notification handling or cause the original
+  // notification to be re-queued.
+  // The log lines are part of a CloudWatch alarm, so any changes need to be
+  // kept in sync with those alarms.
   private def enqueueStorageSyncTask(
     publicDataset: PublicDataset,
     version: PublicDatasetVersion
@@ -515,10 +521,22 @@ class SQSNotificationHandler(
     logContext: LogContext
   ): Future[Unit] =
     for {
-      s3StorageCleanupTaskEnabled <- ports.ssmClient.getBooleanParameter(
-        PublishStorageSync.IsEnabledSSMKey,
-        defaultValue = false
-      )
+      s3StorageCleanupTaskEnabled <- ports.ssmClient
+        .getBooleanParameter(
+          PublishStorageSync.IsEnabledSSMKey,
+          defaultValue = false
+        )
+        .recover {
+          case err =>
+            ports.log.error(
+              s"storage-sync SSM read failed; treating as disabled " +
+                s"[publicDatasetId=${publicDataset.id}, " +
+                s"sourceOrganizationId=${publicDataset.sourceOrganizationId}, " +
+                s"sourceDatasetId=${publicDataset.sourceDatasetId}]",
+              err
+            )
+            false
+        }
 
       _ <- if (s3StorageCleanupTaskEnabled) {
         ports.log.info(
