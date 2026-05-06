@@ -31,6 +31,7 @@ import com.pennsieve.discover.clients.{
   MockPennsieveApiClient,
   MockPublishStorageSyncMessenger,
   MockS3StreamClient,
+  MockSSMClient,
   MockSearchClient,
   MockSqsAsyncClient
 }
@@ -1115,6 +1116,124 @@ class SQSNotificationHandlerSpec
         appender.stop()
       }
     }
+
+    "not send publish-storage-sync message if disabled" in {
+
+      // disable publish-storage-sync
+      ports.ssmClient
+        .asInstanceOf[MockSSMClient]
+        .setParameter(PublishStorageSync.IsEnabledSSMKey, "false")
+
+      val datasetName = TestUtilities.randomString()
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      // Successful publish jobs create an outputs.json file
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      processNotification(
+        PublishNotification(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId,
+          PublishStatus.PublishSucceeded,
+          publicDatasetV1.version
+        )
+      ) shouldBe an[MessageAction.Delete]
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+        )
+        .awaitFinite()
+
+      // Should update version info from outputs.json
+      inside(publicVersion) {
+        case v: PublicDatasetVersion =>
+          v.status shouldBe PublishStatus.PublishSucceeded
+          v.size shouldBe 76543
+          v.fileCount shouldBe 2
+          v.readme shouldBe Some(v.s3Key / "readme.md")
+          v.banner shouldBe Some(v.s3Key / "banner.jpg")
+      }
+
+      val files = ports.db
+        .run(
+          PublicFileVersionsMapper
+            .forVersion(publicVersion)
+            .result
+        )
+        .awaitFinite()
+
+      // Should create database entries for newly published files
+      files.length shouldBe 2
+
+      ports.pennsieveApiClient
+        .asInstanceOf[MockPennsieveApiClient]
+        .publishCompleteRequests shouldBe List(
+        (
+          DatasetPublishStatus(
+            publicDataset.name,
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId,
+            Some(publicDataset.id),
+            1,
+            PublishStatus.PublishSucceeded,
+            Some(publicVersion.createdAt),
+            workflowId = PublishingWorkflow.Version5
+          ),
+          None
+        )
+      )
+
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
+
+      ports.sqsClient
+        .asInstanceOf[MockSqsAsyncClient]
+        .sendMessageCalls
+        .map(r => decode[SQSNotification](r.messageBody()).value) should contain theSameElementsAs List(
+        PushDoiRequest(
+          PUSH_DOI,
+          publicVersion.datasetId,
+          publicVersion.version,
+          publicVersion.doi
+        ),
+        IndexDatasetRequest(
+          INDEX,
+          publicVersion.datasetId,
+          publicVersion.version
+        )
+      )
+
+    }
+
   }
 
   "Discover Service SQS Queue Handler" should {
