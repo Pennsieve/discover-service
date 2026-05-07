@@ -394,8 +394,9 @@ resource "aws_ssm_parameter" "doi_collections_id_space_name" {
   value = var.doi_collections_id_space_name
 }
 
-// ECS Delete Task Configuration
+// Publish Storage Sync Configuration
 resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_enabled" {
+  // Not renaming this because it should be temporary
   name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-enabled"
   type  = "String"
   value = var.ecs_s3_storage_cleanup_task_enabled
@@ -405,32 +406,8 @@ resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_enabled" {
   }
 }
 
-resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_cluster" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-cluster"
+resource "aws_ssm_parameter" "publish_storage_sync_queue_url" {
+  name  = "/${var.environment_name}/${var.service_name}/publish-storage-sync-queue-url"
   type  = "String"
-  value = data.terraform_remote_state.fargate.outputs.ecs_cluster_arn
-}
-
-resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_definition" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-definition"
-  type  = "String"
-  value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_task_definition_family
-}
-
-resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_subnets" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-subnets"
-  type  = "String"
-  value = join(",", data.terraform_remote_state.vpc.outputs.private_subnet_ids)
-}
-
-resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_security_group" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-security-group"
-  type  = "String"
-  value = data.terraform_remote_state.platform_infrastructure.outputs.upload_v2_security_group_id
-}
-
-resource "aws_ssm_parameter" "ecs_s3_storage_cleanup_task_container_name" {
-  name  = "/${var.environment_name}/${var.service_name}/ecs-s3-storage-cleanup-task-container-name"
-  type  = "String"
-  value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_ecs_container_name
+  value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_queue_url
 }

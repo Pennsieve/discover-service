@@ -36,25 +36,13 @@ case class Config(
   runtimeSettings: RuntimeSettings,
   doiCollections: DoiCollections,
   ssm: SSMConfiguration,
-  storageCleanupTask: StorageCleanupTaskConfiguration
+  publishStorageSync: PublishStorageSyncConfiguration
 )
 
 object Config {
 
   implicit val awsRegionReader = ConfigReader[String].map(Region.of(_))
   implicit val awsArnReader = ConfigReader[String].map(Arn.fromString(_))
-
-  // Handle comma-separated strings from env vars for specific fields
-  implicit val commaSeparatedReader: ConfigReader[CommaSeparatedStrings] =
-    ConfigReader[String]
-      .map(
-        s =>
-          CommaSeparatedStrings(
-            if (s.isEmpty) List.empty
-            else s.split(",").map(_.trim).toList
-          )
-      )
-      .orElse(ConfigReader[List[String]].map(CommaSeparatedStrings(_)))
 
   implicit val externalPublishBucketConfigurationReader
     : ConfigReader[Map[S3Bucket, Arn]] =
@@ -153,12 +141,4 @@ case class IdSpace(id: Int, name: String)
 
 case class SSMConfiguration(region: Region, parameterPathPrefix: String)
 
-case class CommaSeparatedStrings(values: List[String])
-
-case class StorageCleanupTaskConfiguration(
-  cluster: String,
-  taskDefinition: String,
-  subnetIds: CommaSeparatedStrings,
-  securityGroupId: String,
-  containerName: String
-)
+case class PublishStorageSyncConfiguration(queueUrl: String)

@@ -5,7 +5,6 @@ package com.pennsieve.discover.notifications
 import java.util.Calendar
 import akka.{ Done, NotUsed }
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.model.headers.{ Authorization, OAuth2BearerToken }
 import akka.stream.alpakka.sqs.MessageAction
 import akka.stream.alpakka.sqs.scaladsl.{ SqsAckSink, SqsSource }
@@ -15,43 +14,31 @@ import akka.stream.alpakka.slick.scaladsl.{ Slick, SlickSession }
 import cats.data._
 import cats.implicits._
 import com.github.tminglei.slickpg.LTree
-import com.pennsieve.discover.models.DoiRedirect
+import com.pennsieve.discover.models.{ DatasetMetadata, DoiRedirect, _ }
 import com.pennsieve.discover.db.{
-  profile,
-  PublicCollectionsMapper,
-  PublicContributorsMapper,
   PublicDatasetVersionFilesTableMapper,
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
-  PublicExternalPublicationsMapper,
   PublicFileVersionsMapper,
   PublicFilesMapper,
   WorkspaceSettingsMapper
 }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.logging.DiscoverLogContext
-import com.pennsieve.discover.models._
 import com.pennsieve.discover.search.Search
 import com.pennsieve.discover.server.definitions.{
   DatasetPublishStatus,
   InternalContributor
 }
-import com.pennsieve.discover.{ Authenticator, Ports, UnauthorizedException }
-import com.pennsieve.doi.client.definitions.PublishDoiRequest
-import com.pennsieve.doi.models.{ DoiDTO, DoiState }
-import com.pennsieve.models.{
-  DatasetMetadata,
-  DatasetType,
-  FileManifest,
-  PublishStatus
-}
+import com.pennsieve.discover.{ Authenticator, Ports }
+import com.pennsieve.doi.models.DoiDTO
+import com.pennsieve.models.{ DatasetType, FileManifest, PublishStatus }
 import com.pennsieve.service.utilities.LogContext
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.{ Message, SendMessageRequest }
-import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 
 import java.time.LocalDate
 import scala.concurrent.duration._
@@ -404,24 +391,12 @@ class SQSNotificationHandler(
         )
       )(executionContext, logContext, ports)
 
-      // Embargo publishes (EmbargoSucceeded) should not trigger storage sync
-      _ <- if (updatedVersion.underEmbargo) {
-        ports.log.info("handleSuccess() embargo publish - notify API directly")
-        ports.pennsieveApiClient
-          .putPublishComplete(publishStatus, None)
-          .value
-          .flatMap(_.fold(Future.failed, Future.successful))
-      } else {
-        ports.log.info(
-          "handleSuccess() non-embargo publish - invoking storage sync task"
-        )
-        invokeStorageSyncTask(
-          publicDataset,
-          updatedVersion,
-          publishStatus,
-          SQSNotificationType.PUBLISH
-        )
-      }
+      // Notify Pennsieve API that publishing has completed
+      _ = ports.log.info("handleSuccess() notify API")
+      _ <- ports.pennsieveApiClient
+        .putPublishComplete(publishStatus, None)
+        .value
+        .flatMap(_.fold(Future.failed, Future.successful))
 
       // invoke S3 Cleanup Lambda to delete publishing intermediate files
       _ = ports.log.info("handleSuccess() run S3 clean: TIDY")
@@ -434,6 +409,16 @@ class SQSNotificationHandler(
         S3CleanupStage.Tidy,
         updatedVersion.migrated
       )
+
+      // Embargo publishes (EmbargoSucceeded) should not trigger publish storage sync
+      _ <- if (updatedVersion.underEmbargo) {
+        ports.log.info(
+          "handleSuccess() embargo publish - not enqueuing publish-storage-sync message"
+        )
+        Future.unit
+      } else {
+        enqueuePublishStorageSyncTaskIfEnabled(publicDataset, updatedVersion)
+      }
     } yield ()
 
   private def publishFirstVersion(
@@ -523,41 +508,69 @@ class SQSNotificationHandler(
     } yield ()
   }
 
-  private def invokeStorageSyncTask(
+  // enqueueStorageSyncTask sends a publish-storage-sync message if enabled.
+  // Any failure here should be logged and swallowed so that it does not
+  // interfere with the rest of the notification handling or cause the original
+  // notification to be re-queued.
+  // The log lines are part of a CloudWatch alarm, so any changes need to be
+  // kept in sync with those alarms.
+  private def enqueuePublishStorageSyncTaskIfEnabled(
     publicDataset: PublicDataset,
-    version: PublicDatasetVersion,
-    publishStatus: DatasetPublishStatus,
-    publishType: SQSNotificationType
+    version: PublicDatasetVersion
   )(implicit
     logContext: LogContext
   ): Future[Unit] =
     for {
-      s3StorageCleanupTaskEnabled <- ports.ssmClient.getBooleanParameter(
-        "ecs-s3-storage-cleanup-task-enabled",
-        defaultValue = false
-      )
+      publishStorageSyncTaskEnabled <- ports.ssmClient
+        .getBooleanParameter(
+          PublishStorageSync.IsEnabledSSMKey,
+          defaultValue = false
+        )
+        .recover {
+          case err =>
+            ports.log.error(
+              s"publish-storage-sync SSM read failed; treating as disabled " +
+                s"[publicDatasetId=${publicDataset.id}, " +
+                s"sourceOrganizationId=${publicDataset.sourceOrganizationId}, " +
+                s"sourceDatasetId=${publicDataset.sourceDatasetId}]",
+              err
+            )
+            false // swallowing error so that original notification is not re-queued and assuming false
+        }
 
-      _ <- if (s3StorageCleanupTaskEnabled) {
+      _ <- if (publishStorageSyncTaskEnabled) {
         ports.log.info(
-          s"invokeStorageSyncTask() s3StorageCleanupTaskEnabled=true, invoking s3 storage cleanup task with status=${publishStatus.status} publishType=$publishType"
+          s"enqueuePublishStorageSyncTaskIfEnabled() publishStorageSyncTaskEnabled=true, enqueuing publish-storage-sync message"
         )
-        ports.ecsClient.runS3StorageCleanupTask(
-          sourceDatasetId = publicDataset.sourceDatasetId,
-          publicDatasetId = publicDataset.id,
-          publishedVersionCount = publishStatus.publishedVersionCount,
-          lastPublishedDate = version.createdAt,
-          organizationId = publicDataset.sourceOrganizationId,
-          publishStatus = publishStatus.status,
-          publishType = publishType,
-          s3Bucket = version.s3Bucket.value,
-          s3Key = version.s3Key.value
-        )
+
+        ports.publishStorageSyncMessenger
+          .queueMessage(
+            PublishStorageSyncMessage(
+              organizationId = publicDataset.sourceOrganizationId,
+              datasetId = publicDataset.sourceDatasetId,
+              publicDatasetId = publicDataset.id,
+              publishedBucket = version.s3Bucket.value,
+              manifestKey = DatasetMetadata.MANIFEST_FILE,
+              publishedS3Prefix = version.s3Key.value
+            )
+          )
+          .map(_ => ())
+          .recover {
+            case err =>
+              ports.log.error(
+                s"publish-storage-sync enqueue failed; not retrying publish chain " +
+                  s"[publicDatasetId=${publicDataset.id}, " +
+                  s"sourceOrganizationId=${publicDataset.sourceOrganizationId}, " +
+                  s"sourceDatasetId=${publicDataset.sourceDatasetId}]",
+                err
+              )
+              () // swallowing error so that original notification is not re-queued.
+          }
       } else {
-        ports.log.info("invokeStorageSyncTask() notify API")
-        ports.pennsieveApiClient
-          .putPublishComplete(publishStatus, None)
-          .value
-          .flatMap(_.fold(Future.failed, Future.successful))
+        ports.log.info(
+          "enqueuePublishStorageSyncTaskIfEnabled() publishStorageSyncTaskEnabled=false, no-op"
+        )
+        Future.unit
       }
     } yield ()
 

@@ -6,10 +6,11 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ ExecutionContext, Future }
 
-class MockSSMClient extends SSMClient {
+class MockSSMClient(defaults: Map[String, String] = Map.empty)
+    extends SSMClient {
 
   // Store parameter values that can be configured per test
-  val parameters: mutable.Map[String, String] = mutable.Map.empty
+  val parameters: mutable.Map[String, String] = mutable.Map.from(defaults)
 
   // Track which parameters were requested
   val requestedParameters: ListBuffer[String] = ListBuffer.empty
@@ -18,9 +19,16 @@ class MockSSMClient extends SSMClient {
     parameters(name) = value
   }
 
+  private var failNextWith: Option[Throwable] = None
+
+  /** Cause the next call to getParameter or getBooleanParameter to return Future.failed(t). */
+  def failNext(t: Throwable): Unit = failNextWith = Some(t)
+
   def clear(): Unit = {
     parameters.clear()
+    parameters ++= defaults
     requestedParameters.clear()
+    failNextWith = None
   }
 
   override def getParameter(
@@ -29,12 +37,18 @@ class MockSSMClient extends SSMClient {
     ec: ExecutionContext
   ): Future[String] = {
     requestedParameters += parameterName
-    parameters.get(parameterName) match {
-      case Some(value) => Future.successful(value)
+    failNextWith match {
+      case Some(t) =>
+        failNextWith = None
+        Future.failed(t)
       case None =>
-        Future.failed(
-          new RuntimeException(s"Parameter not found: $parameterName")
-        )
+        parameters.get(parameterName) match {
+          case Some(value) => Future.successful(value)
+          case None =>
+            Future.failed(
+              new RuntimeException(s"Parameter not found: $parameterName")
+            )
+        }
     }
   }
 
@@ -45,11 +59,18 @@ class MockSSMClient extends SSMClient {
     ec: ExecutionContext
   ): Future[Boolean] = {
     requestedParameters += parameterName
-    Future.successful(
-      parameters
-        .get(parameterName)
-        .map(_.toLowerCase.trim == "true")
-        .getOrElse(defaultValue)
-    )
+    failNextWith match {
+      case Some(t) =>
+        failNextWith = None
+        Future.failed(t)
+      case None =>
+        Future.successful(
+          parameters
+            .get(parameterName)
+            .map(_.toLowerCase.trim == "true")
+            .getOrElse(defaultValue)
+        )
+    }
+
   }
 }

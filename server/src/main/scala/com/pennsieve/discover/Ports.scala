@@ -15,12 +15,10 @@ import com.pennsieve.discover.clients.{
   AthenaClientImpl,
   AuthorizationClient,
   AuthorizationClientImpl,
-  AwsECSClient,
   AwsElasticSearchClient,
   AwsSSMClient,
   AwsStepFunctionsClient,
   DoiClient,
-  ECSClient,
   HttpClient,
   LambdaClient,
   PennsieveApiClient,
@@ -31,6 +29,10 @@ import com.pennsieve.discover.clients.{
   StepFunctionsClient
 }
 import com.pennsieve.discover.db.profile
+import com.pennsieve.discover.notifications.{
+  PublishStorageSyncMessenger,
+  SQSPublishStorageSyncMessenger
+}
 import com.pennsieve.service.utilities.{
   ContextLogger,
   LogContext,
@@ -57,7 +59,7 @@ case class Ports(
   sqsClient: SqsAsyncClient,
   athenaClient: AthenaClient,
   ssmClient: SSMClient,
-  ecsClient: ECSClient
+  publishStorageSyncMessenger: PublishStorageSyncMessenger
 ) {
   val logger: ContextLogger = new ContextLogger()
   val log: LoggerTakingImplicit[LogContext] = logger.context
@@ -151,10 +153,11 @@ object Ports {
       region = config.ssm.region
     )
 
-    val ecsClient: ECSClient = new AwsECSClient(
-      config = config.storageCleanupTask,
-      region = config.ssm.region
-    )
+    val publishStorageSyncMessenger: SQSPublishStorageSyncMessenger =
+      new SQSPublishStorageSyncMessenger(
+        sqsClient,
+        config.publishStorageSync.queueUrl
+      )
 
     Ports(
       config,
@@ -170,7 +173,7 @@ object Ports {
       sqsClient,
       athenaClient,
       ssmClient,
-      ecsClient
+      publishStorageSyncMessenger
     )
   }
 }

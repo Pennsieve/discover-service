@@ -14,6 +14,7 @@ import com.pennsieve.discover.db.{
   WorkspaceSettingsMapper
 }
 import com.pennsieve.discover.models._
+import com.pennsieve.discover.notifications.PublishStorageSync
 import com.pennsieve.discover.testcontainers.DockerContainers.postgresContainer.postgresConfiguration
 import com.pennsieve.discover.testcontainers.PostgresDockerContainer
 import com.pennsieve.service.utilities.SingleHttpResponder
@@ -86,16 +87,14 @@ trait ServiceSpecHarness
     val authorizationClient: AuthorizationClient =
       new MockAuthorizationClient(config.jwt.key)
 
-    val sqsClient = SqsAsyncClient
-      .builder()
-      .httpClientBuilder(NettyNioAsyncHttpClient.builder())
-      .region(config.sqs.region)
-      .endpointOverride(new URI("https://localhost"))
-      .build()
+    val sqsClient = new MockSqsAsyncClient()
 
-    val ssmClient: SSMClient = new MockSSMClient()
+    // assume the usual case where this is true. Tests that require false can re-set.
+    val mockSSMClient: MockSSMClient = new MockSSMClient(
+      defaults = Map(PublishStorageSync.IsEnabledSSMKey -> "true")
+    )
 
-    val ecsClient: ECSClient = new MockECSClient()
+    val publishStorageSyncMessenger = new MockPublishStorageSyncMessenger()
 
     Ports(config).copy(
       doiClient = doiClient,
@@ -107,8 +106,8 @@ trait ServiceSpecHarness
       authorizationClient = authorizationClient,
       sqsClient = sqsClient,
       athenaClient = athenaClient,
-      ssmClient = ssmClient,
-      ecsClient = ecsClient
+      ssmClient = mockSSMClient,
+      publishStorageSyncMessenger = publishStorageSyncMessenger
     )
   }
 
@@ -181,12 +180,8 @@ trait ServiceSpecHarness
         region = Region.US_EAST_1,
         parameterPathPrefix = "/test/discover-service"
       ),
-      storageCleanupTask = StorageCleanupTaskConfiguration(
-        cluster = "test-cluster",
-        taskDefinition = "test-task-definition",
-        subnetIds = CommaSeparatedStrings(List("subnet-123", "subnet-456")),
-        securityGroupId = "sg-123",
-        containerName = "s3-storage-cleanup-task"
+      publishStorageSync = PublishStorageSyncConfiguration(
+        queueUrl = "http://localhost:9324/queue/publish-storage-sync-queue"
       )
     )
     ports = getPorts(config)
@@ -248,8 +243,10 @@ trait ServiceSpecHarness
       .asInstanceOf[MockSSMClient]
       .clear()
 
-    ports.ecsClient
-      .asInstanceOf[MockECSClient]
+    ports.sqsClient.asInstanceOf[MockSqsAsyncClient].clear()
+
+    ports.publishStorageSyncMessenger
+      .asInstanceOf[MockPublishStorageSyncMessenger]
       .clear()
 
     // Clear dataset tables
