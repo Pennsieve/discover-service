@@ -2861,6 +2861,117 @@ class PublishHandlerSpec
       publicVersion2.s3Bucket shouldBe S3Bucket(publishBucket)
     }
 
+    "use the org's current bucket when republishing after an unpublish" in {
+      // Regression test: a dataset first published to an old/default bucket and
+      // then unpublished must NOT stay pinned to that bucket on republish. The
+      // latest visible version is now Unpublished, so the publish handler should
+      // fall back to the bucket config supplied with the new publish request.
+      val oldPublishBucket = s"old-publish-bucket-${organizationId}"
+      val oldEmbargoBucket = s"old-embargo-bucket-${organizationId}"
+      val oldBucketConfig = definitions.BucketConfig(
+        publish = oldPublishBucket,
+        embargo = oldEmbargoBucket
+      )
+
+      val datasetName = "republished after unpublish into a new bucket"
+
+      val requestBody1: definitions.PublishRequest = definitions.PublishRequest(
+        name = datasetName,
+        description = "A very very long description...",
+        ownerId = 1,
+        modelCount = Vector(definitions.ModelCount("myConcept", 100L)),
+        recordCount = 100L,
+        fileCount = 100L,
+        size = 5555555L,
+        license = License.`Apache 2.0`,
+        contributors = Vector(internalContributor),
+        externalPublications = Some(Vector(internalExternalPublication)),
+        tags = Vector[String]("tag1", "tag2"),
+        ownerNodeId = ownerNodeId,
+        ownerFirstName = ownerFirstName,
+        ownerLastName = ownerLastName,
+        ownerOrcid = ownerOrcid,
+        organizationNodeId = organizationNodeId,
+        organizationName = organizationName,
+        datasetNodeId = datasetNodeId,
+        bucketConfig = Some(oldBucketConfig),
+        workflowId = Some(5)
+      )
+
+      // publish v1 into the OLD bucket, complete it, then unpublish it
+      val _ = client
+        .publish(organizationId, datasetId, None, None, requestBody1, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+
+      val publicVersion1 = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      publicVersion1.version shouldBe 1
+      publicVersion1.s3Bucket shouldBe S3Bucket(oldPublishBucket)
+
+      // "Complete" the publish job, then unpublish
+      publishSuccessfully(publicDataset, publicVersion1)
+
+      client
+        .unpublish(
+          organizationId,
+          datasetId,
+          defaultBucketUnpublishBody,
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[UnpublishResponse.OK]
+        .value
+        .status shouldBe Unpublished
+
+      // republish with a DIFFERENT (org's current) bucket config
+      val newPublishBucket = s"new-publish-bucket-${organizationId}"
+      val newEmbargoBucket = s"new-embargo-bucket-${organizationId}"
+      val newBucketConfig = definitions.BucketConfig(
+        publish = newPublishBucket,
+        embargo = newEmbargoBucket
+      )
+
+      val requestBody2: definitions.PublishRequest =
+        requestBody1.copy(bucketConfig = Some(newBucketConfig))
+
+      val _ = client
+        .publish(organizationId, datasetId, None, None, requestBody2, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishResponse.Created]
+        .value
+
+      val publicVersion2 = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getLatestVersion(publicDataset.id)
+        )
+        .awaitFinite()
+        .get
+
+      // The new version must land in the NEW bucket, not stay pinned to the
+      // unpublished version's old bucket.
+      publicVersion2.version shouldBe 2
+      publicVersion2.s3Bucket shouldBe S3Bucket(newPublishBucket)
+    }
+
   }
 
 }
