@@ -179,6 +179,7 @@ lazy val server = project
       "org.scalikejdbc" %% "scalikejdbc" % "3.4.0",
       "com.zaneli" %% "scalikejdbc-athena" % "0.2.4",
       // Test dependencies
+      "junit" % "junit" % "4.13.2" % Test,
       "org.scalatest" %% "scalatest" % "3.2.12" % Test,
       "com.pennsieve" %% "utilities" % utilitiesVersion % "test" classifier "tests",
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion % "test" classifier "tests",
