@@ -14,6 +14,7 @@ import com.pennsieve.discover.db.{
   WorkspaceSettingsMapper
 }
 import com.pennsieve.discover.models._
+import com.pennsieve.discover.notifications.PublishStorageSync
 import com.pennsieve.discover.testcontainers.DockerContainers.postgresContainer.postgresConfiguration
 import com.pennsieve.discover.testcontainers.PostgresDockerContainer
 import com.pennsieve.service.utilities.SingleHttpResponder
@@ -86,12 +87,14 @@ trait ServiceSpecHarness
     val authorizationClient: AuthorizationClient =
       new MockAuthorizationClient(config.jwt.key)
 
-    val sqsClient = SqsAsyncClient
-      .builder()
-      .httpClientBuilder(NettyNioAsyncHttpClient.builder())
-      .region(config.sqs.region)
-      .endpointOverride(new URI("https://localhost"))
-      .build()
+    val sqsClient = new MockSqsAsyncClient()
+
+    // assume the usual case where this is true. Tests that require false can re-set.
+    val mockSSMClient: MockSSMClient = new MockSSMClient(
+      defaults = Map(PublishStorageSync.IsEnabledSSMKey -> "true")
+    )
+
+    val publishStorageSyncMessenger = new MockPublishStorageSyncMessenger()
 
     Ports(config).copy(
       doiClient = doiClient,
@@ -102,7 +105,9 @@ trait ServiceSpecHarness
       pennsieveApiClient = pennsieveApiClient,
       authorizationClient = authorizationClient,
       sqsClient = sqsClient,
-      athenaClient = athenaClient
+      athenaClient = athenaClient,
+      ssmClient = mockSSMClient,
+      publishStorageSyncMessenger = publishStorageSyncMessenger
     )
   }
 
@@ -170,6 +175,13 @@ trait ServiceSpecHarness
       doiCollections = DoiCollections(
         pennsieveDoiPrefix = "10.00000",
         IdSpace(99999, "Test Collections ID Space")
+      ),
+      ssm = SSMConfiguration(
+        region = Region.US_EAST_1,
+        parameterPathPrefix = "/test/discover-service"
+      ),
+      publishStorageSync = PublishStorageSyncConfiguration(
+        queueUrl = "http://localhost:9324/queue/publish-storage-sync-queue"
       )
     )
     ports = getPorts(config)
@@ -226,6 +238,16 @@ trait ServiceSpecHarness
     ports.athenaClient
       .asInstanceOf[MockAthenaClient]
       .reset()
+
+    ports.ssmClient
+      .asInstanceOf[MockSSMClient]
+      .clear()
+
+    ports.sqsClient.asInstanceOf[MockSqsAsyncClient].clear()
+
+    ports.publishStorageSyncMessenger
+      .asInstanceOf[MockPublishStorageSyncMessenger]
+      .clear()
 
     // Clear dataset tables
     ports.db

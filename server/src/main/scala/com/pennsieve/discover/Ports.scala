@@ -16,6 +16,7 @@ import com.pennsieve.discover.clients.{
   AuthorizationClient,
   AuthorizationClientImpl,
   AwsElasticSearchClient,
+  AwsSSMClient,
   AwsStepFunctionsClient,
   DoiClient,
   HttpClient,
@@ -23,10 +24,15 @@ import com.pennsieve.discover.clients.{
   PennsieveApiClient,
   PennsieveApiClientImpl,
   S3StreamClient,
+  SSMClient,
   SearchClient,
   StepFunctionsClient
 }
 import com.pennsieve.discover.db.profile
+import com.pennsieve.discover.notifications.{
+  PublishStorageSyncMessenger,
+  SQSPublishStorageSyncMessenger
+}
 import com.pennsieve.service.utilities.{
   ContextLogger,
   LogContext,
@@ -34,7 +40,6 @@ import com.pennsieve.service.utilities.{
 }
 import com.typesafe.scalalogging.LoggerTakingImplicit
 import com.zaxxer.hikari.HikariDataSource
-import slick.util.AsyncExecutor
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
@@ -52,7 +57,9 @@ case class Ports(
   pennsieveApiClient: PennsieveApiClient,
   authorizationClient: AuthorizationClient,
   sqsClient: SqsAsyncClient,
-  athenaClient: AthenaClient
+  athenaClient: AthenaClient,
+  ssmClient: SSMClient,
+  publishStorageSyncMessenger: PublishStorageSyncMessenger
 ) {
   val logger: ContextLogger = new ContextLogger()
   val log: LoggerTakingImplicit[LogContext] = logger.context
@@ -84,18 +91,9 @@ object Ports {
       hikariDataSource.setSchema(config.postgres.schema)
       hikariDataSource.setConnectionInitSql("set time zone 'UTC'")
 
-      // Currently minThreads, maxThreads and maxConnections MUST be the same value
-      // https://github.com/slick/slick/issues/1938
       Database.forDataSource(
         hikariDataSource,
-        maxConnections = None, // Ignored if an executor is provided
-        executor = AsyncExecutor(
-          name = "AsyncExecutor.pennsieve",
-          minThreads = config.postgres.numConnections,
-          maxThreads = config.postgres.numConnections,
-          maxConnections = config.postgres.numConnections,
-          queueSize = config.postgres.queueSize
-        )
+        maxConnections = Some(config.postgres.numConnections)
       )
     }
 
@@ -150,6 +148,17 @@ object Ports {
       sparcAodTable = config.athena.sparcAodBucketAccessTable
     )
 
+    val ssmClient: SSMClient = new AwsSSMClient(
+      parameterPathPrefix = config.ssm.parameterPathPrefix,
+      region = config.ssm.region
+    )
+
+    val publishStorageSyncMessenger: SQSPublishStorageSyncMessenger =
+      new SQSPublishStorageSyncMessenger(
+        sqsClient,
+        config.publishStorageSync.queueUrl
+      )
+
     Ports(
       config,
       jwt,
@@ -162,7 +171,9 @@ object Ports {
       pennsieveApiClient,
       authorizationClient,
       sqsClient,
-      athenaClient
+      athenaClient,
+      ssmClient,
+      publishStorageSyncMessenger
     )
   }
 }

@@ -59,6 +59,8 @@ class PublicDatasetsMapperSpec
         tags = List("tag")
       )
 
+      Thread.sleep(100)
+
       val publicDataset2 = TestUtilities.createDataset(ports.db)(
         name = "A different name",
         tags = List("red", "blue"),

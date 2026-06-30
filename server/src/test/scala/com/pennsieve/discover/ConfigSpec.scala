@@ -3,9 +3,12 @@
 package com.pennsieve.discover
 
 import com.pennsieve.discover.models.S3Bucket
+import com.typesafe.config.ConfigFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.OptionValues._
+import pureconfig._
+import pureconfig.generic.auto._
 import software.amazon.awssdk.arns.Arn
 
 class ConfigSpec extends AnyWordSpec with Matchers {
@@ -45,4 +48,5 @@ class ConfigSpec extends AnyWordSpec with Matchers {
     }
 
   }
+
 }

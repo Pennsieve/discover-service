@@ -31,6 +31,16 @@ ThisBuild / credentials += Credentials(
 // Until https://github.com/coursier/coursier/issues/1815 is fixed
 ThisBuild / useCoursier := false
 
+// Allow Slick 3.5.x upgrade despite alpakka-slick expecting 3.3.3
+ThisBuild / libraryDependencySchemes ++= Seq(
+  "com.typesafe.slick" %% "slick" % VersionScheme.Always,
+  "com.typesafe.slick" %% "slick-hikaricp" % VersionScheme.Always,
+  "io.circe" %% "circe-core" % VersionScheme.Always,
+  "io.circe" %% "circe-generic" % VersionScheme.Always,
+  "io.circe" %% "circe-parser" % VersionScheme.Always,
+  "io.circe" %% "circe-jawn" % VersionScheme.Always
+)
+
 ThisBuild / version := sys.props.get("version").getOrElse("SNAPSHOT")
 
 lazy val headerLicenseValue = Some(
@@ -54,14 +64,14 @@ lazy val circeVersion = SettingKey[String]("circeVersion")
 lazy val circe212Version = "0.11.1"
 lazy val circe213Version = "0.14.1"
 
-lazy val coreVersion = "352-48b5973"
+lazy val coreVersion = "403-78e5c1b"
 lazy val authMiddlewareVersion = "5.1.3"
 lazy val serviceUtilitiesVersion = "8-9751ee3"
 lazy val utilitiesVersion = "4-55953e4"
 lazy val doiServiceClientVersion = "12-756107b"
-lazy val slickVersion = "3.3.3"
-lazy val slickPgVersion = "0.20.3"
-lazy val testContainersVersion = "0.44.1"
+lazy val slickVersion = "3.4.1"
+lazy val slickPgVersion = "0.21.1"
+lazy val testContainersVersion = "0.40.1"
 lazy val logbackVersion = "1.2.3"
 lazy val awsSdkVersion = "2.10.56"
 lazy val pureConfigVersion = "0.17.1"
@@ -147,6 +157,8 @@ lazy val server = project
       "software.amazon.awssdk" % "sns" % awsSdkVersion,
       "software.amazon.awssdk" % "s3" % awsSdkVersion,
       "software.amazon.awssdk" % "sts" % awsSdkVersion,
+      "software.amazon.awssdk" % "ecs" % awsSdkVersion,
+      "software.amazon.awssdk" % "ssm" % awsSdkVersion,
       "software.amazon.awssdk" % "url-connection-client" % awsSdkVersion,
       "com.github.pureconfig" %% "pureconfig" % pureConfigVersion,
       "com.github.pureconfig" %% "pureconfig-squants" % pureConfigVersion,

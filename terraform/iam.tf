@@ -101,6 +101,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
     ]
   }
 
+
   statement {
     sid    = "KMSDecryptMessages"
     effect = "Allow"
@@ -235,6 +236,7 @@ data "aws_iam_policy_document" "iam_policy_document" {
     ]
   }
 
+
   statement {
     sid    = "AssumeSPARCPublishBucketRole"
     effect = "Allow"
@@ -306,4 +308,33 @@ data "aws_iam_policy_document" "iam_policy_document" {
   #     data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_arn,
   #   ]
   # }
+}
+
+# Separate policy for publish storage sync permissions (to avoid policy size limit)
+resource "aws_iam_policy" "publish_storage_sync_policy" {
+  name   = "${var.environment_name}-${var.service_name}-publish-storage-sync-policy-${data.terraform_remote_state.region.outputs.aws_region_shortname}"
+  path   = "/service/"
+  policy = data.aws_iam_policy_document.publish_storage_sync_policy_document.json
+}
+
+resource "aws_iam_role_policy_attachment" "publish_storage_sync_policy_attachment" {
+  role       = var.ecs_task_iam_role_id
+  policy_arn = aws_iam_policy.publish_storage_sync_policy.arn
+}
+
+data "aws_iam_policy_document" "publish_storage_sync_policy_document" {
+
+  statement {
+    sid    = "SQSSendPublishStorageSyncMessages"
+    effect = "Allow"
+
+    actions = [
+      "sqs:SendMessage",
+    ]
+
+    resources = [
+      data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_queue_arn,
+    ]
+  }
+
 }

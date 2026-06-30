@@ -84,10 +84,19 @@ locals {
   // These are the names inside the AOD account relevant to Glue and Athena
   // for S3 access logging
   sparc_aod = {
-    glue_db = "${var.environment_name}_s3_access_logs_db"
-    glue_table = "discover"
+    glue_db               = "${var.environment_name}_s3_access_logs_db"
+    glue_table            = "discover"
     s3_access_logs_bucket = "sparc-${var.environment_name}-aod-s3-access-logs"
     s3_access_logs_prefix = "${var.environment_name}/discover-publish/"
   }
 
+  // namespace of the cloudwatch alarms for failures to enqueue publish-storage-sync tasks
+  publish_storage_sync_metric_namespace = "Pennsieve/Discover"
+
+}
+
+# ECS Storage Cleanup Task Configuration
+variable "ecs_s3_storage_cleanup_task_enabled" {
+  description = "Enable/disable the ECS s3 storage cleanup task feature"
+  default     = "false"
 }

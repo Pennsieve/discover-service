@@ -29,10 +29,14 @@ import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.clients.{
   MockDoiClient,
   MockPennsieveApiClient,
+  MockPublishStorageSyncMessenger,
   MockS3StreamClient,
-  MockSearchClient
+  MockSSMClient,
+  MockSearchClient,
+  MockSqsAsyncClient
 }
 import com.pennsieve.discover.models.{
+  DatasetMetadata,
   PublicDataset,
   PublicDatasetVersion,
   PublicFile,
@@ -52,12 +56,16 @@ import com.pennsieve.discover.db.{
 }
 import com.pennsieve.doi.models.{ DoiDTO, DoiState }
 import com.pennsieve.discover.server.definitions.DatasetPublishStatus
-import com.pennsieve.discover.notifications.SQSNotificationType.INDEX
+import com.pennsieve.discover.notifications.SQSNotificationType.{
+  INDEX,
+  PUSH_DOI
+}
 import com.pennsieve.doi.client.definitions._
 import com.pennsieve.models.RelationshipType.{ IsCitedBy, References }
 import com.sksamuel.elastic4s.circe._
 import io.circe.syntax._
 import io.circe.generic.auto._
+import io.circe.parser.decode
 import software.amazon.awssdk.services.sqs.model.{
   Message,
   ReceiveMessageRequest
@@ -65,10 +73,12 @@ import software.amazon.awssdk.services.sqs.model.{
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.LoneElement._
+import org.scalatest.EitherValues
 
 import java.time.LocalDate
 import java.util.{ Calendar, UUID }
-import scala.concurrent.ExecutionContext
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
 class SQSNotificationHandlerSpec
@@ -76,7 +86,8 @@ class SQSNotificationHandlerSpec
     with Matchers
     with Inside
     with ServiceSpecHarness
-    with ActorSystemTestKit {
+    with ActorSystemTestKit
+    with EitherValues {
 
   lazy val notificationHandler = new SQSNotificationHandler(
     ports,
@@ -120,14 +131,10 @@ class SQSNotificationHandlerSpec
           publicDataset.sourceDatasetId
         )
 
-      val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-      val futureYear = currentYear + 5
-
       val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
         id = publicDataset.id,
-        status = PublishStatus.NotPublished,
+        status = PublishStatus.PublishInProgress,
         doi = doi.doi,
-        embargoReleaseDate = Some(LocalDate.of(futureYear, 3, 14)),
         migrated = true
       )
 
@@ -199,36 +206,152 @@ class SQSNotificationHandlerSpec
         )
       )
 
-      // pushing the DOI is now done asynchronously via separate SQS Message request
-      //      val actualDoi: DoiDTO = ports.doiClient
-      //        .asInstanceOf[MockDoiClient]
-      //        .dois(doi.doi)
-      //      actualDoi.title shouldBe Some(publicDataset.name)
-      //      actualDoi.creators shouldBe Some(List())
-      //      actualDoi.publicationYear shouldBe Some(futureYear)
-      //      actualDoi.url shouldBe Some(
-      //        s"https://discover.pennsieve.org/datasets/${publicDataset.id}/version/${publicDatasetV1.version}"
-      //      )
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages
+        .loneElement shouldBe PublishStorageSyncMessage(
+        publicDataset.sourceOrganizationId,
+        publicDataset.sourceDatasetId,
+        publicDataset.id,
+        publicVersion.s3Bucket.value,
+        DatasetMetadata.MANIFEST_FILE,
+        publicVersion.s3Key.value
+      )
 
-      // indexing the published dataset is now done asynchronously via separate SQS Message request
-      //      val (
-      //        indexedVersion,
-      //        indexedRevision,
-      //        indexedSponsorship,
-      //        indexedFiles,
-      //        indexedRecords
-      //      ) =
-      //        ports.searchClient
-      //          .asInstanceOf[MockSearchClient]
-      //          .indexedDatasets(publicDataset.id)
-      //
-      //      indexedVersion.version shouldBe publicDatasetV1.version
-      //      indexedRevision shouldBe None
-      //      indexedSponsorship shouldBe None
-      //
-      //      // From defaults in MockS3StreamClient
-      //      indexedFiles.length shouldBe 2
-      //      indexedRecords.length shouldBe 1
+      ports.sqsClient
+        .asInstanceOf[MockSqsAsyncClient]
+        .sendMessageCalls
+        .map(r => decode[SQSNotification](r.messageBody()).value) should contain theSameElementsAs List(
+        PushDoiRequest(
+          PUSH_DOI,
+          publicVersion.datasetId,
+          publicVersion.version,
+          publicVersion.doi
+        ),
+        IndexDatasetRequest(
+          INDEX,
+          publicVersion.datasetId,
+          publicVersion.version
+        )
+      )
+
+    }
+
+    "update embargo status as successful" in {
+
+      val datasetName = TestUtilities.randomString()
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+      val futureYear = currentYear + 5
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.EmbargoInProgress,
+        doi = doi.doi,
+        embargoReleaseDate = Some(LocalDate.of(futureYear, 3, 14)),
+        migrated = true
+      )
+
+      // Successful publish jobs create an outputs.json file
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      processNotification(
+        PublishNotification(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId,
+          PublishStatus.PublishSucceeded, // Not EmbargoSucceeded because discover-publish step function sends PUBLISH_SUCCEEDED even for embargo
+          publicDatasetV1.version
+        )
+      ) shouldBe an[MessageAction.Delete]
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+        )
+        .awaitFinite()
+
+      // Should update version info from outputs.json
+      inside(publicVersion) {
+        case v: PublicDatasetVersion =>
+          v.status shouldBe PublishStatus.EmbargoSucceeded
+          v.size shouldBe 76543
+          v.fileCount shouldBe 2
+          v.readme shouldBe Some(v.s3Key / "readme.md")
+          v.banner shouldBe Some(v.s3Key / "banner.jpg")
+      }
+
+      val files = ports.db
+        .run(
+          PublicFileVersionsMapper
+            .forVersion(publicVersion)
+            .result
+        )
+        .awaitFinite()
+
+      // Should create database entries for newly published files
+      files.length shouldBe 2
+
+      ports.pennsieveApiClient
+        .asInstanceOf[MockPennsieveApiClient]
+        .publishCompleteRequests shouldBe List(
+        (
+          DatasetPublishStatus(
+            publicDataset.name,
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId,
+            Some(publicDataset.id),
+            0, //no published versions yet, because this is embargoed
+            PublishStatus.EmbargoSucceeded,
+            Some(publicVersion.createdAt),
+            workflowId = PublishingWorkflow.Version5
+          ),
+          None
+        )
+      )
+
+      // Embargo publish should not send publish-storage-sync message
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
+
+      ports.sqsClient
+        .asInstanceOf[MockSqsAsyncClient]
+        .sendMessageCalls
+        .map(r => decode[SQSNotification](r.messageBody()).value) should contain theSameElementsAs List(
+        PushDoiRequest(
+          PUSH_DOI,
+          publicVersion.datasetId,
+          publicVersion.version,
+          publicVersion.doi
+        ),
+        IndexDatasetRequest(
+          INDEX,
+          publicVersion.datasetId,
+          publicVersion.version
+        )
+      )
+
     }
 
     "update publish status as failed" in {
@@ -299,6 +422,10 @@ class SQSNotificationHandlerSpec
         .dois(doi.doi)
         .state shouldBe Some(DoiState.Draft)
 
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
+
     }
 
     "update publish status as failed for embargoed datasets" in {
@@ -368,6 +495,10 @@ class SQSNotificationHandlerSpec
         .asInstanceOf[MockDoiClient]
         .dois(doi.doi)
         .state shouldBe Some(DoiState.Draft)
+
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
 
     }
 
@@ -512,6 +643,12 @@ class SQSNotificationHandlerSpec
       // From defaults in MockS3StreamClient
       indexedFiles.length shouldBe 1
       indexedRecords.length shouldBe 1
+
+      // Not running this on embargo releases yet. This should be updated
+      // to check the message contents once we do.
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
     }
 
     "update release status as failed" in {
@@ -579,6 +716,10 @@ class SQSNotificationHandlerSpec
           Some(s"Version ${publicVersion.version} failed to release")
         )
       )
+
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
     }
 
     "periodically notify Pennsieve API to start release workflow" in {
@@ -853,6 +994,368 @@ class SQSNotificationHandlerSpec
             p => (p.doi.toString(), p.relationshipType.getOrElse(References))
           )
     }
+
+    "complete publish successfully even if getting the publish-storage-sync enabled SSM parameter fails" in {
+
+      val datasetName = TestUtilities.randomString()
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      // Arrange: ssm client will fail on this publish
+      ports.ssmClient
+        .asInstanceOf[MockSSMClient]
+        .failNext(new RuntimeException("simulated SSM failure"))
+
+      // Capture log events from the root logger so we see whatever the
+      // ContextLogger inside ports.log writes.
+      val rootLogger = org.slf4j.LoggerFactory
+        .getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+        .asInstanceOf[ch.qos.logback.classic.Logger]
+      val appender = new ch.qos.logback.core.read.ListAppender[
+        ch.qos.logback.classic.spi.ILoggingEvent
+      ]()
+      appender.start()
+      rootLogger.addAppender(appender)
+
+      try {
+        processNotification(
+          PublishNotification(
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId,
+            PublishStatus.PublishSucceeded,
+            publicDatasetV1.version
+          )
+        ) shouldBe an[MessageAction.Delete]
+
+        val publicVersion = ports.db
+          .run(
+            PublicDatasetVersionsMapper
+              .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+          )
+          .awaitFinite()
+
+        // The publish itself still succeeded
+        publicVersion.status shouldBe PublishStatus.PublishSucceeded
+
+        // Downstream side effects still ran: API notified
+        ports.pennsieveApiClient
+          .asInstanceOf[MockPennsieveApiClient]
+          .publishCompleteRequests should have size 1
+
+        // ...and the two follow-on SQS messages were still queued.
+        // This is the core regression guard: storage-sync failure must not
+        // short-circuit the publish chain.
+        ports.sqsClient
+          .asInstanceOf[MockSqsAsyncClient]
+          .sendMessageCalls
+          .map(r => decode[SQSNotification](r.messageBody()).value) should
+          contain theSameElementsAs List(
+          PushDoiRequest(
+            PUSH_DOI,
+            publicVersion.datasetId,
+            publicVersion.version,
+            publicVersion.doi
+          ),
+          IndexDatasetRequest(
+            INDEX,
+            publicVersion.datasetId,
+            publicVersion.version
+          )
+        )
+
+        // The messenger failed, so nothing was actually queued through it
+        ports.publishStorageSyncMessenger
+          .asInstanceOf[MockPublishStorageSyncMessenger]
+          .queuedMessages shouldBe empty
+
+        // The distinctive error log was emitted with the IDs we care about
+        // and the log line the cloudwatch alarm is looking for
+        val matchingEvents = appender.list.asScala.filter { evt =>
+          evt.getLevel == ch.qos.logback.classic.Level.ERROR &&
+          evt.getFormattedMessage.contains(
+            "publish-storage-sync SSM read failed; treating as disabled"
+          )
+        }
+
+        matchingEvents should not be empty
+        val msg = matchingEvents.head.getFormattedMessage
+        msg should include(s"publicDatasetId=${publicDataset.id}")
+        msg should include(
+          s"sourceOrganizationId=${publicDataset.sourceOrganizationId}"
+        )
+        msg should include(s"sourceDatasetId=${publicDataset.sourceDatasetId}")
+      } finally {
+        rootLogger.detachAppender(appender)
+        appender.stop()
+      }
+    }
+
+    "complete publish successfully even when publish-storage-sync enqueue fails" in {
+
+      val datasetName = TestUtilities.randomString()
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      // Arrange: messenger will fail on this publish
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .failNext(new RuntimeException("simulated SQS failure"))
+
+      // Capture log events from the root logger so we see whatever the
+      // ContextLogger inside ports.log writes.
+      val rootLogger = org.slf4j.LoggerFactory
+        .getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+        .asInstanceOf[ch.qos.logback.classic.Logger]
+      val appender = new ch.qos.logback.core.read.ListAppender[
+        ch.qos.logback.classic.spi.ILoggingEvent
+      ]()
+      appender.start()
+      rootLogger.addAppender(appender)
+
+      try {
+        processNotification(
+          PublishNotification(
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId,
+            PublishStatus.PublishSucceeded,
+            publicDatasetV1.version
+          )
+        ) shouldBe an[MessageAction.Delete]
+
+        val publicVersion = ports.db
+          .run(
+            PublicDatasetVersionsMapper
+              .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+          )
+          .awaitFinite()
+
+        // The publish itself still succeeded
+        publicVersion.status shouldBe PublishStatus.PublishSucceeded
+
+        // Downstream side effects still ran: API notified
+        ports.pennsieveApiClient
+          .asInstanceOf[MockPennsieveApiClient]
+          .publishCompleteRequests should have size 1
+
+        // ...and the two follow-on SQS messages were still queued.
+        // This is the core regression guard: storage-sync failure must not
+        // short-circuit the publish chain.
+        ports.sqsClient
+          .asInstanceOf[MockSqsAsyncClient]
+          .sendMessageCalls
+          .map(r => decode[SQSNotification](r.messageBody()).value) should
+          contain theSameElementsAs List(
+          PushDoiRequest(
+            PUSH_DOI,
+            publicVersion.datasetId,
+            publicVersion.version,
+            publicVersion.doi
+          ),
+          IndexDatasetRequest(
+            INDEX,
+            publicVersion.datasetId,
+            publicVersion.version
+          )
+        )
+
+        // The messenger failed, so nothing was actually queued through it
+        ports.publishStorageSyncMessenger
+          .asInstanceOf[MockPublishStorageSyncMessenger]
+          .queuedMessages shouldBe empty
+
+        // The distinctive error log was emitted with the IDs we care about
+        // and the log line the cloudwatch alarm is looking for
+        val matchingEvents = appender.list.asScala.filter { evt =>
+          evt.getLevel == ch.qos.logback.classic.Level.ERROR &&
+          evt.getFormattedMessage.contains(
+            "publish-storage-sync enqueue failed; not retrying publish chain"
+          )
+        }
+
+        matchingEvents should not be empty
+        val msg = matchingEvents.head.getFormattedMessage
+        msg should include(s"publicDatasetId=${publicDataset.id}")
+        msg should include(
+          s"sourceOrganizationId=${publicDataset.sourceOrganizationId}"
+        )
+        msg should include(s"sourceDatasetId=${publicDataset.sourceDatasetId}")
+      } finally {
+        rootLogger.detachAppender(appender)
+        appender.stop()
+      }
+    }
+
+    "not send publish-storage-sync message if disabled" in {
+
+      // disable publish-storage-sync
+      ports.ssmClient
+        .asInstanceOf[MockSSMClient]
+        .setParameter(PublishStorageSync.IsEnabledSSMKey, "false")
+
+      val datasetName = TestUtilities.randomString()
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.PublishInProgress,
+        doi = doi.doi,
+        migrated = true
+      )
+
+      // Successful publish jobs create an outputs.json file
+      ports.s3StreamClient
+        .asInstanceOf[MockS3StreamClient]
+        .withNextPublishResult(
+          publicDatasetV1.s3Key,
+          PublishJobOutput(
+            readmeKey = publicDatasetV1.s3Key / "readme.md",
+            bannerKey = publicDatasetV1.s3Key / "banner.jpg",
+            changelogKey = publicDatasetV1.s3Key / "changelog.md",
+            totalSize = 76543
+          )
+        )
+
+      processNotification(
+        PublishNotification(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId,
+          PublishStatus.PublishSucceeded,
+          publicDatasetV1.version
+        )
+      ) shouldBe an[MessageAction.Delete]
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+        )
+        .awaitFinite()
+
+      // Should update version info from outputs.json
+      inside(publicVersion) {
+        case v: PublicDatasetVersion =>
+          v.status shouldBe PublishStatus.PublishSucceeded
+          v.size shouldBe 76543
+          v.fileCount shouldBe 2
+          v.readme shouldBe Some(v.s3Key / "readme.md")
+          v.banner shouldBe Some(v.s3Key / "banner.jpg")
+      }
+
+      val files = ports.db
+        .run(
+          PublicFileVersionsMapper
+            .forVersion(publicVersion)
+            .result
+        )
+        .awaitFinite()
+
+      // Should create database entries for newly published files
+      files.length shouldBe 2
+
+      ports.pennsieveApiClient
+        .asInstanceOf[MockPennsieveApiClient]
+        .publishCompleteRequests shouldBe List(
+        (
+          DatasetPublishStatus(
+            publicDataset.name,
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId,
+            Some(publicDataset.id),
+            1,
+            PublishStatus.PublishSucceeded,
+            Some(publicVersion.createdAt),
+            workflowId = PublishingWorkflow.Version5
+          ),
+          None
+        )
+      )
+
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
+
+      ports.sqsClient
+        .asInstanceOf[MockSqsAsyncClient]
+        .sendMessageCalls
+        .map(r => decode[SQSNotification](r.messageBody()).value) should contain theSameElementsAs List(
+        PushDoiRequest(
+          PUSH_DOI,
+          publicVersion.datasetId,
+          publicVersion.version,
+          publicVersion.doi
+        ),
+        IndexDatasetRequest(
+          INDEX,
+          publicVersion.datasetId,
+          publicVersion.version
+        )
+      )
+
+    }
+
   }
 
   "Discover Service SQS Queue Handler" should {

@@ -129,6 +129,8 @@ class PublicDatasetVersionsMapperSpec
     "update updatedAt Postgres trigger" in {
       val v1 = TestUtilities.createDatasetV1(ports.db)()
 
+      Thread.sleep(100)
+
       ports.db
         .run(
           PublicDatasetVersionsMapper

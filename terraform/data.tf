@@ -24,6 +24,17 @@ data "terraform_remote_state" "region" {
   }
 }
 
+# Import ECS Cluster Data
+data "terraform_remote_state" "ecs_cluster" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.aws_account}-terraform-state"
+    key    = "aws/${data.aws_region.current_region.name}/${var.vpc_name}/${var.environment_name}/ecs-cluster/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
 # # Import API Data
 # data "terraform_remote_state" "api" {
 #   backend = "s3"
@@ -121,6 +132,39 @@ data "terraform_remote_state" "africa_south_region" {
   config = {
     bucket = "${var.aws_account}-terraform-state"
     key    = "aws/af-south-1/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+# Import VPC Data
+data "terraform_remote_state" "vpc" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.aws_account}-terraform-state"
+    key    = "aws/${data.aws_region.current_region.name}/${var.vpc_name}/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+# Import Fargate Cluster Data
+data "terraform_remote_state" "fargate" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.aws_account}-terraform-state"
+    key    = "aws/${data.aws_region.current_region.name}/${var.vpc_name}/${var.environment_name}/fargate/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
+# Import Publish Storage Sync Data
+data "terraform_remote_state" "publish_storage_sync" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.aws_account}-terraform-state"
+    key    = "aws/${data.aws_region.current_region.name}/${var.vpc_name}/${var.environment_name}/publish-storage-sync/terraform.tfstate"
     region = "us-east-1"
   }
 }

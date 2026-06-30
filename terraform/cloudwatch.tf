@@ -16,3 +16,60 @@ resource "aws_cloudwatch_event_target" "embargo_release_event_target" {
 
   input = "{\"job_type\": \"SCAN_FOR_RELEASE\"}"
 }
+
+# Create filters and alarms for failure to enqueue publish-storage-sync messages
+resource "aws_cloudwatch_log_metric_filter" "publish_storage_sync_enqueue_failed" {
+  name           = "${var.environment_name}-${var.service_name}-publish-storage-sync-enqueue-failed"
+  log_group_name = data.terraform_remote_state.ecs_cluster.outputs.cloudwatch_log_group_name
+  pattern        = "{ ($.logLevel = \"ERROR\") && ($.message = \"*publish-storage-sync enqueue failed*\") }"
+
+  metric_transformation {
+    name          = "PublishStorageSyncEnqueueFailed"
+    namespace     = local.publish_storage_sync_metric_namespace
+    value         = "1"
+    default_value = "0"
+  }
+}
+
+resource "aws_cloudwatch_log_metric_filter" "publish_storage_sync_ssm_read_failed" {
+  name           = "${var.environment_name}-${var.service_name}-publish-storage-sync-ssm-read-failed"
+  log_group_name = data.terraform_remote_state.ecs_cluster.outputs.cloudwatch_log_group_name
+  pattern        = "{ ($.logLevel = \"ERROR\") && ($.message = \"*publish-storage-sync SSM read failed*\") }"
+
+  metric_transformation {
+    name          = "PublishStorageSyncSsmReadFailed"
+    namespace     = local.publish_storage_sync_metric_namespace
+    value         = "1"
+    default_value = "0"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "publish_storage_sync_enqueue_failed" {
+  alarm_name          = "${var.environment_name}-${var.service_name}-publish-storage-sync-enqueue-failed"
+  alarm_description   = "Publish-storage-sync SQS enqueue from discover service failed; publish chain still completed but publish-storage-sync did not run for the affected dataset(s)."
+  namespace           = local.publish_storage_sync_metric_namespace
+  metric_name         = "PublishStorageSyncEnqueueFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  # SNS topic currently routes to PagerDuty (victor_ops name is a historical artifact)
+  alarm_actions = [data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_id]
+}
+
+resource "aws_cloudwatch_metric_alarm" "publish_storage_sync_ssm_read_failed" {
+  alarm_name          = "${var.environment_name}-${var.service_name}-publish-storage-sync-ssm-read-failed"
+  alarm_description   = "Discover service could not read the publish-storage-sync enabled SSM parameter; publish chain still completed but publish-storage-sync was treated as disabled."
+  namespace           = local.publish_storage_sync_metric_namespace
+  metric_name         = "PublishStorageSyncSsmReadFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  # SNS topic currently routes to PagerDuty (victor_ops name is a historical artifact)
+  alarm_actions = [data.terraform_remote_state.account.outputs.data_management_victor_ops_sns_topic_id]
+}

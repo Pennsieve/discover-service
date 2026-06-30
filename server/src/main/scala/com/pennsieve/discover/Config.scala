@@ -34,13 +34,16 @@ case class Config(
   externalPublishBuckets: Map[S3Bucket, Arn] = Map.empty,
   athena: AthenaConfig,
   runtimeSettings: RuntimeSettings,
-  doiCollections: DoiCollections
+  doiCollections: DoiCollections,
+  ssm: SSMConfiguration,
+  publishStorageSync: PublishStorageSyncConfiguration
 )
 
 object Config {
 
   implicit val awsRegionReader = ConfigReader[String].map(Region.of(_))
   implicit val awsArnReader = ConfigReader[String].map(Arn.fromString(_))
+
   implicit val externalPublishBucketConfigurationReader
     : ConfigReader[Map[S3Bucket, Arn]] =
     ConfigReader[List[ExternalPublishBucketConfiguration]]
@@ -135,3 +138,7 @@ case class RuntimeSettings(deleteReleaseIntermediateFile: Boolean)
 case class DoiCollections(pennsieveDoiPrefix: String, idSpace: IdSpace)
 
 case class IdSpace(id: Int, name: String)
+
+case class SSMConfiguration(region: Region, parameterPathPrefix: String)
+
+case class PublishStorageSyncConfiguration(queueUrl: String)

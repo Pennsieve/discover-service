@@ -237,10 +237,13 @@ class PublishHandler(
               case _ => requestedWorkflow
             }
 
-            // ensure we use the same S3 Bucket as previous published versions
+            // ensure we use the same S3 Bucket as previous published versions,
+            // but honor the current bucket config when the last version was
+            // unpublished (otherwise a republish stays pinned to the old bucket)
             destinationS3Bucket = latest match {
-              case Some(version) => version.s3Bucket
-              case None => targetS3Bucket
+              case Some(version) if version.status != Unpublished =>
+                version.s3Bucket
+              case _ => targetS3Bucket
             }
 
             version <- PublicDatasetVersionsMapper
