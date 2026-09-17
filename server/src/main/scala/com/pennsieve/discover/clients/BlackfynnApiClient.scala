@@ -31,7 +31,9 @@ trait PennsieveApiClient {
     */
   def putPublishComplete(
     publishStatus: DatasetPublishStatus,
-    error: Option[String] = None
+    error: Option[String] = None,
+    publishedVersion: Option[Int] = None,
+    doi: Option[String] = None
   )(implicit
     ec: ExecutionContext
   ): EitherT[Future, HttpError, Unit]
@@ -99,7 +101,9 @@ class PennsieveApiClientImpl(
 
   def putPublishComplete(
     publishStatus: DatasetPublishStatus,
-    error: Option[String] = None
+    error: Option[String] = None,
+    publishedVersion: Option[Int] = None,
+    doi: Option[String] = None
   )(implicit
     ec: ExecutionContext
   ): EitherT[Future, HttpError, Unit] = {
@@ -121,8 +125,10 @@ class PennsieveApiClientImpl(
             publishedVersionCount = publishStatus.publishedVersionCount,
             lastPublishedDate = publishStatus.lastPublishedDate,
             status = publishStatus.status,
-            success,
-            error
+            success = success,
+            error = error,
+            publishedVersion = publishedVersion,
+            doi = doi
           ).asJson.toString
         )
       )
@@ -227,7 +233,9 @@ case class PublishCompleteRequest(
   lastPublishedDate: Option[OffsetDateTime],
   status: PublishStatus,
   success: Boolean,
-  error: Option[String]
+  error: Option[String],
+  publishedVersion: Option[Int] = None,
+  doi: Option[String] = None
 )
 
 object PublishCompleteRequest {
