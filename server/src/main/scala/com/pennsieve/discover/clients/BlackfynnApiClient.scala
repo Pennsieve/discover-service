@@ -31,7 +31,9 @@ trait PennsieveApiClient {
     */
   def putPublishComplete(
     publishStatus: DatasetPublishStatus,
-    error: Option[String] = None
+    error: Option[String] = None,
+    publishedVersion: Option[Int] = None,
+    doi: Option[String] = None
   )(implicit
     ec: ExecutionContext
   ): EitherT[Future, HttpError, Unit]
@@ -99,7 +101,9 @@ class PennsieveApiClientImpl(
 
   def putPublishComplete(
     publishStatus: DatasetPublishStatus,
-    error: Option[String] = None
+    error: Option[String] = None,
+    publishedVersion: Option[Int] = None,
+    doi: Option[String] = None
   )(implicit
     ec: ExecutionContext
   ): EitherT[Future, HttpError, Unit] = {
@@ -121,8 +125,10 @@ class PennsieveApiClientImpl(
             publishedVersionCount = publishStatus.publishedVersionCount,
             lastPublishedDate = publishStatus.lastPublishedDate,
             status = publishStatus.status,
-            success,
-            error
+            success = success,
+            error = error,
+            publishedVersion = publishedVersion,
+            doi = doi
           ).asJson.toString
         )
       )
@@ -221,13 +227,25 @@ object DatasetPreview {
     deriveDecoder[DatasetPreview]
 }
 
+// TODO: this case class is hand-duplicated in pennsieve-api's
+// DataSetsController.scala with no shared contract enforcing they stay in
+// sync. Revisit the API contract between the two services — consider a
+// generated/shared schema, and reconsider whether publishedVersionCount
+// (a count of successful versions for the dataset) and publishedVersion
+// (the specific version number of the publish job that just completed)
+// both need to travel on this request, or whether putPublishComplete's
+// signature could be simplified (e.g. passing the actual
+// PublicDatasetVersion instead of an aggregate DatasetPublishStatus plus
+// bolted-on extra fields).
 case class PublishCompleteRequest(
   publishedDatasetId: Option[Int],
   publishedVersionCount: Int,
   lastPublishedDate: Option[OffsetDateTime],
   status: PublishStatus,
   success: Boolean,
-  error: Option[String]
+  error: Option[String],
+  publishedVersion: Option[Int] = None,
+  doi: Option[String] = None
 )
 
 object PublishCompleteRequest {

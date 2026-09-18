@@ -394,7 +394,12 @@ class SQSNotificationHandler(
       // Notify Pennsieve API that publishing has completed
       _ = ports.log.info("handleSuccess() notify API")
       _ <- ports.pennsieveApiClient
-        .putPublishComplete(publishStatus, None)
+        .putPublishComplete(
+          publishStatus,
+          error = None,
+          publishedVersion = Some(updatedVersion.version),
+          doi = Some(updatedVersion.doi)
+        )
         .value
         .flatMap(_.fold(Future.failed, Future.successful))
 

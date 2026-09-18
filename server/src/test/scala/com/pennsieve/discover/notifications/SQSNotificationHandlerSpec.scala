@@ -202,7 +202,9 @@ class SQSNotificationHandlerSpec
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version5
           ),
-          None
+          None,
+          Some(publicVersion.version),
+          Some(publicVersion.doi)
         )
       )
 
@@ -326,7 +328,9 @@ class SQSNotificationHandlerSpec
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version5
           ),
-          None
+          None,
+          Some(publicVersion.version),
+          Some(publicVersion.doi)
         )
       )
 
@@ -413,7 +417,9 @@ class SQSNotificationHandlerSpec
             None,
             workflowId = PublishingWorkflow.Version4
           ),
-          Some(s"Version ${publicVersion.version} failed to publish")
+          Some(s"Version ${publicVersion.version} failed to publish"),
+          None,
+          None
         )
       )
 
@@ -487,7 +493,9 @@ class SQSNotificationHandlerSpec
             None,
             workflowId = PublishingWorkflow.Version4
           ),
-          Some(s"Version ${publicVersion.version} failed to publish")
+          Some(s"Version ${publicVersion.version} failed to publish"),
+          None,
+          None
         )
       )
 
@@ -621,6 +629,8 @@ class SQSNotificationHandlerSpec
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version4
           ),
+          None,
+          None,
           None
         )
       )
@@ -713,7 +723,9 @@ class SQSNotificationHandlerSpec
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version4
           ),
-          Some(s"Version ${publicVersion.version} failed to release")
+          Some(s"Version ${publicVersion.version} failed to release"),
+          None,
+          None
         )
       )
 
@@ -1329,7 +1341,9 @@ class SQSNotificationHandlerSpec
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version5
           ),
-          None
+          None,
+          Some(publicVersion.version),
+          Some(publicVersion.doi)
         )
       )
 

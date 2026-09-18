@@ -12,15 +12,19 @@ import scala.concurrent.{ ExecutionContext, Future }
 class MockPennsieveApiClient extends PennsieveApiClient {
 
   val publishCompleteRequests =
-    ListBuffer.empty[(DatasetPublishStatus, Option[String])]
+    ListBuffer.empty[
+      (DatasetPublishStatus, Option[String], Option[Int], Option[String])
+    ]
 
   def putPublishComplete(
     publishStatus: DatasetPublishStatus,
-    error: Option[String] = None
+    error: Option[String] = None,
+    publishedVersion: Option[Int] = None,
+    doi: Option[String] = None
   )(implicit
     ec: ExecutionContext
   ): EitherT[Future, HttpError, Unit] = {
-    publishCompleteRequests += ((publishStatus, error))
+    publishCompleteRequests += ((publishStatus, error, publishedVersion, doi))
     EitherT.pure(())
   }
 

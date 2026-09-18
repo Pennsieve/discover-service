@@ -38,7 +38,9 @@ trait DiscoverServiceS3DockerContainer extends StackedDockerContainer {
 
 final class DiscoverServiceS3DockerContainerImpl
     extends DockerContainer(
-      dockerImage = s"minio/minio:${DiscoverServiceS3DockerContainer.minioTag}",
+      // minio/minio was removed from Docker Hub; images now live on Quay.
+      dockerImage =
+        s"quay.io/minio/minio:${DiscoverServiceS3DockerContainer.minioTag}",
       exposedPorts = Seq(DiscoverServiceS3DockerContainer.port),
       env = Map(
         "MINIO_ROOT_USER" -> DiscoverServiceS3DockerContainer.accessKey,
