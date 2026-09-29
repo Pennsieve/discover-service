@@ -23,7 +23,6 @@ import java.net.URI
 // named to avoid accidental conflict with com.pennsieve.test.S3DockerContainer which uses
 // an older version of minio.
 object DiscoverServiceS3DockerContainer {
-  val minioTag = "RELEASE.2022-10-20T00-55-09Z"
   val accessKey: String = "access_key"
   val secretKey: String = "access_secret"
   val port: Int = 9000
@@ -38,9 +37,10 @@ trait DiscoverServiceS3DockerContainer extends StackedDockerContainer {
 
 final class DiscoverServiceS3DockerContainerImpl
     extends DockerContainer(
-      // minio/minio was removed from Docker Hub; images now live on Quay.
-      dockerImage =
-        s"quay.io/minio/minio:${DiscoverServiceS3DockerContainer.minioTag}",
+      // minio/minio was removed from Docker Hub, and the quay.io/minio/minio
+      // mirror was withdrawn too; chainguard/minio is the current anonymous
+      // drop-in (see docker-compose.test.yml elsewhere in the fleet).
+      dockerImage = "chainguard/minio:latest",
       exposedPorts = Seq(DiscoverServiceS3DockerContainer.port),
       env = Map(
         "MINIO_ROOT_USER" -> DiscoverServiceS3DockerContainer.accessKey,
