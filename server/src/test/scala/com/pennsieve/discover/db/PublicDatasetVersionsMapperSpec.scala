@@ -536,7 +536,8 @@ class PublicDatasetVersionsMapperSpec
       PublishSucceeded,
       Some(publicDatasetV2.createdAt),
       workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV2))
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV2)),
+      latestPublishedVersion = Some(publicDatasetV2.version)
     )
 
     val result = ports.db
@@ -572,7 +573,8 @@ class PublicDatasetVersionsMapperSpec
       PublishStatus.PublishInProgress,
       Some(publicDatasetV1.createdAt),
       workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1)),
+      latestPublishedVersion = Some(publicDatasetV1.version)
     )
 
     val result = ports.db
@@ -604,7 +606,8 @@ class PublicDatasetVersionsMapperSpec
       PublishStatus.Unpublished,
       Some(publicDatasetV1.createdAt),
       workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1)),
+      latestPublishedVersion = Some(publicDatasetV1.version)
     )
 
     val result = ports.db
@@ -620,6 +623,43 @@ class PublicDatasetVersionsMapperSpec
     assert(result == expected)
   }
 
+  "report the latest version number separately from the published version count" in {
+    val publicDataset = TestUtilities.createDataset(ports.db)()
+    TestUtilities.createNewDatasetVersion(ports.db)(
+      id = publicDataset.id,
+      status = Unpublished
+    )
+    TestUtilities.createNewDatasetVersion(ports.db)(
+      id = publicDataset.id,
+      status = PublishSucceeded
+    )
+
+    def getStatus(): DatasetPublishStatus =
+      ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getDatasetStatus(
+              publicDataset.sourceOrganizationId,
+              publicDataset.sourceDatasetId
+            )
+        )
+        .await
+
+    // Republished after an unpublish: v1 keeps its number but is not counted
+    val republished = getStatus()
+    republished.publishedVersionCount shouldBe 1
+    republished.latestPublishedVersion shouldBe Some(2)
+
+    TestUtilities.createNewDatasetVersion(ports.db)(
+      id = publicDataset.id,
+      status = PublishSucceeded
+    )
+
+    val newVersion = getStatus()
+    newVersion.publishedVersionCount shouldBe 2
+    newVersion.latestPublishedVersion shouldBe Some(3)
+  }
+
   "return the status of a dataset that has never been published" in {
     val expected = DatasetPublishStatus(
       "",
@@ -629,7 +669,8 @@ class PublicDatasetVersionsMapperSpec
       0,
       PublishStatus.NotPublished,
       None,
-      workflowId = PublishingWorkflow.Unknown
+      workflowId = PublishingWorkflow.Unknown,
+      latestPublishedVersion = None
     )
 
     val result = ports.db
@@ -666,7 +707,8 @@ class PublicDatasetVersionsMapperSpec
       PublishStatus.PublishSucceeded,
       Some(publicDatasetV1.createdAt),
       workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1)),
+      latestPublishedVersion = Some(publicDatasetV1.version)
     )
 
     val result = ports.db
@@ -703,7 +745,8 @@ class PublicDatasetVersionsMapperSpec
       PublishStatus.PublishSucceeded,
       Some(publicDatasetV1.createdAt),
       workflowId =
-        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1))
+        PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1)),
+      latestPublishedVersion = Some(publicDatasetV1.version)
     )
 
     val result = ports.db

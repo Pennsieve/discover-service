@@ -1261,6 +1261,15 @@ components:
         workflowId:
           type: integer
           format: int64
+        latestPublishedVersion:
+          description: >
+            Version number of the latest visible version (the same version
+            that publishedDatasetId and lastPublishedDate describe). Absent if
+            the dataset has never been published. Unlike publishedVersionCount,
+            which counts versions in status PublishSucceeded, this is an actual
+            version number.
+          type: integer
+          format: int32
 
     InternalCollection:
       type: object
