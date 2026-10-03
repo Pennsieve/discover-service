@@ -1127,6 +1127,13 @@ class DatasetHandler(
           }
         }
         .recover {
+          case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
+            GuardrailResource.DownloadManifestResponse
+              .NotFound(s"$datasetId/$versionId")
+          case DatasetUnpublishedException(dataset, version) =>
+            GuardrailResource.DownloadManifestResponse.Gone(
+              models.TombstoneDTO(dataset, version)
+            )
           case DatasetTooLargeException =>
             GuardrailResource.DownloadManifestResponse
               .Forbidden("requested files are too large to download")

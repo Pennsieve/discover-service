@@ -508,7 +508,8 @@ object PublicFileVersionsMapper
         val s3Key = S3Key.File(r.nextString())
         val size = r.nextLong()
         val s3Version = r.nextString()
-        FileDownloadDTO(version, name, s3Key, size, Some(s3Version))
+        val sha256 = r.nextStringOption()
+        FileDownloadDTO(version, name, s3Key, size, Some(s3Version), sha256)
       }
     )
     val datasetId = version.datasetId
