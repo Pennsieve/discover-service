@@ -100,3 +100,10 @@ variable "ecs_s3_storage_cleanup_task_enabled" {
   description = "Enable/disable the ECS s3 storage cleanup task feature"
   default     = "false"
 }
+
+// Serve download-service's download-resolve route (public downloads). Needs
+// download-service's resolve key to exist first.
+variable "download_resolve_enabled" {
+  type    = bool
+  default = false
+}

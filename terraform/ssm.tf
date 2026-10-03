@@ -411,3 +411,22 @@ resource "aws_ssm_parameter" "publish_storage_sync_queue_url" {
   type  = "String"
   value = data.terraform_remote_state.publish_storage_sync.outputs.publish_storage_sync_queue_url
 }
+
+// DOWNLOAD-SERVICE RESOLVE KEY
+// download-service generates the key (its own SSM parameter) and signs
+// download-resolve tokens with it; this copies it, by name, to where
+// discover-service's configuration is read (DOWNLOAD_RESOLVE_KEY). It's
+// accepted only on the download-resolve route. Never enabled in clin.
+
+data "aws_ssm_parameter" "download_service_resolve_key" {
+  count           = var.download_resolve_enabled ? 1 : 0
+  name            = "/${var.environment_name}/download-service/resolve-key"
+  with_decryption = true
+}
+
+resource "aws_ssm_parameter" "download_resolve_key" {
+  count = var.download_resolve_enabled ? 1 : 0
+  name  = "/${var.environment_name}/${var.service_name}/download-resolve-key"
+  type  = "SecureString"
+  value = data.aws_ssm_parameter.download_service_resolve_key[0].value
+}
