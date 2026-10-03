@@ -11,7 +11,7 @@ import java.time.Instant
 import java.util.Base64
 
 object ResolveTokenSpec {
-  val key: String = "k" * 40
+  val secret: String = "k" * 40
 
   private def b64(json: Json): String =
     Base64.getUrlEncoder.withoutPadding
@@ -20,7 +20,7 @@ object ResolveTokenSpec {
   /** A token as download-service (golang-jwt) mints it. */
   def mint(
     now: Instant,
-    key: String = key,
+    key: String = secret,
     alg: String = "HS256",
     iss: String = ResolveToken.Issuer,
     aud: Json = Json.arr(Json.fromString(ResolveToken.Audience)),
@@ -50,42 +50,42 @@ class ResolveTokenSpec extends AnyWordSpec with Matchers {
 
   "ResolveToken.verify" should {
     "accept a token download-service minted" in {
-      ResolveToken.verify(mint(now), key, now) shouldBe Right(())
+      ResolveToken.verify(mint(now), secret, now) shouldBe Right(())
     }
 
     "accept a single-string audience" in {
       ResolveToken.verify(
         mint(now, aud = Json.fromString(ResolveToken.Audience)),
-        key,
+        secret,
         now
       ) shouldBe Right(())
     }
 
     "refuse a token signed with another key, such as the platform JWT key" in {
-      ResolveToken.verify(mint(now, key = "p" * 40), key, now) shouldBe Left(
+      ResolveToken.verify(mint(now, key = "p" * 40), secret, now) shouldBe Left(
         "bad signature"
       )
     }
 
     "refuse other issuers, audiences and algorithms" in {
-      ResolveToken.verify(mint(now, iss = "someone"), key, now) shouldBe Left(
+      ResolveToken.verify(mint(now, iss = "someone"), secret, now) shouldBe Left(
         "wrong issuer"
       )
       ResolveToken.verify(
         mint(now, aud = Json.arr(Json.fromString("pennsieve"))),
-        key,
+        secret,
         now
       ) shouldBe Left("wrong audience")
-      ResolveToken.verify(mint(now, alg = "none"), key, now) shouldBe Left(
+      ResolveToken.verify(mint(now, alg = "none"), secret, now) shouldBe Left(
         "unexpected algorithm"
       )
     }
 
     "refuse an expired or long-lived token" in {
-      ResolveToken.verify(mint(now), key, now.plusSeconds(200)) shouldBe Left(
+      ResolveToken.verify(mint(now), secret, now.plusSeconds(200)) shouldBe Left(
         "expired"
       )
-      ResolveToken.verify(mint(now, lifetime = 3600), key, now) shouldBe Left(
+      ResolveToken.verify(mint(now, lifetime = 3600), secret, now) shouldBe Left(
         "lifetime too long"
       )
     }
@@ -97,10 +97,10 @@ class ResolveTokenSpec extends AnyWordSpec with Matchers {
     }
 
     "refuse malformed tokens" in {
-      ResolveToken.verify("not-a-token", key, now) shouldBe Left(
+      ResolveToken.verify("not-a-token", secret, now) shouldBe Left(
         "malformed token"
       )
-      ResolveToken.verify("a.b.c", key, now).isLeft shouldBe true
+      ResolveToken.verify("a.b.c", secret, now).isLeft shouldBe true
     }
   }
 

@@ -38,7 +38,7 @@ class ResolveHandlerSpec
     ports.copy(
       config = ports.config.copy(
         downloadResolve =
-          DownloadResolveConfiguration(Some(ResolveTokenSpec.key))
+          DownloadResolveConfiguration(Some(ResolveTokenSpec.secret))
       )
     )
 
