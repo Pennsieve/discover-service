@@ -31,7 +31,7 @@ import com.pennsieve.discover.server.definitions.{
   InternalContributor
 }
 import com.pennsieve.discover.{ Authenticator, Ports }
-import com.pennsieve.doi.models.DoiDTO
+import com.pennsieve.doi.models.{ DoiDTO, DoiMetadata }
 import com.pennsieve.models.{ DatasetType, FileManifest, PublishStatus }
 import com.pennsieve.service.utilities.LogContext
 import io.circe.parser.decode
@@ -40,7 +40,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 import software.amazon.awssdk.services.sqs.model.{ Message, SendMessageRequest }
 
-import java.time.LocalDate
+import java.time.{ LocalDate, ZoneOffset }
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -703,7 +703,15 @@ class SQSNotificationHandler(
         license = Some(publicDataset.license),
         collections = collections,
         externalPublications = externalPublications,
-        headers = headers
+        headers = headers,
+        metadata = DoiMetadata(
+          keywords = Some(publicDataset.tags),
+          size = Some(version.size),
+          fileCount = Some(version.fileCount.toInt),
+          publishedAt = Some(version.createdAt),
+          availableAt = version.embargoReleaseDate
+            .map(_.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime)
+        )
       )
     } yield (doi)
 

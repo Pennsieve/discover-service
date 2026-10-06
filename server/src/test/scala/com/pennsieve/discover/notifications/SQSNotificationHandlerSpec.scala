@@ -1005,6 +1005,11 @@ class SQSNotificationHandlerSpec
           .map(
             p => (p.doi.toString(), p.relationshipType.getOrElse(References))
           )
+
+      publishRequest.metadata.keywords shouldBe Some(publicDataset.tags)
+      publishRequest.metadata.size shouldBe defined
+      publishRequest.metadata.fileCount shouldBe defined
+      publishRequest.metadata.publishedAt shouldBe defined
     }
 
     "complete publish successfully even if getting the publish-storage-sync enabled SSM parameter fails" in {

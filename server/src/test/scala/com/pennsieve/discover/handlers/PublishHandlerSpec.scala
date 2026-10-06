@@ -1647,6 +1647,17 @@ class PublishHandlerSpec
 
       doiExternalPubData should contain theSameElementsAs internalExternalPubData
 
+      val doiMetadata = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .reviseRequests
+        .get(version.doi)
+        .value
+        .metadata
+
+      doiMetadata.keywords shouldBe defined
+      doiMetadata.size shouldBe defined
+      doiMetadata.fileCount shouldBe defined
+      doiMetadata.revisedAt shouldBe defined
     }
 
   }
