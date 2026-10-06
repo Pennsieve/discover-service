@@ -28,7 +28,7 @@ import com.pennsieve.discover.server.publish.{
 }
 import com.pennsieve.discover._
 import com.pennsieve.discover.search.Search
-import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.doi.models.{ DoiDTO, DoiMetadata, DoiState }
 import com.pennsieve.models.{
   FileManifest,
   License,
@@ -570,7 +570,13 @@ class PublishHandler(
               license = Some(revisedDataset.license),
               collections = collections,
               externalPublications = externalPublications,
-              headers
+              headers = headers,
+              metadata = DoiMetadata(
+                keywords = Some(revisedDataset.tags),
+                size = Some(revisedVersion.size),
+                fileCount = Some(revisedVersion.fileCount.toInt),
+                revisedAt = Some(revision.createdAt)
+              )
             )
         )
 
