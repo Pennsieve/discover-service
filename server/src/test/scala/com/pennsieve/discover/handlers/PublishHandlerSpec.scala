@@ -1654,9 +1654,13 @@ class PublishHandlerSpec
         .value
         .metadata
 
+      val revisedVersion = run(
+        PublicDatasetVersionsMapper.getLatestVersion(publicDataset.id)
+      ).get
+
       doiMetadata.keywords shouldBe defined
-      doiMetadata.size shouldBe defined
-      doiMetadata.fileCount shouldBe defined
+      doiMetadata.size shouldBe Some(revisedVersion.size)
+      doiMetadata.fileCount shouldBe Some(revisedVersion.fileCount.toInt)
       doiMetadata.revisedAt shouldBe defined
     }
 
