@@ -423,14 +423,15 @@ object PublicDatasetVersionsMapper
       case None => // this dataset has never been published
         DBIO.successful(
           DatasetPublishStatus(
-            "",
-            sourceOrganizationId,
-            sourceDatasetId,
-            None,
-            0,
-            PublishStatus.NotPublished,
-            None,
-            workflowId = PublishingWorkflow.Unknown
+            name = "",
+            sourceOrganizationId = sourceOrganizationId,
+            sourceDatasetId = sourceDatasetId,
+            publishedDatasetId = None,
+            publishedVersionCount = 0,
+            status = PublishStatus.NotPublished,
+            lastPublishedDate = None,
+            workflowId = PublishingWorkflow.Unknown,
+            latestPublishedVersion = None
           )
         )
     })
@@ -450,6 +451,10 @@ object PublicDatasetVersionsMapper
     *
     * This computes the latest published version, status of the last attempted
     * publish job, and number of successfully published versions.
+    *
+    * Note that the number of successfully published versions is not the
+    * latest version number: unpublished versions keep their numbers but are
+    * not counted. Use `latestPublishedVersion` for the version number.
     */
   def datasetStatusForQuery(
     baseQuery: Query[PublicDatasetsTable, PublicDataset, Seq]
@@ -493,7 +498,8 @@ object PublicDatasetVersionsMapper
               case Sponsorship(_, title, imageUrl, markup, _) =>
                 SponsorshipRequest(title, imageUrl, markup)
             },
-            workflowId = PublishingWorkflowIdentifier.workflowid(latestVersion)
+            workflowId = PublishingWorkflowIdentifier.workflowid(latestVersion),
+            latestPublishedVersion = latestPublished.map(_.version)
           )
       }
 

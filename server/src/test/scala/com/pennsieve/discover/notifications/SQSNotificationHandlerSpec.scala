@@ -200,7 +200,8 @@ class SQSNotificationHandlerSpec
             1,
             PublishStatus.PublishSucceeded,
             Some(publicVersion.createdAt),
-            workflowId = PublishingWorkflow.Version5
+            workflowId = PublishingWorkflow.Version5,
+            latestPublishedVersion = Some(publicVersion.version)
           ),
           None,
           Some(publicVersion.version),
@@ -326,7 +327,8 @@ class SQSNotificationHandlerSpec
             0, //no published versions yet, because this is embargoed
             PublishStatus.EmbargoSucceeded,
             Some(publicVersion.createdAt),
-            workflowId = PublishingWorkflow.Version5
+            workflowId = PublishingWorkflow.Version5,
+            latestPublishedVersion = Some(publicVersion.version)
           ),
           None,
           Some(publicVersion.version),
@@ -627,7 +629,8 @@ class SQSNotificationHandlerSpec
             1,
             PublishStatus.PublishSucceeded,
             Some(publicVersion.createdAt),
-            workflowId = PublishingWorkflow.Version4
+            workflowId = PublishingWorkflow.Version4,
+            latestPublishedVersion = Some(publicVersion.version)
           ),
           None,
           None,
@@ -721,7 +724,8 @@ class SQSNotificationHandlerSpec
             0,
             PublishStatus.ReleaseFailed,
             Some(publicVersion.createdAt),
-            workflowId = PublishingWorkflow.Version4
+            workflowId = PublishingWorkflow.Version4,
+            latestPublishedVersion = Some(publicVersion.version)
           ),
           Some(s"Version ${publicVersion.version} failed to release"),
           None,
@@ -1344,7 +1348,8 @@ class SQSNotificationHandlerSpec
             1,
             PublishStatus.PublishSucceeded,
             Some(publicVersion.createdAt),
-            workflowId = PublishingWorkflow.Version5
+            workflowId = PublishingWorkflow.Version5,
+            latestPublishedVersion = Some(publicVersion.version)
           ),
           None,
           Some(publicVersion.version),
