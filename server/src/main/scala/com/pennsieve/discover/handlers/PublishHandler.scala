@@ -28,7 +28,7 @@ import com.pennsieve.discover.server.publish.{
 }
 import com.pennsieve.discover._
 import com.pennsieve.discover.search.Search
-import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.doi.models.{ DoiDTO, DoiMetadata, DoiState }
 import com.pennsieve.models.{
   FileManifest,
   License,
@@ -551,29 +551,6 @@ class PublishHandler(
         )
         headers = List(Authorization(OAuth2BearerToken(token.value)))
 
-        _ <- DBIO.from(
-          ports.doiClient
-            .reviseDoi(
-              doi = version.doi,
-              name = body.name,
-              contributors = contributors,
-              owner = Some(
-                InternalContributor(
-                  id = body.ownerId,
-                  firstName = body.ownerFirstName,
-                  lastName = body.ownerLastName,
-                  orcid = Some(body.ownerOrcid)
-                )
-              ),
-              version = Some(revisedVersion.version),
-              description = Some(revisedVersion.description),
-              license = Some(revisedDataset.license),
-              collections = collections,
-              externalPublications = externalPublications,
-              headers
-            )
-        )
-
         _ = ports.log.info(
           s"revision: start copying metadata for dataset ${revisedDataset.id} version ${revisedVersion.version}"
         )
@@ -614,16 +591,49 @@ class PublishHandler(
         _ = ports.log.info(
           s"revision: setting result metadata for dataset ${revisedDataset.id} version ${revisedVersion.version}"
         )
+        revisedSize = revisedVersion.size + revisionUpdate.newFiles.asList
+          .map(_.size)
+          .sum
+        revisedFileCount = revisedVersion.fileCount + revisionUpdate.newFiles.asList.length
+
         _ <- PublicDatasetVersionsMapper.setResultMetadata(
           version = revisedVersion,
-          size = revisedVersion.size + revisionUpdate.newFiles.asList
-            .map(_.size)
-            .sum,
-          fileCount = revisedVersion.fileCount + revisionUpdate.newFiles.asList.length,
+          size = revisedSize,
+          fileCount = revisedFileCount,
           readme = Some(revisionUpdate.revisionAssets.readme.assetKey),
           banner = Some(revisionUpdate.revisionAssets.banner.assetKey),
           changelog = Some(revisionUpdate.revisionAssets.changelog.assetKey)
         )
+
+        _ <- DBIO.from(
+          ports.doiClient
+            .reviseDoi(
+              doi = version.doi,
+              name = body.name,
+              contributors = contributors,
+              owner = Some(
+                InternalContributor(
+                  id = body.ownerId,
+                  firstName = body.ownerFirstName,
+                  lastName = body.ownerLastName,
+                  orcid = Some(body.ownerOrcid)
+                )
+              ),
+              version = Some(revisedVersion.version),
+              description = Some(revisedVersion.description),
+              license = Some(revisedDataset.license),
+              collections = collections,
+              externalPublications = externalPublications,
+              headers = headers,
+              metadata = DoiMetadata(
+                keywords = Some(revisedDataset.tags),
+                size = Some(revisedSize),
+                fileCount = Some(revisedFileCount.toInt),
+                revisedAt = Some(revision.createdAt)
+              )
+            )
+        )
+
         sponsorship <- SponsorshipsMapper.maybeGetByDataset(dataset)
 
         _ = ports.log.info(

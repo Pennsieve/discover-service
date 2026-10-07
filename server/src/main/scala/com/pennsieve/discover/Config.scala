@@ -36,7 +36,8 @@ case class Config(
   runtimeSettings: RuntimeSettings,
   doiCollections: DoiCollections,
   ssm: SSMConfiguration,
-  publishStorageSync: PublishStorageSyncConfiguration
+  publishStorageSync: PublishStorageSyncConfiguration,
+  downloadResolve: DownloadResolveConfiguration = DownloadResolveConfiguration()
 )
 
 object Config {
@@ -57,6 +58,12 @@ object Config {
 }
 
 case class JwtConfig(key: String, duration: FiniteDuration = 5.minutes)
+
+/**
+  * The key download-service signs download-resolve tokens with
+  * (ResolveToken). Unset, the route refuses every request.
+  */
+case class DownloadResolveConfiguration(key: Option[String] = None)
 
 case class PostgresConfiguration(
   host: String,

@@ -18,7 +18,7 @@ import com.pennsieve.doi.client.doi.{
   PublishDoiResponse
 }
 import com.pennsieve.doi.models.DoiState.Registered
-import com.pennsieve.doi.models.{ DoiDTO, DoiState }
+import com.pennsieve.doi.models.{ DoiDTO, DoiMetadata, DoiState }
 import com.pennsieve.models.License
 import io.circe.syntax._
 
@@ -29,10 +29,11 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Random
 
 // RequestCapture holds request arguments passed to publishDoi and reviseDoi.
-// Only externalPublications are captured now, but others may be added as needed.
+// Only externalPublications and metadata are captured now, but others may be added as needed.
 case class RequestCapture(
   doi: String,
-  externalPublications: List[PublicExternalPublication]
+  externalPublications: List[PublicExternalPublication],
+  metadata: DoiMetadata = DoiMetadata()
 )
 
 class MockDoiClient(
@@ -114,7 +115,8 @@ class MockDoiClient(
     license: Option[License] = None,
     collections: List[PublicCollection] = List.empty,
     externalPublications: List[PublicExternalPublication] = List.empty,
-    headers: List[HttpHeader]
+    headers: List[HttpHeader],
+    metadata: DoiMetadata = DoiMetadata()
   ): Future[DoiDTO] =
     dois.get(doi) match {
       case Some(dto) => {
@@ -125,7 +127,11 @@ class MockDoiClient(
           url = Some(url),
           publisher = publisher.getOrElse(dto.publisher)
         )
-        publishRequests += doi -> RequestCapture(doi, externalPublications)
+        publishRequests += doi -> RequestCapture(
+          doi,
+          externalPublications,
+          metadata
+        )
         dois += doi -> published
         Future.successful(published)
       }
@@ -142,7 +148,8 @@ class MockDoiClient(
     license: Option[License] = None,
     collections: List[PublicCollection] = List.empty,
     externalPublications: List[PublicExternalPublication] = List.empty,
-    headers: List[HttpHeader]
+    headers: List[HttpHeader],
+    metadata: DoiMetadata = DoiMetadata()
   ): Future[DoiDTO] =
     dois.get(doi) match {
       case Some(dto) => {
@@ -151,7 +158,11 @@ class MockDoiClient(
           creators = Some(contributors.map(c => Some(c.fullName)))
         )
         dois += doi -> revised
-        reviseRequests += doi -> RequestCapture(doi, externalPublications)
+        reviseRequests += doi -> RequestCapture(
+          doi,
+          externalPublications,
+          metadata
+        )
         Future.successful(revised)
       }
       case None => Future.failed(NoDoiException)

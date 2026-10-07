@@ -15,7 +15,7 @@ import com.pennsieve.doi.client.doi.{
   PublishDoiResponse,
   ReviseDoiResponse
 }
-import com.pennsieve.doi.models.DoiDTO
+import com.pennsieve.doi.models.{ DoiDTO, DoiMetadata }
 import com.pennsieve.discover.{
   DoiCreationException,
   DoiServiceException,
@@ -116,7 +116,8 @@ class DoiClient(
     license: Option[License] = None,
     collections: List[PublicCollection] = List.empty,
     externalPublications: List[PublicExternalPublication] = List.empty,
-    headers: List[HttpHeader]
+    headers: List[HttpHeader],
+    metadata: DoiMetadata = DoiMetadata()
   ): Future[DoiDTO] = {
     client
       .publishDoi(
@@ -170,7 +171,12 @@ class DoiClient(
                 Vector(
                   LicenseDto(l.entryName, License.licenseUri.getOrElse(l, ""))
                 )
-            )
+            ),
+          keywords = metadata.keywords.map(_.toVector),
+          size = metadata.size,
+          fileCount = metadata.fileCount,
+          publishedAt = metadata.publishedAt,
+          availableAt = metadata.availableAt
         ),
         headers
       )
@@ -207,7 +213,8 @@ class DoiClient(
     license: Option[License] = None,
     collections: List[PublicCollection] = List.empty,
     externalPublications: List[PublicExternalPublication] = List.empty,
-    headers: List[HttpHeader]
+    headers: List[HttpHeader],
+    metadata: DoiMetadata = DoiMetadata()
   ): Future[DoiDTO] = {
     client
       .reviseDoi(
@@ -257,7 +264,11 @@ class DoiClient(
               Vector(
                 LicenseDto(l.entryName, License.licenseUri.getOrElse(l, ""))
               )
-          )
+          ),
+          keywords = metadata.keywords.map(_.toVector),
+          size = metadata.size,
+          fileCount = metadata.fileCount,
+          revisedAt = metadata.revisedAt
         ),
         headers
       )

@@ -759,6 +759,65 @@ paths:
               schema:
                 type: string
 
+  "/datasets/{datasetId}/versions/{version}/download-resolve":
+    post:
+      security: [ ]
+      summary: resolve a selection of a published version for download-service
+      operationId: downloadResolve
+      x-scala-package: resolve
+      description: >
+        Internal only, for download-service (docs/public-downloads.md in
+        download-service). Answers which files a selection of a published
+        version resolves to (bucket, key, object version) and whether the
+        caller may download them; download-service checks the answer and signs.
+        The route takes a resolve token (HS256, iss download-service, aud
+        discover-resolve) signed with the dedicated download-resolve key, not
+        the platform key; the caller's own credential, if any, comes in
+        X-Pennsieve-User-Authorization and is used only for embargoed
+        versions. Decisions fail closed, no files are returned unless the
+        decision is "allowed", and nothing is written (no download counters).
+        Files come in pages of up to 1,000 in key order; header totals are
+        for the whole selection.
+      parameters:
+        - name: datasetId
+          in: path
+          description: published dataset id
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: version
+          in: path
+          description: version number, or "latest"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadResolveRequest"
+      responses:
+        "200":
+          description: the decision and, when allowed, one page of files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadResolveResponse"
+        "400":
+          description: invalid root path or cursor
+          content:
+            application/json:
+              schema:
+                type: string
+        "401":
+          description: missing or invalid resolve token
+          content:
+            application/json:
+              schema:
+                type: string
+
 components:
   securitySchemes:
     Bearer:
@@ -767,6 +826,119 @@ components:
       bearerFormat: JWT
 
   schemas:
+    DownloadResolveRequest:
+      type: object
+      required:
+        - paths
+      properties:
+        paths:
+          type: array
+          description: files and folders of the version; [""] is the whole version
+          items:
+            type: string
+        rootPath:
+          type: string
+          description: as download-manifest; every path must begin with it
+        cursor:
+          type: string
+          description: the previous page's next
+        limit:
+          type: integer
+          format: int32
+          description: files per page, at most (and by default) 1000
+    DownloadResolveResponse:
+      type: object
+      required:
+        - decision
+        - version
+        - files
+        - skipped
+      properties:
+        decision:
+          type: string
+          description: allowed, sign_in, forbidden, not_found or unpublished
+        version:
+          $ref: "#/components/schemas/DownloadResolveVersion"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/DownloadResolveFile"
+        skipped:
+          type: array
+          items:
+            $ref: "#/components/schemas/DownloadResolveSkipped"
+        next:
+          type: string
+          description: cursor for the next page; absent on the last
+    DownloadResolveVersion:
+      type: object
+      required:
+        - number
+        - status
+        - embargoed
+        - legacy
+        - size
+        - fileCount
+      properties:
+        number:
+          type: integer
+          format: int32
+        status:
+          type: string
+        embargoed:
+          type: boolean
+        legacy:
+          type: boolean
+          description: an unmigrated (4.x) version, whose files have no object versions
+        size:
+          type: integer
+          format: int64
+          description: bytes in the whole selection
+        fileCount:
+          type: integer
+          format: int32
+          description: files in the whole selection
+    DownloadResolveFile:
+      type: object
+      required:
+        - path
+        - fileName
+        - bucket
+        - key
+        - size
+      properties:
+        path:
+          type: array
+          items:
+            type: string
+        fileName:
+          type: string
+        bucket:
+          type: string
+        key:
+          type: string
+        s3Version:
+          type: string
+        size:
+          type: integer
+          format: int64
+        sha256:
+          type: string
+    DownloadResolveSkipped:
+      type: object
+      required:
+        - path
+        - fileName
+        - reason
+      properties:
+        path:
+          type: array
+          items:
+            type: string
+        fileName:
+          type: string
+        reason:
+          type: string
     BucketConfig:
       description: Holds an organization's custom publish and embargo bucket names. Not used if organization does not use its own buckets.
       type: object

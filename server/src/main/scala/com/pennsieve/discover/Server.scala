@@ -83,6 +83,8 @@ object Server extends App with StrictLogging {
       // JWT-protected service-level routes.
       concat(
         HealthcheckHandler.routes(ports),
+        // Internal only: never under /public, and only with a resolve token.
+        ResolveHandler.routes(ports),
         SyncHandler.routes(ports),
         PublishHandler.routes(ports),
         SearchHandler.routes(ports),
