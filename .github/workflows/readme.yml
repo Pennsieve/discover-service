@@ -15,6 +15,11 @@ jobs:
           find: "https://api.pennsieve.io"
           replace: "https://api.pennsieve.io/discover"
           include: "openapi/discover-service.yml"
-      - uses: readmeio/rdme@v9
+      - uses: readmeio/rdme@v10
         with:
-          rdme: openapi openapi/discover-service.yml --key=${{ secrets.README_OAS_KEY }} --id=${{ vars.README_API_DEFINITION_ID }}
+          # --slug is pinned to the repo name per the Pennsieve convention
+          # (slug == repo name) shared across the ReadMe-publishing repos.
+          # Leaving it unset lets rdme infer the slug from the spec path, which
+          # would create a SECOND definition instead of updating the live one.
+          # --confirm-overwrite is required in CI (no prompt to answer).
+          rdme: openapi upload openapi/discover-service.yml --key=${{ secrets.README_OAS_KEY }} --slug=discover-service --confirm-overwrite
