@@ -22,11 +22,6 @@ variable "download_max_size" {
   default = "10 GB"
 }
 
-# New Relic
-variable "newrelic_agent_enabled" {
-  default = "true"
-}
-
 variable "glue_db_name" {
   default = "s3_access_logs_db"
 }
@@ -57,14 +52,11 @@ variable "sparc_aod_account_number" {}
 
 locals {
   java_opts = [
-    "-javaagent:/app/newrelic.jar",
-    "-Dnewrelic.config.agent_enabled=${var.newrelic_agent_enabled}",
     "-XX:+UseContainerSupport",
     "-XshowSettings:vm",
   ]
 
   service = element(split("-", var.service_name), 0)
-  tier = element(split("-", var.service_name), 1)
 
   hosted_zone = data.terraform_remote_state.account.outputs.public_hosted_zone_id
   domain_name = data.terraform_remote_state.account.outputs.domain_name

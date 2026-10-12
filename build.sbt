@@ -212,18 +212,6 @@ lazy val server = project
           "/app/run.sh",
           chown = "pennsieve:pennsieve"
         )
-        run(
-          "wget",
-          "-qO",
-          "/app/newrelic.jar",
-          "http://download.newrelic.com/newrelic/java-agent/newrelic-agent/current/newrelic.jar"
-        )
-        run(
-          "wget",
-          "-qO",
-          "/app/newrelic.yml",
-          "http://download.newrelic.com/newrelic/java-agent/newrelic-agent/current/newrelic.yml"
-        )
         cmd(
           "--service",
           "discover-service",
