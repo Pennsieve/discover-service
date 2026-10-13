@@ -15,7 +15,7 @@ After a set period of time, embargoed datasets are **released** to the public.
 
 ## Releasing
 
-Every merge to `master` pushes a new version of `discover-service-client` to Nexus. The published JAR is versioned with the same Jenkins image tag as the service Docker container.
+Every merge to `master` pushes a new version of `discover-service-client` to Pennsieve's AWS CodeArtifact. The published JAR is versioned with the same Jenkins image tag as the service Docker container.
 
 ## ElasticSearch
 

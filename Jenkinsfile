@@ -8,46 +8,33 @@ node("executor") {
 
     def sbt = "sbt -J-XX:ReservedCodeCacheSize=256m -Dsbt.log.noformat=true -Dversion=$imageTag"
 
-    def pennsieveNexusCreds = usernamePassword(
-        credentialsId: "pennsieve-nexus-ci-login",
-        usernameVariable: "PENNSIEVE_NEXUS_USER",
-        passwordVariable: "PENNSIEVE_NEXUS_PW"
-    )
+    // sbt resolves and publishes Pennsieve libraries through AWS CodeArtifact with a
+    // short-lived token from the agent's instance role (see build.sbt).
 
     try {
         stage("Build") {
-            withCredentials([pennsieveNexusCreds]) {
-                sh "$sbt clean +compile"
-            }
+            sh "$sbt clean +compile"
         }
 
         stage("Test") {
-            withCredentials([pennsieveNexusCreds]) {
-                try {
-                    sh "$sbt coverageOn +test"
-                } finally {
-                    junit '**/target/test-reports/*.xml'
-                }
+            try {
+                sh "$sbt coverageOn +test"
+            } finally {
+                junit '**/target/test-reports/*.xml'
             }
         }
 
         stage("Test Coverage") {
-            withCredentials([pennsieveNexusCreds]) {
-                sh "$sbt +coverageReport"
-            }
+            sh "$sbt +coverageReport"
         }
 
         if (env.BRANCH_NAME == "main") {
             stage("Publish") {
-                withCredentials([pennsieveNexusCreds]) {
-                    sh "$sbt +client/publish"
-                }
+                sh "$sbt +client/publish"
             }
 
             stage("Docker") {
-                withCredentials([pennsieveNexusCreds]) {
-                    sh "$sbt clean server/docker syncElasticSearch/docker"
-                }
+                sh "$sbt clean server/docker syncElasticSearch/docker"
 
                 sh "docker tag pennsieve/discover-service:latest pennsieve/discover-service:$imageTag"
                 sh "docker push pennsieve/discover-service:latest"
