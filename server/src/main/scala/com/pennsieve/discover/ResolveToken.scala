@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
+// Copyright (c) 2026 Pennsieve, Inc. All Rights Reserved.
 
 package com.pennsieve.discover
 
@@ -63,10 +63,7 @@ object ResolveToken {
             iat <- c.get[Long]("iat").left.map(_ => "missing iat")
             nbf = c.get[Long]("nbf").getOrElse(iat)
             _ <- check(now.getEpochSecond <= exp + LeewaySeconds, "expired")
-            _ <- check(
-              nbf <= now.getEpochSecond + LeewaySeconds,
-              "not yet valid"
-            )
+            _ <- check(nbf <= now.getEpochSecond + LeewaySeconds, "not yet valid")
             _ <- check(exp - iat <= MaxLifetimeSeconds, "lifetime too long")
           } yield ()
         case _ => Left("malformed token")

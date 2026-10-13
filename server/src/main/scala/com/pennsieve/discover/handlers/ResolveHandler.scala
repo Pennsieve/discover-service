@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
+// Copyright (c) 2026 Pennsieve, Inc. All Rights Reserved.
 
 package com.pennsieve.discover.handlers
 
@@ -66,8 +66,7 @@ class ResolveHandler(
     version: String,
     body: DownloadResolveRequest
   ): Future[GuardrailResource.DownloadResolveResponse] = {
-    val limit =
-      body.limit.filter(l => l > 0 && l <= PageSize).getOrElse(PageSize)
+    val limit = body.limit.filter(l => l > 0 && l <= PageSize).getOrElse(PageSize)
     val rootPathOk =
       body.rootPath.forall(rp => body.paths.forall(_.startsWith(rp)))
 
@@ -150,9 +149,7 @@ class ResolveHandler(
             .flatMap {
               case Right(AuthorizationClient.EmbargoAuthorization.OK) =>
                 Future.successful(Allowed)
-              case Right(
-                  AuthorizationClient.EmbargoAuthorization.Unauthorized
-                  ) =>
+              case Right(AuthorizationClient.EmbargoAuthorization.Unauthorized) =>
                 Future.successful(SignIn)
               case Right(AuthorizationClient.EmbargoAuthorization.Forbidden) =>
                 Future.successful(Forbidden)
@@ -167,10 +164,7 @@ class ResolveHandler(
     limit: Int
   ): Future[GuardrailResource.DownloadResolveResponse] = {
     val query = if (version.migrated) {
-      PublicFileVersionsMapper.getFileDownloadsMatchingPaths(
-        version,
-        body.paths
-      )
+      PublicFileVersionsMapper.getFileDownloadsMatchingPaths(version, body.paths)
     } else {
       PublicFilesMapper.getFileDownloadsMatchingPaths(version, body.paths)
     }
@@ -283,10 +277,7 @@ object ResolveHandler {
       .getOrElse(d.path)
       .toVector
 
-  def fileOf(
-    d: FileDownloadDTO,
-    rootPath: Option[String]
-  ): DownloadResolveFile =
+  def fileOf(d: FileDownloadDTO, rootPath: Option[String]): DownloadResolveFile =
     DownloadResolveFile(
       path = pathOf(d, rootPath),
       fileName = d.name,
@@ -341,7 +332,9 @@ object ResolveHandler {
                 val forwarded = user
                   .flatMap(ResolveToken.bearer)
                   .map(t => Authorization(OAuth2BearerToken(t)))
-                GuardrailResource.routes(new ResolveHandler(ports, forwarded))
+                GuardrailResource.routes(
+                  new ResolveHandler(ports, forwarded)
+                )
               }
           }
         }
