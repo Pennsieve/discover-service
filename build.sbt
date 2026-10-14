@@ -217,7 +217,7 @@ lazy val server = project
     docker / dockerfile := {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
-      new SecureDockerfile("pennsieve/java-cloudwrap:10-jre-slim-0.5.9") {
+      new SecureDockerfile(SecureDockerfile.JavaImage) {
         copy(artifact, artifactTargetPath, chown = "pennsieve:pennsieve")
         copy(
           baseDirectory.value / "bin" / "run.sh",
@@ -293,7 +293,7 @@ lazy val syncElasticSearch = project
     docker / dockerfile := {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
-      new SecureDockerfile("pennsieve/java-cloudwrap:8-jre-alpine-0.5.9") {
+      new SecureDockerfile(SecureDockerfile.JavaImage) {
         copy(artifact, artifactTargetPath, chown = "pennsieve:pennsieve")
         // Reuse discover-service tag so this container has access to service's environment
         cmd(
