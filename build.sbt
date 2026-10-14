@@ -228,6 +228,7 @@ lazy val server = project
           "--service",
           "discover-service",
           "exec",
+          "--",
           "app/run.sh",
           artifactTargetPath
         )
@@ -300,6 +301,7 @@ lazy val syncElasticSearch = project
           "--service",
           "discover-service",
           "exec",
+          "--",
           "java",
           "-jar",
           artifactTargetPath
