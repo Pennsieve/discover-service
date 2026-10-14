@@ -7,7 +7,7 @@ import CrossCompilationUtil.{
 ThisBuild / organization := "com.pennsieve"
 
 lazy val scala212 = "2.12.11"
-lazy val scala213 = "2.13.8"
+lazy val scala213 = "2.13.16"
 //lazy val supportedScalaVersions = List(scala212, scala213)
 lazy val supportedScalaVersions = List(scala213)
 
@@ -16,17 +16,26 @@ ThisBuild / scalaVersion := scala213
 // Run tests in a separate JVM to prevent resource leaks.
 ThisBuild / Test / fork := true
 
-ThisBuild / resolvers ++= Seq(
-  "Pennsieve Releases" at "https://nexus.pennsieve.cc/repository/maven-releases",
-  "Pennsieve Snapshots" at "https://nexus.pennsieve.cc/repository/maven-snapshots"
-)
+// Pennsieve packages live in AWS CodeArtifact (pennsieve-cc), `maven` repository.
+// Access is IAM: the build exchanges the active AWS credentials -- the Jenkins
+// agent's instance role, or `assume-role non-prod admin` locally -- for a
+// short-lived token. CODEARTIFACT_AUTH_TOKEN, if set, is used instead.
+lazy val codeArtifactHost = "pennsieve-932986170183.d.codeartifact.us-east-1.amazonaws.com"
+lazy val codeArtifactRepo = s"https://$codeArtifactHost/maven/maven/"
+lazy val codeArtifactToken: String = sys.env.get("CODEARTIFACT_AUTH_TOKEN").getOrElse {
+  import scala.sys.process._
+  val cmd = Seq("aws", "codeartifact", "get-authorization-token", "--domain", "pennsieve",
+    "--domain-owner", "932986170183", "--region", "us-east-1",
+    "--query", "authorizationToken", "--output", "text")
+  scala.util.Try(cmd.!!(ProcessLogger(_ => ())).trim).getOrElse {
+    println("[warn] No CodeArtifact token: AWS credentials missing or not allowed. Run assume-role non-prod admin.")
+    ""
+  }
+}
 
-ThisBuild / credentials += Credentials(
-  "Sonatype Nexus Repository Manager",
-  "nexus.pennsieve.cc",
-  sys.env("PENNSIEVE_NEXUS_USER"),
-  sys.env("PENNSIEVE_NEXUS_PW")
-)
+ThisBuild / resolvers += "pennsieve" at codeArtifactRepo
+
+ThisBuild / credentials += Credentials("pennsieve/maven", codeArtifactHost, "aws", codeArtifactToken)
 
 // Until https://github.com/coursier/coursier/issues/1815 is fixed
 ThisBuild / useCoursier := false
@@ -38,7 +47,10 @@ ThisBuild / libraryDependencySchemes ++= Seq(
   "io.circe" %% "circe-core" % VersionScheme.Always,
   "io.circe" %% "circe-generic" % VersionScheme.Always,
   "io.circe" %% "circe-parser" % VersionScheme.Always,
-  "io.circe" %% "circe-jawn" % VersionScheme.Always
+  "io.circe" %% "circe-jawn" % VersionScheme.Always,
+  // With coverage on, scoverage 2's reporter brings scala-xml 2.x; akka-http-xml
+  // 10.2 was built against 1.x.
+  "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 )
 
 ThisBuild / version := sys.props.get("version").getOrElse("SNAPSHOT")
@@ -368,15 +380,11 @@ lazy val client = project
       scalaVersion.value,
       "io.circe" %% "circe-java8" % circeVersion.value
     ),
-    publishTo := {
-      val nexus = "https://nexus.pennsieve.cc/repository"
-      if (isSnapshot.value) {
-        Some("Nexus Realm" at s"$nexus/maven-snapshots")
-      } else {
-        Some("Nexus Realm" at s"$nexus/maven-releases")
-      }
-    },
+    publishTo := Some("pennsieve" at codeArtifactRepo),
     publishMavenStyle := true,
+    // sbt's own publisher writes no maven-metadata.xml, so its releases stay
+    // Unfinished in CodeArtifact; sbt-aether-deploy publishes like Maven.
+    publish := aether.AetherKeys.aetherDeploy.value,
     Compile / guardrailTasks := scalaVersionMatch(
       scalaVersion.value,
       List(
