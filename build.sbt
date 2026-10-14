@@ -47,7 +47,10 @@ ThisBuild / libraryDependencySchemes ++= Seq(
   "io.circe" %% "circe-core" % VersionScheme.Always,
   "io.circe" %% "circe-generic" % VersionScheme.Always,
   "io.circe" %% "circe-parser" % VersionScheme.Always,
-  "io.circe" %% "circe-jawn" % VersionScheme.Always
+  "io.circe" %% "circe-jawn" % VersionScheme.Always,
+  // With coverage on, scoverage 2's reporter brings scala-xml 2.x; akka-http-xml
+  // 10.2 was built against 1.x.
+  "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 )
 
 ThisBuild / version := sys.props.get("version").getOrElse("SNAPSHOT")
