@@ -664,7 +664,7 @@ class SQSNotificationHandlerSpec
         publicDataset.sourceOrganizationId,
         publicDataset.sourceDatasetId,
         publicDataset.id,
-        publicVersion.s3Bucket.value,
+        "publish-bucket",
         DatasetMetadata.MANIFEST_FILE,
         publicVersion.s3Key.value
       )

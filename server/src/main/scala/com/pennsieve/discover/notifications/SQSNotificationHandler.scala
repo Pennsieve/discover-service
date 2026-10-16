@@ -415,7 +415,8 @@ class SQSNotificationHandler(
         updatedVersion.migrated
       )
 
-      // Embargo publishes (EmbargoSucceeded) should not trigger publish storage sync
+      // Embargo publishes (EmbargoSucceeded) should not trigger publish storage sync;
+      // it is enqueued by handleReleaseSuccess once the dataset is released
       _ <- if (updatedVersion.underEmbargo) {
         ports.log.info(
           "handleSuccess() embargo publish - not enqueuing publish-storage-sync message"
