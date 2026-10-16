@@ -618,6 +618,8 @@ class SQSNotificationHandler(
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
 
+      _ <- enqueuePublishStorageSyncTaskIfEnabled(publicDataset, updatedVersion)
+
     } yield ()
 
   private def releaseUpdateFileVersions(
