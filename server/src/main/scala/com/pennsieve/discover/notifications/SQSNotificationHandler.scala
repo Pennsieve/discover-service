@@ -604,7 +604,9 @@ class SQSNotificationHandler(
       }
 
       // if migrated, then delete discover-release-results.json
-      _ = ports.config.runtimeSettings.deleteReleaseIntermediateFile match {
+      // deleteReleaseResult recovers from errors, so a failed delete does not
+      // fail the release
+      _ <- ports.config.runtimeSettings.deleteReleaseIntermediateFile match {
         case true =>
           ports.s3StreamClient.deleteReleaseResult(updatedVersion)
         case false =>
