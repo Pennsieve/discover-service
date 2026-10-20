@@ -537,7 +537,8 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDatasetV2.createdAt),
       workflowId =
         PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV2)),
-      latestPublishedVersion = Some(publicDatasetV2.version)
+      latestPublishedVersion = Some(publicDatasetV2.version),
+      doi = Some(publicDatasetV2.doi)
     )
 
     val result = ports.db
@@ -574,7 +575,8 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDatasetV1.createdAt),
       workflowId =
         PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1)),
-      latestPublishedVersion = Some(publicDatasetV1.version)
+      latestPublishedVersion = Some(publicDatasetV1.version),
+      doi = Some(publicDatasetV1.doi)
     )
 
     val result = ports.db
@@ -607,7 +609,8 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDatasetV1.createdAt),
       workflowId =
         PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1)),
-      latestPublishedVersion = Some(publicDatasetV1.version)
+      latestPublishedVersion = Some(publicDatasetV1.version),
+      doi = Some(publicDatasetV1.doi)
     )
 
     val result = ports.db
@@ -708,7 +711,8 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDatasetV1.createdAt),
       workflowId =
         PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1)),
-      latestPublishedVersion = Some(publicDatasetV1.version)
+      latestPublishedVersion = Some(publicDatasetV1.version),
+      doi = Some(publicDatasetV1.doi)
     )
 
     val result = ports.db
@@ -746,7 +750,8 @@ class PublicDatasetVersionsMapperSpec
       Some(publicDatasetV1.createdAt),
       workflowId =
         PublishingWorkflowIdentifier.workflowid(Some(publicDatasetV1)),
-      latestPublishedVersion = Some(publicDatasetV1.version)
+      latestPublishedVersion = Some(publicDatasetV1.version),
+      doi = Some(publicDatasetV1.doi)
     )
 
     val result = ports.db

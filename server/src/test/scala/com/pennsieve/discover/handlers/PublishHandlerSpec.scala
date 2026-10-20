@@ -637,7 +637,8 @@ class PublishHandlerSpec
         PublishInProgress,
         Some(publicDataset1_V1.createdAt),
         workflowId = PublishingWorkflow.Version4,
-        latestPublishedVersion = Some(publicDataset1_V1.version)
+        latestPublishedVersion = Some(publicDataset1_V1.version),
+        doi = Some(publicDataset1_V1.doi)
       )
 
       val doiDto = ports.doiClient
@@ -1317,7 +1318,8 @@ class PublishHandlerSpec
         PublishSucceeded,
         Some(version.createdAt),
         workflowId = PublishingWorkflow.Version4,
-        latestPublishedVersion = Some(version.version)
+        latestPublishedVersion = Some(version.version),
+        doi = Some(version.doi)
       )
 
       val revisedDataset = run(
@@ -1489,7 +1491,8 @@ class PublishHandlerSpec
         PublishSucceeded,
         Some(version.createdAt),
         workflowId = PublishingWorkflow.Version4,
-        latestPublishedVersion = Some(version.version)
+        latestPublishedVersion = Some(version.version),
+        doi = Some(version.doi)
       )
 
       val revision = run(RevisionsMapper.getLatestRevision(version)).get
@@ -1657,9 +1660,8 @@ class PublishHandlerSpec
         .value
         .metadata
 
-      val revisedVersion = run(
-        PublicDatasetVersionsMapper.getLatestVersion(publicDataset.id)
-      ).get
+      val revisedVersion =
+        run(PublicDatasetVersionsMapper.getLatestVersion(publicDataset.id)).get
 
       doiMetadata.keywords shouldBe defined
       doiMetadata.size shouldBe Some(revisedVersion.size)
@@ -1773,7 +1775,8 @@ class PublishHandlerSpec
         PublishStatus.ReleaseInProgress,
         Some(version.createdAt),
         workflowId = PublishingWorkflow.Version4,
-        latestPublishedVersion = Some(version.version)
+        latestPublishedVersion = Some(version.version),
+        doi = Some(version.doi)
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -1825,7 +1828,8 @@ class PublishHandlerSpec
         PublishStatus.ReleaseInProgress,
         Some(version.createdAt),
         workflowId = PublishingWorkflow.Version4,
-        latestPublishedVersion = Some(version.version)
+        latestPublishedVersion = Some(version.version),
+        doi = Some(version.doi)
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -1887,7 +1891,8 @@ class PublishHandlerSpec
         PublishStatus.ReleaseInProgress,
         Some(version.createdAt),
         workflowId = PublishingWorkflow.Version4,
-        latestPublishedVersion = Some(version.version)
+        latestPublishedVersion = Some(version.version),
+        doi = Some(version.doi)
       )
 
       val releaseJobs = ports.stepFunctionsClient
@@ -2346,7 +2351,8 @@ class PublishHandlerSpec
         PublishSucceeded,
         Some(publicDatasetV1.createdAt),
         workflowId = PublishingWorkflow.Version4,
-        latestPublishedVersion = Some(publicDatasetV1.version)
+        latestPublishedVersion = Some(publicDatasetV1.version),
+        doi = Some(publicDatasetV1.doi)
       )
       response shouldBe GetStatusResponse.OK(expected)
     }
@@ -2409,7 +2415,8 @@ class PublishHandlerSpec
           PublishSucceeded,
           Some(publicDataset1_V1.createdAt),
           workflowId = PublishingWorkflow.Version4,
-          latestPublishedVersion = Some(publicDataset1_V1.version)
+          latestPublishedVersion = Some(publicDataset1_V1.version),
+          doi = Some(publicDataset1_V1.doi)
         ),
         DatasetPublishStatus(
           publicDataset2.name,
@@ -2421,7 +2428,8 @@ class PublishHandlerSpec
           Some(publicDataset2_V1.createdAt),
           Some(SponsorshipRequest(Some("foo"), Some("bar"), None)),
           workflowId = PublishingWorkflow.Version4,
-          latestPublishedVersion = Some(publicDataset2_V1.version)
+          latestPublishedVersion = Some(publicDataset2_V1.version),
+          doi = Some(publicDataset2_V1.doi)
         )
       )
 
