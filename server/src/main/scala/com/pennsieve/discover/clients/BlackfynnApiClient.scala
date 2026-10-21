@@ -205,7 +205,10 @@ class PennsieveApiClientImpl(
         case "" => Right(None)
         case s => decode[DataUseAgreement](s).map(_.some)
       }
-      .leftMap(e => HttpError(500, e.getMessage))
+      .leftMap {
+        case e: HttpError => e
+        case e => HttpError(500, e.getMessage)
+      }
   }
 }
 
