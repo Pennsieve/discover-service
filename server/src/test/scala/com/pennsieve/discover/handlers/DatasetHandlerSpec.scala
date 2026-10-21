@@ -2256,6 +2256,30 @@ class DatasetHandlerSpec
     }
   }
 
+  def setupUnpublishedDataset(): (PublicDataset, PublicDatasetVersion) = {
+    val dataset = TestUtilities.createDataset(ports.db)()
+    val version =
+      TestUtilities.createNewDatasetVersion(ports.db)(
+        dataset.id,
+        status = PublishStatus.Unpublished
+      )
+    (dataset, version)
+  }
+
+  def tombstoneFor(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion
+  ): client.definitions.TombstoneDto =
+    client.definitions.TombstoneDto(
+      id = dataset.id,
+      version = version.version,
+      name = dataset.name,
+      tags = dataset.tags.toVector,
+      status = PublishStatus.Unpublished,
+      doi = version.doi,
+      updatedAt = dataset.updatedAt
+    )
+
   "GET /datasets/{id}/versions/{versionId}/files/browse" should {
 
     behave like AccessIsRestrictedForEmbargoedData(
@@ -2396,6 +2420,17 @@ class DatasetHandlerSpec
           )
         )
       )
+    }
+
+    "return 410 tombstone if the dataset has been unpublished" in {
+      val (dataset, version) = setupUnpublishedDataset()
+
+      val response = datasetClient
+        .browseFiles(dataset.id, version.version)
+        .awaitFinite()
+        .value
+
+      response shouldBe BrowseFilesResponse.Gone(tombstoneFor(dataset, version))
     }
   }
 
@@ -3433,6 +3468,32 @@ class DatasetHandlerSpec
         .value
 
       response.assets.length shouldEqual 5
+    }
+
+    "return 410 tombstone for assets of an unpublished dataset" in {
+      val (dataset, version) = setupUnpublishedDataset()
+
+      val response = datasetClient
+        .browseAssets(dataset.id, version.version, path = None)
+        .awaitFinite()
+        .value
+
+      response shouldBe BrowseAssetsResponse.Gone(
+        tombstoneFor(dataset, version)
+      )
+    }
+
+    "return 410 tombstone for all assets of an unpublished dataset" in {
+      val (dataset, version) = setupUnpublishedDataset()
+
+      val response = datasetClient
+        .browseAllAssets(dataset.id, version.version)
+        .awaitFinite()
+        .value
+
+      response shouldBe BrowseAllAssetsResponse.Gone(
+        tombstoneFor(dataset, version)
+      )
     }
   }
 

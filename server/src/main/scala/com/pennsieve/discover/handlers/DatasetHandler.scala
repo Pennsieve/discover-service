@@ -909,6 +909,10 @@ class DatasetHandler(
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
           GuardrailResource.BrowseFilesResponse
             .NotFound(datasetId.toString)
+        case DatasetUnpublishedException(dataset, version) =>
+          GuardrailResource.BrowseFilesResponse.Gone(
+            models.TombstoneDTO(dataset, version)
+          )
         case UnauthorizedException =>
           GuardrailResource.BrowseFilesResponse.Unauthorized(
             "Dataset is under embargo"
@@ -975,6 +979,10 @@ class DatasetHandler(
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
           GuardrailResource.BrowseAssetsResponse
             .NotFound(datasetId.toString)
+        case DatasetUnpublishedException(dataset, version) =>
+          GuardrailResource.BrowseAssetsResponse.Gone(
+            models.TombstoneDTO(dataset, version)
+          )
         case UnauthorizedException =>
           GuardrailResource.BrowseAssetsResponse.Unauthorized(
             "Dataset is under embargo"
@@ -1021,6 +1029,10 @@ class DatasetHandler(
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
           GuardrailResource.BrowseAllAssetsResponse
             .NotFound(datasetId.toString)
+        case DatasetUnpublishedException(dataset, version) =>
+          GuardrailResource.BrowseAllAssetsResponse.Gone(
+            models.TombstoneDTO(dataset, version)
+          )
         case UnauthorizedException =>
           GuardrailResource.BrowseAllAssetsResponse.Unauthorized(
             "Dataset is under embargo"
