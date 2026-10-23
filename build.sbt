@@ -89,7 +89,7 @@ lazy val awsSdkVersion = "2.10.56"
 lazy val pureConfigVersion = "0.17.1"
 lazy val elastic4sVersion = "7.12.3"
 lazy val catsVersion = "2.0.0"
-lazy val jacksonVersion = "2.9.6"
+lazy val jacksonVersion = "2.17.2"
 
 lazy val Integration = config("integration") extend (Test)
 
@@ -137,11 +137,11 @@ lazy val server = project
       alpakka212Version,
       alpakka213Version
     ),
-    /*dependencyOverrides ++= Seq(
+    dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-    ),*/
+    ),
     libraryDependencies ++= Seq(
       "com.pennsieve" %% "service-utilities" % serviceUtilitiesVersion,
       "com.pennsieve" %% "utilities" % utilitiesVersion,
@@ -200,7 +200,7 @@ lazy val server = project
       "org.apache.httpcomponents" % "httpclient" % "4.5.8" % Test,
       "software.amazon.awssdk" % "s3" % awsSdkVersion % Test,
       "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % Test,
-      "org.mock-server" % "mockserver-client-java-no-dependencies" % "5.14.0" % Test,
+      "org.mock-server" % "mockserver-client-java" % "5.14.0" % Test,
       "com.dimafeng" %% "testcontainers-scala" % testContainersVersion % Test,
       "com.pennsieve" %% "pennsieve-core" % coreVersion % Test classifier "tests",
     ),
@@ -286,11 +286,11 @@ lazy val syncElasticSearch = project
     scalacOptions ++= getScalacOptions(scalaVersion.value),
     scalafmtOnCompile := true,
     trapExit := false,
-    /*dependencyOverrides ++= Seq(
+    dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-    ),*/
+    ),
     docker / dockerfile := {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
