@@ -21,6 +21,7 @@ import com.pennsieve.discover._
 import com.pennsieve.discover.clients.{
   APIPreviewAccessRequest,
   AuthorizationClient,
+  DataUseAgreement,
   DatasetPreview,
   HttpError
 }
@@ -909,6 +910,10 @@ class DatasetHandler(
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
           GuardrailResource.BrowseFilesResponse
             .NotFound(datasetId.toString)
+        case DatasetUnpublishedException(dataset, version) =>
+          GuardrailResource.BrowseFilesResponse.Gone(
+            models.TombstoneDTO(dataset, version)
+          )
         case UnauthorizedException =>
           GuardrailResource.BrowseFilesResponse.Unauthorized(
             "Dataset is under embargo"
@@ -975,6 +980,10 @@ class DatasetHandler(
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
           GuardrailResource.BrowseAssetsResponse
             .NotFound(datasetId.toString)
+        case DatasetUnpublishedException(dataset, version) =>
+          GuardrailResource.BrowseAssetsResponse.Gone(
+            models.TombstoneDTO(dataset, version)
+          )
         case UnauthorizedException =>
           GuardrailResource.BrowseAssetsResponse.Unauthorized(
             "Dataset is under embargo"
@@ -1021,6 +1030,10 @@ class DatasetHandler(
         case NoDatasetException(_) | NoDatasetVersionException(_, _) =>
           GuardrailResource.BrowseAllAssetsResponse
             .NotFound(datasetId.toString)
+        case DatasetUnpublishedException(dataset, version) =>
+          GuardrailResource.BrowseAllAssetsResponse.Gone(
+            models.TombstoneDTO(dataset, version)
+          )
         case UnauthorizedException =>
           GuardrailResource.BrowseAllAssetsResponse.Unauthorized(
             "Dataset is under embargo"
@@ -1174,15 +1187,7 @@ class DatasetHandler(
           case None => DBIO.failed(NoDatasetException(dataset.id))
         }
 
-      agreement <- DBIO.from(
-        ports.pennsieveApiClient
-          .getDataUseAgreement(
-            sourceOrganizationId = dataset.sourceOrganizationId,
-            sourceDatasetId = dataset.sourceDatasetId
-          )
-          .value
-          .flatMap(_.fold(Future.failed, Future.successful))
-      )
+      agreement <- sourceDataUseAgreement(dataset)
 
     } yield (agreement, dataset)
 
@@ -1212,8 +1217,34 @@ class DatasetHandler(
           GuardrailResource.GetDataUseAgreementResponse.Gone(
             models.TombstoneDTO(dataset, version)
           )
+
+        case HttpError(StatusCodes.NotFound, _) =>
+          GuardrailResource.GetDataUseAgreementResponse
+            .NotFound(datasetId.toString)
       }
   }
+
+  /**
+    * DOI collections are not backed by a dataset in pennsieve-api (their
+    * source dataset id comes from a separate id space) and never have a data
+    * use agreement, so they are not looked up.
+    */
+  private def sourceDataUseAgreement(
+    dataset: PublicDataset
+  ): DBIO[Option[DataUseAgreement]] =
+    dataset.datasetType match {
+      case DatasetType.Collection => DBIO.successful(None)
+      case _ =>
+        DBIO.from(
+          ports.pennsieveApiClient
+            .getDataUseAgreement(
+              sourceOrganizationId = dataset.sourceOrganizationId,
+              sourceDatasetId = dataset.sourceDatasetId
+            )
+            .value
+            .flatMap(_.fold(Future.failed, Future.successful))
+        )
+    }
 
   /**
     * This returns a raw response because of Guardrail limitations: it is not
@@ -1236,15 +1267,7 @@ class DatasetHandler(
           case None => DBIO.failed(NoDatasetException(dataset.id))
         }
 
-      agreement <- DBIO.from(
-        ports.pennsieveApiClient
-          .getDataUseAgreement(
-            sourceOrganizationId = dataset.sourceOrganizationId,
-            sourceDatasetId = dataset.sourceDatasetId
-          )
-          .value
-          .flatMap(_.fold(Future.failed, Future.successful))
-      )
+      agreement <- sourceDataUseAgreement(dataset)
     } yield (agreement, dataset, version)
 
     ports.db
@@ -1282,6 +1305,12 @@ class DatasetHandler(
         case DatasetUnpublishedException(_, _) =>
           Marshal(GuardrailResource.DownloadDataUseAgreementResponse.Gone)
             .to[HttpResponse]: Future[HttpResponse]
+
+        case HttpError(StatusCodes.NotFound, _) =>
+          Marshal(
+            GuardrailResource.DownloadDataUseAgreementResponse
+              .NotFound(datasetId.toString)
+          ).to[HttpResponse]: Future[HttpResponse]
       }
   }
 
