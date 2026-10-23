@@ -1442,6 +1442,14 @@ components:
             version number.
           type: integer
           format: int32
+        doi:
+          description: >
+            The dataset's DOI, as of the latest visible version (the same
+            version that publishedDatasetId and latestPublishedVersion
+            describe). Absent if the dataset has never been published. A
+            revision does not change this value -- it updates metadata on
+            the existing DOI rather than minting a new one.
+          type: string
 
     InternalCollection:
       type: object
