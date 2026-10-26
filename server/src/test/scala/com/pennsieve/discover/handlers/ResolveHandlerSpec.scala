@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Pennsieve, Inc. All Rights Reserved.
+// Copyright (c) 2019 Pennsieve, Inc. All Rights Reserved.
 
 package com.pennsieve.discover.handlers
 
@@ -174,9 +174,7 @@ class ResolveHandlerSpec
       )
 
       var next: Option[String] = None
-      resolve(v.datasetId, v.version.toString, page1) ~> addHeader(
-        serviceToken
-      ) ~> routes() ~> check {
+      resolve(v.datasetId, v.version.toString, page1) ~> addHeader(serviceToken) ~> routes() ~> check {
         val r = parsed(responseAs[String])
         r.files.map(_.fileName) shouldBe Vector("a.txt", "b.txt")
         r.version.fileCount shouldBe 3
@@ -184,10 +182,9 @@ class ResolveHandlerSpec
       }
       next should not be empty
 
-      val page2 = page1.deepMerge(Json.obj("cursor" -> Json.fromString(next.get)))
-      resolve(v.datasetId, v.version.toString, page2) ~> addHeader(
-        serviceToken
-      ) ~> routes() ~> check {
+      val page2 =
+        page1.deepMerge(Json.obj("cursor" -> Json.fromString(next.get)))
+      resolve(v.datasetId, v.version.toString, page2) ~> addHeader(serviceToken) ~> routes() ~> check {
         val r = parsed(responseAs[String])
         r.files.map(_.fileName) shouldBe Vector("c.txt")
         r.next shouldBe None
@@ -268,9 +265,7 @@ class ResolveHandlerSpec
         "paths" -> Json.arr(Json.fromString("")),
         "cursor" -> Json.fromString("bogus")
       )
-      resolve(v.datasetId, v.version.toString, body) ~> addHeader(
-        serviceToken
-      ) ~> routes() ~> check {
+      resolve(v.datasetId, v.version.toString, body) ~> addHeader(serviceToken) ~> routes() ~> check {
         status shouldEqual StatusCodes.BadRequest
       }
     }

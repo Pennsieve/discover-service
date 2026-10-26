@@ -415,7 +415,8 @@ class SQSNotificationHandler(
         updatedVersion.migrated
       )
 
-      // Embargo publishes (EmbargoSucceeded) should not trigger publish storage sync
+      // Embargo publishes (EmbargoSucceeded) should not trigger publish storage sync;
+      // it is enqueued by handleReleaseSuccess once the dataset is released
       _ <- if (updatedVersion.underEmbargo) {
         ports.log.info(
           "handleSuccess() embargo publish - not enqueuing publish-storage-sync message"
@@ -603,7 +604,9 @@ class SQSNotificationHandler(
       }
 
       // if migrated, then delete discover-release-results.json
-      _ = ports.config.runtimeSettings.deleteReleaseIntermediateFile match {
+      // deleteReleaseResult recovers from errors, so a failed delete does not
+      // fail the release
+      _ <- ports.config.runtimeSettings.deleteReleaseIntermediateFile match {
         case true =>
           ports.s3StreamClient.deleteReleaseResult(updatedVersion)
         case false =>
@@ -622,6 +625,8 @@ class SQSNotificationHandler(
 
       // Add dataset to search index
       _ <- Search.indexDataset(publicDataset, updatedVersion, ports)
+
+      _ <- enqueuePublishStorageSyncTaskIfEnabled(publicDataset, updatedVersion)
 
     } yield ()
 

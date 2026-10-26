@@ -660,11 +660,17 @@ class SQSNotificationHandlerSpec
       indexedFiles.length shouldBe 1
       indexedRecords.length shouldBe 1
 
-      // Not running this on embargo releases yet. This should be updated
-      // to check the message contents once we do.
       ports.publishStorageSyncMessenger
         .asInstanceOf[MockPublishStorageSyncMessenger]
-        .queuedMessages shouldBe empty
+        .queuedMessages
+        .loneElement shouldBe PublishStorageSyncMessage(
+        publicDataset.sourceOrganizationId,
+        publicDataset.sourceDatasetId,
+        publicDataset.id,
+        "publish-bucket",
+        DatasetMetadata.MANIFEST_FILE,
+        publicVersion.s3Key.value
+      )
     }
 
     "update release status as failed" in {
@@ -736,6 +742,64 @@ class SQSNotificationHandlerSpec
           None
         )
       )
+
+      ports.publishStorageSyncMessenger
+        .asInstanceOf[MockPublishStorageSyncMessenger]
+        .queuedMessages shouldBe empty
+    }
+
+    "not send publish-storage-sync message on release if disabled" in {
+
+      // disable publish-storage-sync
+      ports.ssmClient
+        .asInstanceOf[MockSSMClient]
+        .setParameter(PublishStorageSync.IsEnabledSSMKey, "false")
+
+      val datasetName = TestUtilities.randomString()
+
+      val publicDataset =
+        TestUtilities.createDataset(ports.db)(name = datasetName)
+
+      val doi = ports.doiClient
+        .asInstanceOf[MockDoiClient]
+        .createMockDoi(
+          publicDataset.sourceOrganizationId,
+          publicDataset.sourceDatasetId
+        )
+
+      val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+        id = publicDataset.id,
+        status = PublishStatus.ReleaseInProgress,
+        doi = doi.doi
+      )
+
+      TestUtilities.createFile(ports.db)(
+        publicDatasetV1,
+        "files/test.txt",
+        "TEXT"
+      )
+
+      processNotification(
+        ReleaseNotification(
+          organizationId = publicDataset.sourceOrganizationId,
+          datasetId = publicDataset.sourceDatasetId,
+          version = publicDatasetV1.version,
+          publishBucket = S3Bucket("publish-bucket"),
+          embargoBucket = S3Bucket("embargo-bucket"),
+          success = true
+        )
+      ) shouldBe an[MessageAction.Delete]
+
+      val publicVersion = ports.db
+        .run(
+          PublicDatasetVersionsMapper
+            .getVersion(publicDatasetV1.datasetId, publicDatasetV1.version)
+        )
+        .awaitFinite()
+
+      // Release otherwise completes normally
+      publicVersion.s3Bucket shouldBe S3Bucket("publish-bucket")
+      publicVersion.status shouldBe PublishStatus.PublishSucceeded
 
       ports.publishStorageSyncMessenger
         .asInstanceOf[MockPublishStorageSyncMessenger]
