@@ -560,10 +560,12 @@ class PublicDatasetVersionsMapperSpec
       id = publicDataset.id,
       status = PublishSucceeded
     )
-    TestUtilities.createNewDatasetVersion(ports.db)(
+    val inProgressV2 = TestUtilities.createNewDatasetVersion(ports.db)(
       id = publicDataset.id,
       status = PublishStatus.PublishInProgress
     )
+    // v2 has its own DOI, but only a visible version's DOI is reported
+    inProgressV2.doi should not be publicDatasetV1.doi
 
     val expected = DatasetPublishStatus(
       publicDataset.name,
@@ -590,6 +592,35 @@ class PublicDatasetVersionsMapperSpec
       .await
 
     assert(result == expected)
+  }
+
+  "report the DOI of the latest published version when a newer version failed to publish" in {
+    val publicDataset = TestUtilities.createDataset(ports.db)()
+    val publicDatasetV1 = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = publicDataset.id,
+      status = PublishSucceeded
+    )
+    // Each published version has its own DOI; the failed v2 is not visible,
+    // so the status keeps describing v1.
+    val failedV2 = TestUtilities.createNewDatasetVersion(ports.db)(
+      id = publicDataset.id,
+      status = PublishFailed
+    )
+    failedV2.doi should not be publicDatasetV1.doi
+
+    val result = ports.db
+      .run(
+        PublicDatasetVersionsMapper
+          .getDatasetStatus(
+            publicDataset.sourceOrganizationId,
+            publicDataset.sourceDatasetId
+          )
+      )
+      .await
+
+    result.status shouldBe PublishFailed
+    result.latestPublishedVersion shouldBe Some(publicDatasetV1.version)
+    result.doi shouldBe Some(publicDatasetV1.doi)
   }
 
   "return the status of an unpublished dataset" in {
@@ -673,7 +704,8 @@ class PublicDatasetVersionsMapperSpec
       PublishStatus.NotPublished,
       None,
       workflowId = PublishingWorkflow.Unknown,
-      latestPublishedVersion = None
+      latestPublishedVersion = None,
+      doi = None
     )
 
     val result = ports.db
