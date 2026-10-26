@@ -431,7 +431,8 @@ object PublicDatasetVersionsMapper
             status = PublishStatus.NotPublished,
             lastPublishedDate = None,
             workflowId = PublishingWorkflow.Unknown,
-            latestPublishedVersion = None
+            latestPublishedVersion = None,
+            doi = None
           )
         )
     })
@@ -499,7 +500,8 @@ object PublicDatasetVersionsMapper
                 SponsorshipRequest(title, imageUrl, markup)
             },
             workflowId = PublishingWorkflowIdentifier.workflowid(latestVersion),
-            latestPublishedVersion = latestPublished.map(_.version)
+            latestPublishedVersion = latestPublished.map(_.version),
+            doi = latestPublished.map(_.doi)
           )
       }
 

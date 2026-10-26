@@ -1442,6 +1442,17 @@ components:
             version number.
           type: integer
           format: int32
+        doi:
+          description: >
+            The DOI of the latest visible (published, embargoed, unpublished
+            or releasing) version, the same version that publishedDatasetId
+            and latestPublishedVersion describe. It is not the DOI of an
+            in-flight version: while a newer version is publishing, or after
+            it fails, this is still the previous visible version's DOI.
+            Each newly published version has its own DOI; a revision of an
+            existing version updates metadata on that version's DOI. Absent
+            if the dataset has never had a visible version.
+          type: string
 
     InternalCollection:
       type: object

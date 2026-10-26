@@ -201,7 +201,8 @@ class SQSNotificationHandlerSpec
             PublishStatus.PublishSucceeded,
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version5,
-            latestPublishedVersion = Some(publicVersion.version)
+            latestPublishedVersion = Some(publicVersion.version),
+            doi = Some(publicVersion.doi)
           ),
           None,
           Some(publicVersion.version),
@@ -328,7 +329,8 @@ class SQSNotificationHandlerSpec
             PublishStatus.EmbargoSucceeded,
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version5,
-            latestPublishedVersion = Some(publicVersion.version)
+            latestPublishedVersion = Some(publicVersion.version),
+            doi = Some(publicVersion.doi)
           ),
           None,
           Some(publicVersion.version),
@@ -630,11 +632,12 @@ class SQSNotificationHandlerSpec
             PublishStatus.PublishSucceeded,
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version4,
-            latestPublishedVersion = Some(publicVersion.version)
+            latestPublishedVersion = Some(publicVersion.version),
+            doi = Some(publicVersion.doi)
           ),
           None,
-          None,
-          None
+          Some(publicVersion.version),
+          Some(publicVersion.doi)
         )
       )
 
@@ -731,7 +734,8 @@ class SQSNotificationHandlerSpec
             PublishStatus.ReleaseFailed,
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version4,
-            latestPublishedVersion = Some(publicVersion.version)
+            latestPublishedVersion = Some(publicVersion.version),
+            doi = Some(publicVersion.doi)
           ),
           Some(s"Version ${publicVersion.version} failed to release"),
           None,
@@ -1413,7 +1417,8 @@ class SQSNotificationHandlerSpec
             PublishStatus.PublishSucceeded,
             Some(publicVersion.createdAt),
             workflowId = PublishingWorkflow.Version5,
-            latestPublishedVersion = Some(publicVersion.version)
+            latestPublishedVersion = Some(publicVersion.version),
+            doi = Some(publicVersion.doi)
           ),
           None,
           Some(publicVersion.version),
