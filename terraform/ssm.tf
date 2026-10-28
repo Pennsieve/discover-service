@@ -172,7 +172,12 @@ resource "aws_ssm_parameter" "authorization_service_host" {
   name = "/${var.environment_name}/${var.service_name}/authorization-service-host"
   type = "String"
 
-  value = "https://${data.terraform_remote_state.authorization_service.outputs.internal_fqdn}"
+  # F1 cutover: the discover/preview embargo authz endpoint moved from the Scala
+  # authorization-service to auth-service's auth-api Lambda. Both expose the same
+  # internal host shape on the same internal ALB, and auth-api's host-header rule
+  # forwards /authorization/.../discover/preview to the Lambda unchanged. To roll
+  # back, swap this to data.terraform_remote_state.authorization_service.outputs.internal_fqdn.
+  value = "https://${data.terraform_remote_state.auth_service.outputs.auth_api_internal_host}"
 }
 
 
