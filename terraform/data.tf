@@ -57,6 +57,21 @@ data "terraform_remote_state" "authorization_service" {
   }
 }
 
+# Import Auth Service (Go). The discover/preview embargo authorization endpoint was
+# rehomed from the Scala authorization-service into auth-service's auth-api Lambda
+# (F1). authorization_service_host (ssm.tf) now sources auth_api_internal_host from
+# here. The authorization_service remote_state above is retained so the host can be
+# reverted to the Scala service in one line if the cutover needs rolling back.
+data "terraform_remote_state" "auth_service" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.aws_account}-terraform-state"
+    key    = "aws/${data.aws_region.current_region.name}/${var.vpc_name}/${var.environment_name}/auth-service/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+
 
 # Import Discover Publish Data
 data "terraform_remote_state" "discover_publish" {
