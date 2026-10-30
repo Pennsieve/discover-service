@@ -36,6 +36,7 @@ import com.pennsieve.discover.clients.{
   DatasetPreview,
   HttpError,
   MockAuthorizationClient,
+  MockPennsieveApiClient,
   MockS3StreamClient,
   TestFile,
   User
@@ -2256,6 +2257,30 @@ class DatasetHandlerSpec
     }
   }
 
+  def setupUnpublishedDataset(): (PublicDataset, PublicDatasetVersion) = {
+    val dataset = TestUtilities.createDataset(ports.db)()
+    val version =
+      TestUtilities.createNewDatasetVersion(ports.db)(
+        dataset.id,
+        status = PublishStatus.Unpublished
+      )
+    (dataset, version)
+  }
+
+  def tombstoneFor(
+    dataset: PublicDataset,
+    version: PublicDatasetVersion
+  ): client.definitions.TombstoneDto =
+    client.definitions.TombstoneDto(
+      id = dataset.id,
+      version = version.version,
+      name = dataset.name,
+      tags = dataset.tags.toVector,
+      status = PublishStatus.Unpublished,
+      doi = version.doi,
+      updatedAt = dataset.updatedAt
+    )
+
   "GET /datasets/{id}/versions/{versionId}/files/browse" should {
 
     behave like AccessIsRestrictedForEmbargoedData(
@@ -2396,6 +2421,17 @@ class DatasetHandlerSpec
           )
         )
       )
+    }
+
+    "return 410 tombstone if the dataset has been unpublished" in {
+      val (dataset, version) = setupUnpublishedDataset()
+
+      val response = datasetClient
+        .browseFiles(dataset.id, version.version)
+        .awaitFinite()
+        .value
+
+      response shouldBe BrowseFilesResponse.Gone(tombstoneFor(dataset, version))
     }
   }
 
@@ -2773,6 +2809,30 @@ class DatasetHandlerSpec
     }
   }
 
+  def mockPennsieveApiClient: MockPennsieveApiClient =
+    ports.pennsieveApiClient.asInstanceOf[MockPennsieveApiClient]
+
+  def setupDoiCollectionForAgreement(): PublicDataset = {
+    val collectionDataset = TestUtilities.createDoiCollectionDataset(
+      ports.db,
+      ports.config.doiCollections.idSpace
+    )()
+    TestUtilities.createNewDatasetVersion(ports.db)(
+      id = collectionDataset.id,
+      status = PublishSucceeded
+    )
+    collectionDataset
+  }
+
+  def setupDatasetWithMissingSource(): PublicDataset = {
+    val dataset = TestUtilities.createDataset(ports.db)(sourceDatasetId = 404)
+    TestUtilities.createNewDatasetVersion(ports.db)(
+      id = dataset.id,
+      status = PublishSucceeded
+    )
+    dataset
+  }
+
   "GET /dataset/{id}/data-use-agreement" should {
     "return latest agreement for a dataset" in {
 
@@ -2828,6 +2888,31 @@ class DatasetHandlerSpec
         .value
 
       response shouldBe an[GetDataUseAgreementResponse.Gone]
+    }
+
+    "return no content for a DOI collection without calling the API" in {
+      val collectionDataset = setupDoiCollectionForAgreement()
+
+      val response = datasetClient
+        .getDataUseAgreement(collectionDataset.id)
+        .awaitFinite()
+        .value
+
+      response shouldBe GetDataUseAgreementResponse.NoContent
+      mockPennsieveApiClient.getDataUseAgreementRequests shouldBe empty
+    }
+
+    "return 404 if the source dataset is not found" in {
+      val dataset = setupDatasetWithMissingSource()
+
+      val response = datasetClient
+        .getDataUseAgreement(dataset.id)
+        .awaitFinite()
+        .value
+
+      response shouldBe GetDataUseAgreementResponse.NotFound(
+        dataset.id.toString
+      )
     }
   }
 
@@ -2886,6 +2971,31 @@ class DatasetHandlerSpec
         .value
 
       response shouldBe DownloadDataUseAgreementResponse.Gone
+    }
+
+    "return no content for a DOI collection without calling the API" in {
+      val collectionDataset = setupDoiCollectionForAgreement()
+
+      val response = datasetClient
+        .downloadDataUseAgreement(collectionDataset.id)
+        .awaitFinite()
+        .value
+
+      response shouldBe DownloadDataUseAgreementResponse.NoContent
+      mockPennsieveApiClient.getDataUseAgreementRequests shouldBe empty
+    }
+
+    "return 404 if the source dataset is not found" in {
+      val dataset = setupDatasetWithMissingSource()
+
+      val response = datasetClient
+        .downloadDataUseAgreement(dataset.id)
+        .awaitFinite()
+        .value
+
+      response shouldBe DownloadDataUseAgreementResponse.NotFound(
+        dataset.id.toString
+      )
     }
   }
 
@@ -3433,6 +3543,32 @@ class DatasetHandlerSpec
         .value
 
       response.assets.length shouldEqual 5
+    }
+
+    "return 410 tombstone for assets of an unpublished dataset" in {
+      val (dataset, version) = setupUnpublishedDataset()
+
+      val response = datasetClient
+        .browseAssets(dataset.id, version.version, path = None)
+        .awaitFinite()
+        .value
+
+      response shouldBe BrowseAssetsResponse.Gone(
+        tombstoneFor(dataset, version)
+      )
+    }
+
+    "return 410 tombstone for all assets of an unpublished dataset" in {
+      val (dataset, version) = setupUnpublishedDataset()
+
+      val response = datasetClient
+        .browseAllAssets(dataset.id, version.version)
+        .awaitFinite()
+        .value
+
+      response shouldBe BrowseAllAssetsResponse.Gone(
+        tombstoneFor(dataset, version)
+      )
     }
   }
 
