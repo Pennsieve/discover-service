@@ -149,29 +149,44 @@ class ReleaseHandler(
                     PublicDatasetVersionsMapper
                       .resumeReleasePublishing(version, release)
                   case None =>
-                    // create version and release
+                    // create version and release, after rolling back a failed
+                    // latest version (another release's): as a dataset does,
+                    // otherwise the new version takes the failed one's draft
+                    // DOI and the insert fails on the unique DOI
                     ports.log.info(
                       s"publishRelease() creating new version and release"
                     )
-                    PublicDatasetVersionsMapper.createNewVersionAndRelease(
-                      publicDataset,
-                      doi.doi,
-                      body.description,
-                      body.fileCount,
-                      body.size,
-                      targetS3Bucket,
-                      body.origin,
-                      body.repoUrl,
-                      body.label,
-                      body.marker,
-                      body.labelUrl,
-                      body.markerUrl,
-                      body.releaseStatus
-                    )
+                    PublicDatasetVersionsMapper
+                      .rollbackIfNeeded(publicDataset)
+                      .andThen(
+                        PublicDatasetVersionsMapper.createNewVersionAndRelease(
+                          publicDataset,
+                          doi.doi,
+                          body.description,
+                          body.fileCount,
+                          body.size,
+                          targetS3Bucket,
+                          body.origin,
+                          body.repoUrl,
+                          body.label,
+                          body.marker,
+                          body.labelUrl,
+                          body.markerUrl,
+                          body.releaseStatus
+                        )
+                      )
                 }
 
               _ = ports.log.info(s"publishRelease() version: ${version}")
               _ = ports.log.info(s"publishRelease() release: ${release}")
+
+              // a resumed publication stored these the first time: replace them
+              _ <- PublicContributorsMapper
+                .deleteContributorsByDatasetAndVersion(publicDataset, version)
+              _ <- PublicCollectionsMapper
+                .deleteCollectionsByDatasetAndVersion(publicDataset, version)
+              _ <- PublicExternalPublicationsMapper
+                .deleteByDatasetAndVersion(publicDataset, version)
 
               _ = ports.log.info(
                 s"publishRelease() [request] contributors: ${body.contributors}"

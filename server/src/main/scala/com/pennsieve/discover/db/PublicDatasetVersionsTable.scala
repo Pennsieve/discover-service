@@ -383,7 +383,12 @@ object PublicDatasetVersionsMapper
       .filter(_.label === label)
       .filter(_.marker === marker)
       .join(this.filter(_.datasetId === dataset.id))
-      .on(_.datasetId === _.datasetId)
+      // the release's own version: on the dataset alone, a failed release
+      // matched another (published) version and couldn't be retried
+      .on(
+        (release, version) =>
+          release.datasetId === version.datasetId && release.datasetVersion === version.version
+      )
       .result
       .headOption
   }
