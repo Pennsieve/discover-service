@@ -18,8 +18,13 @@ final case class PublicContributor(
   sourceUserId: Option[Int],
   createdAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
   updatedAt: OffsetDateTime = OffsetDateTime.now(ZoneOffset.UTC),
-  id: Int = 0
+  id: Int = 0,
+  // Organizational: an organisation, named by firstName whole; None: a person
+  nameType: Option[String] = None
 ) {
+  def isOrganization: Boolean =
+    nameType.exists(_.equalsIgnoreCase(PublicContributor.Organizational))
+
   def givenName: String = {
     s"$firstName ${middleInitial.getOrElse("")}".trim
   }
@@ -33,4 +38,6 @@ object PublicContributor {
    * class that defines a database table
    */
   val tupled = (this.apply _).tupled
+
+  val Organizational = "Organizational"
 }

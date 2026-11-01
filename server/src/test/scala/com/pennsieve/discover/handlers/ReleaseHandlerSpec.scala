@@ -22,11 +22,13 @@ import com.pennsieve.discover.client.release.{
   ReleaseClient
 }
 import com.pennsieve.discover.clients.{
+  DoiClient,
   MockDoiClient,
   MockLambdaClient,
   MockS3StreamClient
 }
 import com.pennsieve.discover.db.{
+  PublicContributorsMapper,
   PublicDatasetReleaseAssetMapper,
   PublicDatasetReleaseMapper,
   PublicDatasetVersionFilesTableMapper,
@@ -37,7 +39,13 @@ import com.pennsieve.discover.db.{
 import com.pennsieve.discover.models.{ PublishingWorkflow, S3CleanupStage }
 import com.pennsieve.discover.client.definitions.BucketConfig
 import com.pennsieve.discover.server.definitions.FinalizeReleaseRequest
-import com.pennsieve.models.{ Degree, License, PublishStatus, RelationshipType }
+import com.pennsieve.models.{
+  DatasetType,
+  Degree,
+  License,
+  PublishStatus,
+  RelationshipType
+}
 import com.pennsieve.models.PublishStatus.PublishInProgress
 import com.pennsieve.test.EitherValue._
 import org.scalatest.Inside
@@ -212,6 +220,53 @@ class ReleaseHandlerSpec
       publicRelease.label shouldBe label
       publicRelease.marker shouldBe marker
       publicRelease.repoUrl shouldBe repoUrl
+    }
+
+    "store the authors in the order given, an organisation as Organizational" in {
+      val organisation = InternalReleaseContributor(
+        2,
+        "Pennsieve (University of Pennsylvania)",
+        nameType = Some("Organizational")
+      )
+      val requestBody = releaseRequest(origin, label, marker, repoUrl)
+        .copy(contributors = Vector(organisation, internalContributor))
+      client
+        .publishRelease(organizationId, datasetId, requestBody, authToken)
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishReleaseResponse.Created]
+
+      val publicDataset = ports.db
+        .run(
+          PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+        )
+        .awaitFinite()
+      val publicVersion = ports.db
+        .run(PublicDatasetVersionsMapper.getLatestVersion(publicDataset.id))
+        .awaitFinite()
+        .get
+      val authors = ports.db
+        .run(
+          PublicContributorsMapper
+            .getContributorsByDatasetAndVersion(publicDataset, publicVersion)
+        )
+        .awaitFinite()
+
+      authors.map(a => (a.firstName, a.nameType)) shouldBe List(
+        ("Pennsieve (University of Pennsylvania)", Some("Organizational")),
+        ("Sally", None)
+      )
+      authors.head.isOrganization shouldBe true
+    }
+  }
+
+  "DoiClient.resourceTypeGeneral" should {
+    "make a code release Software and leave datasets to doi-service" in {
+      DoiClient.resourceTypeGeneral(DatasetType.Release) shouldBe Some(
+        "Software"
+      )
+      DoiClient.resourceTypeGeneral(DatasetType.Research) shouldBe None
     }
   }
 

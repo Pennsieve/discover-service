@@ -1082,6 +1082,7 @@ class SQSNotificationHandlerSpec
       publishRequest.metadata.size shouldBe defined
       publishRequest.metadata.fileCount shouldBe defined
       publishRequest.metadata.publishedAt shouldBe defined
+      publishRequest.metadata.resourceTypeGeneral shouldBe None // a dataset, doi-service's default
     }
 
     "complete publish successfully even if getting the publish-storage-sync enabled SSM parameter fails" in {

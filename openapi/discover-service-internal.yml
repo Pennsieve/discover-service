@@ -1525,6 +1525,11 @@ components:
         userId:
           type: integer
           format: int32
+        nameType:
+          type: string
+          description: >-
+            Organizational for an organisation (a lab, a university), named by
+            firstName whole; left out, a person.
 
     SponsorshipRequest:
       type: object
