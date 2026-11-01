@@ -30,6 +30,7 @@ final class PublicContributorsTable(tag: Tag)
   def createdAt = column[OffsetDateTime]("created_at")
   def updatedAt = column[OffsetDateTime]("updated_at")
   def id = column[Int]("id", O.PrimaryKey, O.AutoInc)
+  def nameType = column[Option[String]]("name_type")
 
   def publicDatasetVersion =
     foreignKey(
@@ -51,7 +52,8 @@ final class PublicContributorsTable(tag: Tag)
       sourceUserId,
       createdAt,
       updatedAt,
-      id
+      id,
+      nameType
     ).mapTo[PublicContributor]
 }
 
@@ -67,7 +69,8 @@ object PublicContributorsMapper
     datasetId: Int,
     version: Int,
     sourceContributorId: Int,
-    sourceUserId: Option[Int]
+    sourceUserId: Option[Int],
+    nameType: Option[String] = None
   )(implicit
     executionContext: ExecutionContext
   ): DBIOAction[
@@ -89,7 +92,8 @@ object PublicContributorsMapper
         datasetId,
         version,
         sourceContributorId,
-        sourceUserId
+        sourceUserId,
+        nameType = nameType
       )
     } yield result
 
@@ -109,6 +113,7 @@ object PublicContributorsMapper
     this
       .filter(_.datasetId === dataset.id)
       .filter(_.version === version.version)
+      .sortBy(_.id) // in the order they were given: a DOI's creators are ordered
       .result
       .map(_.toList)
 
@@ -138,6 +143,7 @@ object PublicContributorsMapper
         case ((dataset, version), contributors) =>
           dataset.id === contributors.datasetId && version.version === contributors.version
       }
+      .sortBy { case (_, contributor) => contributor.id } // in the order given
       .result
       .map {
         _.groupBy {

@@ -720,7 +720,9 @@ class SQSNotificationHandler(
           fileCount = Some(version.fileCount.toInt),
           publishedAt = Some(version.createdAt),
           availableAt = version.embargoReleaseDate
-            .map(_.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime)
+            .map(_.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime),
+          resourceTypeGeneral = com.pennsieve.discover.clients.DoiClient
+            .resourceTypeGeneral(publicDataset.datasetType)
         )
       )
     } yield (doi)

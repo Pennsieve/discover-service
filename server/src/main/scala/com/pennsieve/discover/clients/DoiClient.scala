@@ -24,7 +24,7 @@ import com.pennsieve.discover.{
   UnauthorizedException
 }
 import com.pennsieve.discover.models._
-import com.pennsieve.models.License
+import com.pennsieve.models.{ DatasetType, License }
 
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future }
@@ -131,7 +131,8 @@ class DoiClient(
                   firstName = c.firstName,
                   lastName = c.lastName,
                   middleInitial = c.middleInitial,
-                  orcid = c.orcid
+                  orcid = c.orcid,
+                  nameType = c.nameType
                 )
             )
             .toVector,
@@ -176,7 +177,8 @@ class DoiClient(
           size = metadata.size,
           fileCount = metadata.fileCount,
           publishedAt = metadata.publishedAt,
-          availableAt = metadata.availableAt
+          availableAt = metadata.availableAt,
+          resourceTypeGeneral = metadata.resourceTypeGeneral
         ),
         headers
       )
@@ -335,4 +337,17 @@ class DoiClient(
         }
     )
 
+}
+
+object DoiClient {
+
+  /**
+    * DataCite's resource type for a dataset type: a code release is Software;
+    * others are left to doi-service (Dataset).
+    */
+  def resourceTypeGeneral(datasetType: DatasetType): Option[String] =
+    datasetType match {
+      case DatasetType.Release => Some("Software")
+      case _ => None
+    }
 }

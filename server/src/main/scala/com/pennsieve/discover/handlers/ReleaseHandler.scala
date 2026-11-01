@@ -187,7 +187,8 @@ class ReleaseHandler(
                     datasetId = publicDataset.id,
                     version = version.version,
                     sourceContributorId = c.id,
-                    sourceUserId = c.userId
+                    sourceUserId = c.userId,
+                    nameType = c.nameType
                   )
               }.toList)
               _ = ports.log.info(
