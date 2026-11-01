@@ -48,6 +48,7 @@ import com.pennsieve.models.{
 }
 import com.pennsieve.models.PublishStatus.PublishInProgress
 import com.pennsieve.test.EitherValue._
+import com.pennsieve.discover.db.profile.api._
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -626,6 +627,128 @@ class ReleaseHandlerSpec
           releaseStatus = None
         )
       )
+    }
+  }
+
+  "A failed release" should {
+    // publish a release and finalize it as failed; returns its version
+    def publishAndFail(label: String, marker: String) = {
+      val created = client
+        .publishRelease(
+          organizationId,
+          datasetId,
+          releaseRequest(origin, label, marker, repoUrl),
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishReleaseResponse.Created]
+        .value
+      client
+        .finalizeRelease(
+          organizationId,
+          datasetId,
+          com.pennsieve.discover.client.definitions.FinalizeReleaseRequest(
+            publishId = created.publishedDatasetId,
+            versionId = created.publishedVersionCount,
+            publishSuccess = false,
+            fileCount = 0,
+            totalSize = 0,
+            manifestKey = "",
+            manifestVersionId = ""
+          ),
+          authToken
+        )
+        .awaitFinite(Duration(30, TimeUnit.SECONDS))
+        .value
+        .asInstanceOf[FinalizeReleaseResponse.OK]
+      created
+    }
+
+    // a first release, published
+    def publishFirst() = {
+      val first = client
+        .publishRelease(
+          organizationId,
+          datasetId,
+          releaseRequest(origin, "v1.0.0", "a" * 40, repoUrl),
+          authToken
+        )
+        .awaitFinite()
+        .value
+        .asInstanceOf[PublishReleaseResponse.Created]
+        .value
+      ports.db
+        .run(
+          PublicDatasetVersionsMapper.setStatus(
+            first.publishedDatasetId,
+            first.publishedVersionCount,
+            PublishStatus.PublishSucceeded
+          )
+        )
+        .awaitFinite()
+      first
+    }
+
+    "be retried, though an earlier release is published" in {
+      publishFirst()
+      val failed = publishAndFail("v1.1.0", "b" * 40)
+
+      val retried = client
+        .publishRelease(
+          organizationId,
+          datasetId,
+          releaseRequest(origin, "v1.1.0", "b" * 40, repoUrl),
+          authToken
+        )
+        .awaitFinite()
+        .value
+      inside(retried) {
+        case PublishReleaseResponse.Created(r) =>
+          r.publishedVersionCount shouldBe failed.publishedVersionCount
+      }
+      // the first attempt's authors and works replaced, not added to
+      val (dataset, version) = ports.db
+        .run(for {
+          d <- PublicDatasetsMapper
+            .getDatasetFromSourceIds(organizationId, datasetId)
+          v <- PublicDatasetVersionsMapper
+            .getVersion(d.id, failed.publishedVersionCount)
+        } yield (d, v))
+        .awaitFinite()
+      ports.db
+        .run(
+          PublicContributorsMapper
+            .getContributorsByDatasetAndVersion(dataset, version)
+        )
+        .awaitFinite() should have length 1
+    }
+
+    "give way to the next release: its version is rolled back" in {
+      publishFirst()
+      val failed = publishAndFail("v1.1.0", "b" * 40)
+
+      val next = client
+        .publishRelease(
+          organizationId,
+          datasetId,
+          releaseRequest(origin, "v1.2.0", "c" * 40, repoUrl),
+          authToken
+        )
+        .awaitFinite()
+        .value
+      inside(next) {
+        case PublishReleaseResponse.Created(r) =>
+          r.publishedVersionCount shouldBe failed.publishedVersionCount
+      }
+      val releases = ports.db
+        .run(
+          PublicDatasetReleaseMapper
+            .filter(_.datasetId === failed.publishedDatasetId)
+            .result
+        )
+        .awaitFinite()
+      releases.map(_.label).sorted shouldBe List("v1.0.0", "v1.2.0")
     }
   }
 
