@@ -45,17 +45,26 @@ class MockPennsieveApiClient extends PennsieveApiClient {
       EitherT.pure(())
   }
 
+  val getDataUseAgreementRequests =
+    ListBuffer.empty[(Int, Int)]
+
   def getDataUseAgreement(
     sourceOrganizationId: Int,
     sourceDatasetId: Int
   )(implicit
     ec: ExecutionContext
-  ): EitherT[Future, HttpError, Option[DataUseAgreement]] =
-    EitherT.rightT(
-      Some(
-        DataUseAgreement(id = 12, name = "Agreement #1", body = "Legal Text")
+  ): EitherT[Future, HttpError, Option[DataUseAgreement]] = {
+    getDataUseAgreementRequests += ((sourceOrganizationId, sourceDatasetId))
+
+    if (sourceDatasetId == 404) // Magic number: source dataset not found
+      EitherT.leftT(HttpError(404, s"$sourceDatasetId not found"))
+    else
+      EitherT.rightT(
+        Some(
+          DataUseAgreement(id = 12, name = "Agreement #1", body = "Legal Text")
+        )
       )
-    )
+  }
 
   def getDatasetPreviewers(
     sourceOrganizationId: Int,
@@ -84,6 +93,7 @@ class MockPennsieveApiClient extends PennsieveApiClient {
   def clear(): Unit = {
     publishCompleteRequests.clear()
     startReleaseRequests.clear()
+    getDataUseAgreementRequests.clear()
   }
 
   def requestPreview(
