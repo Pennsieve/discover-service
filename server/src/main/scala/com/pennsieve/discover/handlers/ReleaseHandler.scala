@@ -19,7 +19,8 @@ import com.pennsieve.discover.db.{
   PublicDatasetVersionsMapper,
   PublicDatasetsMapper,
   PublicExternalPublicationsMapper,
-  PublicFileVersionsMapper
+  PublicFileVersionsMapper,
+  SerializableRetry
 }
 import com.pennsieve.discover.db.profile.api._
 import com.pennsieve.discover.logging.{
@@ -69,7 +70,6 @@ import com.pennsieve.models.{
 import com.pennsieve.service.utilities.LogContext
 import io.circe.DecodingFailure
 import slick.dbio.{ DBIO, DBIOAction }
-import slick.jdbc.TransactionIsolation
 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.control.NonFatal
@@ -271,11 +271,7 @@ class ReleaseHandler(
 
             } yield respond.Created(response)
 
-            ports.db
-              .run(
-                query.transactionally
-                  .withTransactionIsolation(TransactionIsolation.Serializable)
-              )
+            SerializableRetry.run(ports.db, query)
           }
 
     }.recover {
@@ -382,11 +378,7 @@ class ReleaseHandler(
 
       } yield respond.OK(response)
 
-      ports.db
-        .run(
-          query.transactionally
-            .withTransactionIsolation(TransactionIsolation.Serializable)
-        )
+      SerializableRetry.run(ports.db, query)
 
     }.recover {
       case UnauthorizedException => respond.Unauthorized
