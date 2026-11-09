@@ -229,22 +229,10 @@ resource "aws_ssm_parameter" "discover_elasticsearch_port" {
 
 // EXTERNAL PUBLISH BUCKETS CONFIGURATION
 //    SPARC
-resource "aws_ssm_parameter" "sparc_publish_bucket" {
-  name  = "/${var.environment_name}/${var.service_name}/sparc-publish-bucket"
-  type  = "String"
-  value = data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish_bucket_id
-}
-
 resource "aws_ssm_parameter" "sparc_embargo_bucket" {
   name  = "/${var.environment_name}/${var.service_name}/sparc-embargo-bucket"
   type  = "String"
   value = data.terraform_remote_state.platform_infrastructure.outputs.sparc_embargo_bucket_id
-}
-
-resource "aws_ssm_parameter" "sparc_publish_50_bucket" {
-  name  = "/${var.environment_name}/${var.service_name}/sparc-publish-50-bucket"
-  type  = "String"
-  value = data.terraform_remote_state.platform_infrastructure.outputs.sparc_publish50_bucket_id
 }
 
 resource "aws_ssm_parameter" "sparc_embargo_50_bucket" {
