@@ -164,8 +164,6 @@ trait ServiceSpecHarness
       download = DownloadConfiguration(512.megabytes, 5.megabytes),
       athena = AthenaConfig(
         pennsieveBucketAccessTable = "s3_access_logs_db.discover",
-        sparcBucketAccessTable =
-          "sparc_glue_catalog.dev_s3_access_logs_db.discover",
         rejoinBucketAccessTable =
           "rejoin_glue_catalog.dev_s3_access_logs_db.discover",
         sparcAodBucketAccessTable =
