@@ -20,7 +20,6 @@ trait AthenaClient {
 
 class AthenaClientImpl(
   val pennsieveTable: String,
-  val sparcTable: String,
   val rejoinTable: String,
   val sparcAodTable: String
 ) extends AthenaClient {
@@ -35,8 +34,6 @@ class AthenaClientImpl(
     println(endDate)
     DB.athena { implicit s =>
       sql"""${tableQuery(pennsieveTable, startDate, endDate)}
-            | UNION
-            | ${tableQuery(sparcTable, startDate, endDate)}
             | UNION
             | ${tableQuery(rejoinTable, startDate, endDate)}
             | UNION

@@ -26,10 +26,6 @@ variable "glue_db_name" {
   default = "s3_access_logs_db"
 }
 
-variable "sparc_glue_catalog" {
-  default = "sparc_glue_catalog"
-}
-
 variable "rejoin_glue_catalog" {
   default = "rejoin_glue_catalog"
 }
