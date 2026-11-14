@@ -95,6 +95,14 @@ object Search extends StrictLogging {
                             case e: S3Exception =>
                               ports.log
                                 .error(s"Could not get readme from S3", e)
+                            // Reading the version's records failed, e.g. its
+                            // bucket is gone: skip this dataset, not the sync.
+                            case e: akka.stream.alpakka.s3.S3Exception =>
+                              ports.log
+                                .error(
+                                  s"Could not read dataset from S3; not indexed",
+                                  e
+                                )
                           }
                         }
                       }
